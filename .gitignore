@@ -1,0 +1,47 @@
+# Node / JS
+node_modules/
+dist/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+
+# Expo / React Native
+.expo/
+.expo-shared/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+packages/ear-dream-app/ios/
+packages/ear-dream-app/android/
+
+# Python
+.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# OS
+.DS_Store
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# 생성물 — pnpm generate:api-types 로 재생성한다
+packages/core/openapi.json
+packages/core/src/generated/
+
+# 팀 내부용 메모 (public 레포이므로 커밋하지 않는다)
+CLAUDE.local.md

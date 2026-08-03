@@ -1,0 +1,16 @@
+{
+  "name": "ear-dream-core",
+  "private": true,
+  "packageManager": "pnpm@11.18.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:app": "pnpm --filter @ear-dream/app dev",
+    "dev:api": "cd packages/ear-dream-api && uv run fastapi dev app/main.py",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "lint:api": "cd packages/ear-dream-api && uv run ruff check .",
+    "test:api": "cd packages/ear-dream-api && uv run pytest",
+    "generate:api-types": "./scripts/generate-api-types.sh"
+  }
+}

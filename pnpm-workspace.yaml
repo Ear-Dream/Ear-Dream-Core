@@ -1,0 +1,11 @@
+packages:
+  # ear-dream-api 는 Python 프로젝트라 pnpm 워크스페이스에 포함하지 않는다.
+  - "packages/core"
+  - "packages/ear-dream-app"
+
+# TypeScript 버전은 Expo SDK 57 이 고정한 ~6.0.3 에 맞춘다.
+# openapi-typescript 7.13.0 은 아직 peer 로 ^5.x 를 요구하지만, 코드 생성과
+# 타입체크 모두 6.0.3 에서 정상 동작하는 것을 확인했으므로 예외 처리한다.
+peerDependencyRules:
+  allowedVersions:
+    "openapi-typescript>typescript": "6"

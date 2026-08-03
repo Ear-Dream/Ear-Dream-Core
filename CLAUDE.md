@@ -1,0 +1,35 @@
+# Ear Dream Core
+
+한손 수어 인식 실시간 통역 서비스 MVP. pnpm workspace 모노레포.
+
+- `packages/ear-dream-api` — FastAPI (Python 3.12+, uv). 의존성 추가는 `uv add`, 실행은 `uv run`.
+- `packages/ear-dream-app` — Expo / React Native (TypeScript). 패키지명 `@ear-dream/app`.
+- `packages/core` — 공유 API 계약 (`@ear-dream/core`). `src/generated/`는 생성물이니 직접 수정하지 말 것.
+
+`ear-dream-api`는 Python 프로젝트라 pnpm 워크스페이스에 포함되지 않는다.
+
+## API 계약 규칙
+
+API 타입의 단일 진실 공급원은 `packages/ear-dream-api/app/schemas/`의 Pydantic 모델이다.
+프론트에서 요청/응답 타입을 손으로 정의하지 말고 `@ear-dream/core`에서 import한다.
+
+스키마나 라우트를 변경한 뒤에는 반드시 `pnpm generate:api-types`를 실행한다.
+
+FastAPI는 라우트가 참조하는 모델만 OpenAPI로 내보낸다. 어떤 엔드포인트도 쓰지 않는
+Pydantic 모델은 생성된 TS에 나타나지 않는다.
+
+## 버전 고정 사항
+
+TypeScript는 Expo SDK 57이 고정한 `~6.0.3`에 맞춰 `core`와 `app` 양쪽을 통일해 두었다.
+한쪽만 올리지 말 것. `openapi-typescript`의 TS peer 예외는 `pnpm-workspace.yaml`에 명시되어 있다.
+
+## 검증
+
+변경 후에는 레포 최상위에서 `pnpm typecheck`와 `pnpm test:api`를 돌린다.
+
+## 미확정 항목 다루기
+
+인식 정확도 목표치, 허용 지연 시간(ms), 후보 개수 N, 확정 방식(터치/제스처) 등은
+사용자 검증과 실측 전까지 확정되지 않은 값이다. 그럴듯한 숫자를 임의로 채워 넣고
+확정된 것처럼 코드나 문서에 박아두지 말 것. 값이 필요하면 프로토타입용 임시값임을
+명시하고, 근거가 없다는 사실을 드러낸다.
