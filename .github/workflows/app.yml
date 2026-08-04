@@ -41,7 +41,9 @@ jobs:
 
       # 생성된 타입은 커밋하지 않으므로 CI 에서 직접 만든다.
       # openapi.json 을 뽑으려면 FastAPI 앱을 import 해야 해서 Python 이 필요하다.
-      - uses: astral-sh/setup-uv@v9
+      # setup-uv 는 v8 부터 플로팅 major 태그(v8, v9)를 발행하지 않는다.
+      # 정확한 릴리스 태그로 고정해야 한다.
+      - uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
           cache-dependency-glob: packages/ear-dream-api/uv.lock
