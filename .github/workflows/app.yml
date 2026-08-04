@@ -1,0 +1,65 @@
+name: App
+
+# core 의 TypeScript 타입은 FastAPI 스키마에서 생성되므로,
+# API 를 고쳐도 앱 타입이 깨질 수 있다. 그래서 API 변경에도 이 워크플로가 돈다.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/**"
+      - ".github/workflows/app.yml"
+  pull_request:
+    paths:
+      - "packages/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "scripts/**"
+      - ".github/workflows/app.yml"
+
+concurrency:
+  group: app-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      # 생성된 타입은 커밋하지 않으므로 CI 에서 직접 만든다.
+      # openapi.json 을 뽑으려면 FastAPI 앱을 import 해야 해서 Python 이 필요하다.
+      - uses: astral-sh/setup-uv@v9
+        with:
+          enable-cache: true
+          cache-dependency-glob: packages/ear-dream-api/uv.lock
+
+      - name: 의존성 설치
+        run: pnpm install --frozen-lockfile
+
+      - name: API 의존성 설치
+        run: uv sync --locked
+        working-directory: packages/ear-dream-api
+
+      - name: API 타입 생성
+        run: pnpm generate:api-types
+
+      - name: 타입 검사
+        run: pnpm typecheck
+
+      # 타입 검사는 Metro 번들링 실패를 잡지 못한다.
+      # (선언하지 않은 패키지 import, 모듈 해석 실패 등)
+      - name: 번들 검사
+        run: pnpm --filter @ear-dream/app exec expo export --platform ios --output-dir /tmp/expo-bundle-check

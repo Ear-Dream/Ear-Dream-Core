@@ -1,0 +1,44 @@
+name: API
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/ear-dream-api/**"
+      - ".github/workflows/api.yml"
+  pull_request:
+    paths:
+      - "packages/ear-dream-api/**"
+      - ".github/workflows/api.yml"
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/ear-dream-api
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: astral-sh/setup-uv@v9
+        with:
+          enable-cache: true
+          cache-dependency-glob: packages/ear-dream-api/uv.lock
+
+      # --locked: uv.lock 이 pyproject.toml 과 어긋나면 실패시킨다.
+      - name: 의존성 설치
+        run: uv sync --locked
+
+      - name: 린트
+        run: uv run ruff check .
+
+      - name: 포맷 검사
+        run: uv run ruff format --check .
+
+      - name: 테스트
+        run: uv run pytest
