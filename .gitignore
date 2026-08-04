@@ -43,5 +43,10 @@ packages/ear-dream-app/android/
 packages/core/openapi.json
 packages/core/src/generated/
 
+# 생성물 — pnpm setup:mediapipe 로 재생성한다
+# WASM 런타임(약 44MB)과 손 랜드마크 모델(약 7.5MB). 재다운로드가 가능하고 라이선스가
+# 별도인 바이너리라 public 레포에 커밋하지 않는다.
+packages/ear-dream-app/public/mediapipe/
+
 # 팀 내부용 메모 (public 레포이므로 커밋하지 않는다)
 CLAUDE.local.md

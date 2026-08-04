@@ -159,6 +159,7 @@ const { data, error } = await api.GET('/api/v1/phrases', {
 | `pnpm test:api` | API 테스트 |
 | `pnpm lint:api` | API 린트 |
 | `pnpm generate:api-types` | API 타입 생성 |
+| `pnpm setup:mediapipe` | MediaPipe WASM·모델 내려받기 |
 
 ## 현재 상태
 
@@ -183,8 +184,7 @@ const { data, error } = await api.GET('/api/v1/phrases', {
 
 M2까지 완성되면 단일 기기에서 핵심 가설을 검증할 수 있다. 초기 어휘는 5~10개로 제한한다.
 
-M0의 손 랜드마크 추출(MediaPipe)은 네이티브 모듈을 필요로 하므로 Expo Go에서 동작하지 않는다.
-해당 시점에 development build(`npx expo prebuild`)로 전환한다.
+M0의 손 랜드마크 추출은 현재 웹에서만 동작한다. `pnpm dev:web`으로 확인용 화면을 볼 수 있다.
 
 인식 정확도, 허용 지연 시간, 후보 개수는 아직 확정되지 않았다. 사용자 검증과 실측 전까지
 임의의 값을 목표치로 사용하지 않는다.

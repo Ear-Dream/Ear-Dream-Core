@@ -1,34 +1,16 @@
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { SafeAreaView, StyleSheet } from 'react-native';
 
-import type { PresetPhrase } from '@ear-dream/core';
+import { LandmarkDevScreen } from './src/features/recognition/LandmarkDevScreen';
 
-import { api } from './src/api';
-
+// M0 단계라 진입점이 곧 개발용 확인 화면이다. 화면이 여러 개 필요해지면
+// expo-router 도입을 팀과 결정한다(미도입).
 export default function App() {
-  const [phrases, setPhrases] = useState<PresetPhrase[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    api
-      .GET('/api/v1/phrases', { params: { query: {} } })
-      .then(({ data, error }) => {
-        if (error) {
-          setError('API 응답 오류');
-          return;
-        }
-        setPhrases(data ?? []);
-      })
-      .catch(() => setError('API 서버에 연결할 수 없습니다'));
-  }, []);
-
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Ear Dream</Text>
-      <Text>{error ?? `상황 문장 ${phrases.length}개 로드됨`}</Text>
+    <SafeAreaView style={styles.container}>
+      <LandmarkDevScreen />
       <StatusBar style="auto" />
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -36,12 +18,5 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '600',
-    marginBottom: 8,
   },
 });
