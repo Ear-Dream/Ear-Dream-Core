@@ -141,6 +141,6 @@ pnpm generate:api-types
 
 ## 알려진 제약
 
-- 손 랜드마크 추출(MediaPipe)은 네이티브 모듈이 필요해 Expo Go에서 동작하지 않는다.
+- 손·얼굴 랜드마크 추출(MediaPipe)은 네이티브 모듈이 필요해 Expo Go에서 동작하지 않는다.
   해당 작업 시점에 development build(`npx expo prebuild`) 전환이 필요하다
 - 웹에서는 카메라 기반 기능을 그대로 검증할 수 없다
