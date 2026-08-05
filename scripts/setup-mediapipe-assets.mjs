@@ -1,10 +1,10 @@
 /**
- * MediaPipe 실행에 필요한 WASM 런타임과 손 랜드마크 모델을 앱의 public/ 아래로 준비한다.
+ * MediaPipe 실행에 필요한 WASM 런타임과 랜드마크 모델(손 · 얼굴)을 앱의 public/ 아래로 준비한다.
  *
  * CDN 직로드를 쓰지 않는 이유: 데모 현장 네트워크에 의존하게 된다.
  * 대신 설치 시점에 한 번 로컬로 받아두고, 실행 중에는 같은 오리진에서만 읽는다.
  *
- * 산출물은 .gitignore 되어 있다 (WASM 약 46MB + 모델 약 7.5MB). 재생성이 가능하고
+ * 산출물은 .gitignore 되어 있다 (실측 약 45MB — WASM 약 34MB + 모델 약 11MB). 재생성이 가능하고
  * 라이선스가 별도인 바이너리를 public 레포에 커밋하지 않기 위해서다.
  */
 import { createRequire } from 'node:module';
@@ -17,9 +17,23 @@ const appRoot = join(root, 'packages', 'ear-dream-app');
 const publicRoot = join(appRoot, 'public', 'mediapipe');
 
 // 모델 파일. 버전 디렉토리(.../1/)가 URL 에 포함되어 있으므로 갱신 시 URL 을 함께 올린다.
-const MODEL_URL =
-  'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
-const MODEL_FILENAME = 'hand_landmarker.task';
+//
+// 손과 얼굴을 따로 받는다. Holistic 단일 번들을 쓰지 않는 이유는 useLandmarker.web.ts 주석 참고
+// (손을 좌우로 미리 갈라서 주기 때문에 지금 검증해야 할 handedness 라벨이 모델 안으로 숨는다).
+const MODELS = [
+  {
+    label: '손 랜드마크 모델',
+    filename: 'hand_landmarker.task',
+    sizeHint: '약 7.5MB',
+    url: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
+  },
+  {
+    label: '얼굴 랜드마크 모델',
+    filename: 'face_landmarker.task',
+    sizeHint: '약 3.7MB',
+    url: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
+  },
+];
 
 async function exists(path) {
   try {
@@ -79,18 +93,19 @@ async function copyLibraryBundle(packageDir) {
   await cp(join(packageDir, '..', 'vision_bundle.js'), target);
 }
 
-async function downloadModel() {
-  const target = join(publicRoot, 'models', MODEL_FILENAME);
+async function downloadModel({ label, filename, sizeHint, url }) {
+  const target = join(publicRoot, 'models', filename);
 
+  // 파일 단위로 확인한다. 손 모델만 받아둔 기존 작업 환경에서도 얼굴 모델만 추가로 받게 된다.
   if (await exists(target)) {
-    console.log('==> 손 랜드마크 모델 이미 존재, 건너뜀');
+    console.log(`==> ${label} 이미 존재, 건너뜀`);
     return;
   }
 
-  console.log(`==> 손 랜드마크 모델 다운로드 중 (약 7.5MB)`);
-  const response = await fetch(MODEL_URL);
+  console.log(`==> ${label} 다운로드 중 (${sizeHint})`);
+  const response = await fetch(url);
   if (!response.ok) {
-    console.error(`\n모델 다운로드 실패: HTTP ${response.status} ${MODEL_URL}`);
+    console.error(`\n모델 다운로드 실패: HTTP ${response.status} ${url}`);
     process.exit(1);
   }
 
@@ -101,5 +116,7 @@ async function downloadModel() {
 const wasmDir = resolvePackageDir();
 await copyWasmRuntime(wasmDir);
 await copyLibraryBundle(wasmDir);
-await downloadModel();
+for (const model of MODELS) {
+  await downloadModel(model);
+}
 console.log('==> 완료');

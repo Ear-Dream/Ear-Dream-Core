@@ -1,5 +1,5 @@
 /**
- * 손 랜드마크 추출 설정값.
+ * 랜드마크 추출 설정값.
  *
  * 여기 있는 값 중 제품 사양으로 확정된 것은 하나도 없다. 목표 FPS, 허용 지연, 신뢰도 임계값,
  * 시간창 프레임 수는 실측과 사용자 검증 전까지 정해지지 않았다. 그럴듯한 숫자를 코드에 박아
@@ -8,6 +8,13 @@
 
 /** MVP 제약상 손은 최대 2개. T-03 은 양손 모두 검출하고 선택은 하지 않는다(T-04). */
 export const MAX_HANDS = 2;
+
+/**
+ * 얼굴은 1개만 검출한다.
+ * 입력은 사용자 본인의 비수지신호(눈썹·시선·입모양·고개)이지 대화 상대의 얼굴이 아니다.
+ * 셀프카메라에 상대 얼굴이 함께 잡히는 상황은 MVP 범위 밖이다.
+ */
+export const MAX_FACES = 1;
 
 /** FPS 이동평균 표본 수. 작업 지시서에 명시된 값(최근 30프레임)이라 임의값이 아니다. */
 export const FPS_SAMPLE_WINDOW = 30;
@@ -20,12 +27,55 @@ export const FPS_SAMPLE_WINDOW = 30;
 export const HUD_UPDATE_INTERVAL_MS = 250;
 
 /**
+ * 얼굴 검출 주기(프레임 단위). 1 이면 손과 같은 프레임에서 매번 처리한다.
+ *
+ * 이 기본값 1 은 튜닝 결과가 아니라 "아직 측정하지 않았다" 는 뜻이다.
+ * 얼굴을 추가하면 프레임 처리율이 떨어지고, 표정은 손보다 천천히 변하므로 얼굴만 더 낮은
+ * 주기로 뽑는 선택지가 있다. 다만 그 판단은 실측이 먼저다 — 개발 화면에서 이 값을 바꿔가며
+ * FPS 와 단계별 처리 시간을 비교할 수 있게 해 두었다. 근거가 생기면 그때 이 값을 올린다.
+ */
+export const FACE_DETECT_EVERY_N_FRAMES = 1;
+
+/**
+ * 추론 백엔드. tasks-vision 의 기본값은 CPU 라서 명시하지 않으면 CPU 로 돈다.
+ *
+ * 이 값이 중요한 이유는 성능 자체가 아니라 **측정의 타당성**이다. T-03 의 산출물은 설계 문서의
+ * `TARGET_FPS` 를 정할 FPS 수치인데, 출하 구성과 다른 백엔드로 잰 숫자는 근거가 되지 못한다.
+ * CPU 로 재면 얼굴 추가가 실제보다 훨씬 무거워 보이고, 그 결과 필요 없는 프레임 스킵을 켜게 된다.
+ *
+ * 개발 환경(M3 Pro / Chrome, 1280x720) 실측:
+ *   CPU  손 24.9ms + 얼굴 16.6ms = 41.5ms  (약 24fps 천장)
+ *   GPU  손  5.2ms + 얼굴  2.6ms          (둘을 동시에 띄워 번갈아 호출 시 13.2ms, 약 76fps 천장)
+ * ⚠️ 이건 개발용 Mac 값이지 실기기 값이 아니다. 실기기 수치는 여전히 미측정이다.
+ *
+ * GPU 생성이 실패하면 CPU 로 자동 폴백한다(WebGL 이 없는 환경이 있을 수 있다).
+ * 어느 쪽으로 돌고 있는지는 개발 화면 HUD 에 표시된다 — 백엔드를 모르는 FPS 기록은 쓸모가 없다.
+ */
+export const LANDMARKER_DELEGATE = 'GPU' as const;
+
+/**
  * 검출 신뢰도 임계값은 의도적으로 지정하지 않는다.
  *
- * minHandDetectionConfidence / minHandPresenceConfidence / minTrackingConfidence 는
+ * min{Hand,Face}DetectionConfidence / min...PresenceConfidence / minTrackingConfidence 는
  * 라이브러리 기본값(각 0.5)을 그대로 쓴다. 이 프로젝트에 맞는 값은 실측 전까지 알 수 없고,
  * 여기에 임의의 숫자를 적으면 그게 검증된 튜닝값처럼 굳는다.
  * 실측으로 근거가 생기면 그때 이 파일에 추가한다.
+ */
+
+/**
+ * `outputFaceBlendshapes` 는 켜지 않는다.
+ *
+ * 표정을 52개 스칼라로 요약해 주는 편리한 출력이지만, 그건 이미 전처리다. 프론트는 가공하지
+ * 않은 랜드마크를 그대로 보내고 축약은 서버 전처리 모듈 한 곳에서만 한다(설계 결정 1).
+ * 여기서 blendshape 을 뽑아 쓰기 시작하면 학습 코드와 다른 두 번째 전처리 경로가 생긴다.
+ *
+ * 방향도 반대다. T-04 는 얼굴을 스칼라로 압축하는 대신 **메쉬에서 지점을 골라 좌표 그대로**
+ * 쓰기로 하고 있다(레퍼런스들이 수십 점 규모를 쓰고, 전체를 넣으면 오히려 나빠진다는 근거).
+ * 그 지점 선택의 입력이 아래의 원본 메쉬다.
+ * ※ T-04 페이지는 제목·로드맵(스칼라)과 배경·기대결과(좌표 부분집합)가 아직 서로 어긋나 있다.
+ *   어느 쪽이든 프론트가 원본을 그대로 넘긴다는 이 판단은 바뀌지 않는다.
+ *
+ * 켜지 않으면 얼굴 추론 패스도 하나 줄어든다 — 아키텍처 근거와 성능 근거가 같은 쪽이다.
  */
 
 /**
@@ -36,6 +86,7 @@ export const HUD_UPDATE_INTERVAL_MS = 250;
  */
 export const MEDIAPIPE_WASM_PATH = '/mediapipe/wasm';
 export const HAND_LANDMARKER_MODEL_PATH = '/mediapipe/models/hand_landmarker.task';
+export const FACE_LANDMARKER_MODEL_PATH = '/mediapipe/models/face_landmarker.task';
 
 /**
  * MediaPipe 라이브러리 본체(IIFE 빌드). 번들러가 아니라 런타임 <script> 로 읽는다.

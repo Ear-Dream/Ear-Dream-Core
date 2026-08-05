@@ -1,5 +1,5 @@
 /**
- * 손 랜드마크 육안 검증 뷰 — 네이티브(기본) 구현.
+ * 손 · 얼굴 랜드마크 육안 검증 뷰 — 네이티브(기본) 구현.
  *
  * MediaPipe tasks-vision 은 브라우저 WASM 기반이라 Expo Go 를 포함한 네이티브에서 동작하지 않는다.
  * T-03 시점에서는 알려진 정상 상태이므로, 실패처럼 보이지 않게 안내만 띄운다.
@@ -12,7 +12,7 @@ export function CameraLandmarkView() {
     <View style={styles.container} testID="landmark-unsupported">
       <Text style={styles.title}>웹에서만 동작합니다</Text>
       <Text style={styles.body}>
-        손 랜드마크 추출은 브라우저 WASM 기반이라 Expo Go 에서는 실행되지 않습니다.
+        손 · 얼굴 랜드마크 추출은 브라우저 WASM 기반이라 Expo Go 에서는 실행되지 않습니다.
         {'\n\n'}
         터미널에서 <Text style={styles.code}>pnpm dev:web</Text> 으로 브라우저에서 확인하세요.
       </Text>

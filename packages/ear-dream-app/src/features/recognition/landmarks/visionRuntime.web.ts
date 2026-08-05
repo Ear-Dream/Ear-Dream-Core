@@ -17,7 +17,7 @@
  * 완전히 사라지므로 Metro 가 라이브러리를 볼 일이 없고, 타입 안전성은 그대로 유지된다.
  * 즉 API 형태가 바뀌면 여전히 `pnpm typecheck` 에서 잡힌다.
  */
-import type { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+import type { FaceLandmarker, FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
 
 import { MEDIAPIPE_BUNDLE_PATH } from './config';
 
@@ -25,6 +25,7 @@ import { MEDIAPIPE_BUNDLE_PATH } from './config';
 export interface VisionRuntime {
   FilesetResolver: typeof FilesetResolver;
   HandLandmarker: typeof HandLandmarker;
+  FaceLandmarker: typeof FaceLandmarker;
 }
 
 let cached: VisionRuntime | null = null;
@@ -32,7 +33,10 @@ let pending: Promise<VisionRuntime> | null = null;
 
 function readGlobal(): VisionRuntime | null {
   const candidate = (globalThis as { Vision?: VisionRuntime }).Vision;
-  return candidate?.HandLandmarker && candidate.FilesetResolver ? candidate : null;
+  // 셋 다 확인한다. 하나라도 없으면 번들이 예상과 다른 것이므로 아래에서 명시적으로 실패시킨다.
+  return candidate?.HandLandmarker && candidate.FaceLandmarker && candidate.FilesetResolver
+    ? candidate
+    : null;
 }
 
 export function loadVisionRuntime(): Promise<VisionRuntime> {
@@ -55,7 +59,11 @@ export function loadVisionRuntime(): Promise<VisionRuntime> {
       const runtime = readGlobal();
       if (!runtime) {
         pending = null;
-        reject(new Error(`${MEDIAPIPE_BUNDLE_PATH} 를 읽었지만 Vision 전역을 찾지 못했습니다.`));
+        reject(
+          new Error(
+            `${MEDIAPIPE_BUNDLE_PATH} 를 읽었지만 Vision 전역에서 HandLandmarker/FaceLandmarker 를 찾지 못했습니다.`,
+          ),
+        );
         return;
       }
       cached = runtime;
