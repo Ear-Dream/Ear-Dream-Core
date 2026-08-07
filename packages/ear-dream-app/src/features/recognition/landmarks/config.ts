@@ -95,12 +95,25 @@ export const FACE_LANDMARKER_MODEL_PATH = '/mediapipe/models/face_landmarker.tas
 export const MEDIAPIPE_BUNDLE_PATH = '/mediapipe/vision_bundle.js';
 
 /**
- * 카메라 요청 해상도. 브라우저가 정확히 이 값을 준다는 보장은 없고 ideal 힌트일 뿐이다.
- * 실제 해상도는 video.videoWidth/Height 로 읽어서 쓴다.
+ * 카메라 요청 해상도 — 세로 구도(9:16)를 요청한다.
+ *
+ * 서비스 자세는 "왼손으로 폰을 세로로 들기"라서 입력도 세로 프레임이어야 한다. 가로 프레임을
+ * 세로 카드에 cover 로 잘라 보여주면, 화면에 안 보이는 좌우 영역의 손·얼굴까지 검출 대상이 되어
+ * 표시와 검출이 어긋난다(MAX_FACES=1 이라 화면 밖 얼굴이 유일한 검출 슬롯을 차지할 수 있다).
+ *
+ * ⚠️ 종횡비는 학습 데이터와 직결된다. MediaPipe 정규화 좌표는 x 를 너비로, y 를 높이로 나누므로
+ * x·y 를 섞는 특징값이 전부 종횡비에 의존한다. 이 값을 바꾸면 그 전에 모은 데이터와 특징값이
+ * 어긋난다 — 그래서 학습 데이터 수집을 시작하기 전인 지금 바꾼다.
+ *
+ * 브라우저가 정확히 이 값을 준다는 보장은 없고 ideal 힌트일 뿐이다. 특히 데스크톱 웹캠은
+ * 하드웨어가 가로라 세로를 요청해도 가로(예: 640x480)로 응답할 수 있다. 개발 화면 HUD 의
+ * "입력 해상도"로 실제 값을 확인하라. 실제 해상도는 video.videoWidth/Height 로 읽어서 쓰고,
+ * 서버 전송 시에도 실측값(sourceWidth/Height)을 함께 싣는다(스키마 재설계 항목 참고).
  * 해상도와 FPS 의 교환비는 실측 항목이라 아직 확정하지 않았다.
  */
 export const CAMERA_CONSTRAINTS_HINT = {
-  width: { ideal: 1280 },
-  height: { ideal: 720 },
+  width: { ideal: 720 },
+  height: { ideal: 1280 },
+  aspectRatio: { ideal: 9 / 16 },
   facingMode: 'user',
 } as const;
