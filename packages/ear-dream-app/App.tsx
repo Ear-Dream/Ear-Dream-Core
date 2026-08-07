@@ -1,12 +1,13 @@
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, StyleSheet } from 'react-native';
 
-import { SentenceComposerScreen } from './src/features/composer/SentenceComposerScreen';
+import { colors } from './src/constants/theme';
+import { AppNavigator } from './src/navigation/AppNavigator';
 
 export default function App() {
   return (
     <SafeAreaView style={styles.container}>
-      <SentenceComposerScreen />
+      <AppNavigator />
       <StatusBar style="auto" />
     </SafeAreaView>
   );
@@ -15,6 +16,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: colors.background,
   },
 });

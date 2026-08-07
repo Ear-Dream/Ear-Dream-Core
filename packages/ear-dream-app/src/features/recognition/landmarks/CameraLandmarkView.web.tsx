@@ -20,9 +20,10 @@ import { useCallback, useRef, useState } from 'react';
 
 import { FACE_DETECT_EVERY_N_FRAMES, LANDMARKER_DELEGATE } from './config';
 import { HANDEDNESS_VERIFIED, PREVIEW_MIRRORED } from './handedness';
+import type { OverlayColors } from './overlay.web';
+import { drawSnapshot } from './overlay.web';
 import type { LandmarkerDelegate, LandmarkSnapshot } from './types';
 import { useLandmarker } from './useLandmarker.web';
-import { getVisionRuntime } from './visionRuntime.web';
 
 // 손별 색. handedness 라벨에 따라 색을 다르게 줘서 어떤 라벨이 붙었는지 눈으로 바로 구분되게 한다.
 // 실측에 필요한 정보라 임의의 배색이 아니다.
@@ -31,111 +32,18 @@ const HAND_COLORS: Record<string, string> = {
   Right: '#f6902f',
 };
 const UNKNOWN_HAND_COLOR = '#9aa0a6';
-// 얼굴은 손과 확실히 구분되는 색으로 둔다. 손 위에 얼굴 점이 겹쳐 보여도 헷갈리지 않게.
-const FACE_COLOR = '#31c48d';
+
+// 개발 화면 오버레이 배색. 얼굴은 손과 확실히 구분되는 색으로 둔다.
+// 그리기 자체는 overlay.web.ts 로 추출되어 제품 화면(SignCameraView.web)과 공유한다.
+const DEV_OVERLAY_COLORS: OverlayColors = {
+  handColors: HAND_COLORS,
+  fallbackHandColor: UNKNOWN_HAND_COLOR,
+  handPointColor: '#ffffff',
+  faceColor: '#31c48d',
+};
 
 /** 개발 화면에서 골라볼 수 있는 얼굴 검출 주기. 확정값이 아니라 비교용 선택지다. */
 const FACE_INTERVAL_CHOICES = [1, 2, 3] as const;
-
-function drawHands(
-  context: CanvasRenderingContext2D,
-  snapshot: LandmarkSnapshot,
-  width: number,
-  height: number,
-): void {
-  // 뼈대 연결 정보는 라이브러리 상수를 쓴다(직접 정의하지 않는다).
-  // 프레임이 오는 시점에는 이미 로드가 끝나 있으므로 여기서는 동기 접근으로 충분하다.
-  const connections = getVisionRuntime()?.HandLandmarker.HAND_CONNECTIONS ?? [];
-
-  for (const hand of snapshot.hands) {
-    const color = HAND_COLORS[hand.handednessLabel] ?? UNKNOWN_HAND_COLOR;
-
-    context.strokeStyle = color;
-    context.lineWidth = Math.max(2, width / 320);
-    context.beginPath();
-    for (const connection of connections) {
-      const from = hand.landmarks[connection.start];
-      const to = hand.landmarks[connection.end];
-      if (!from || !to) continue;
-      context.moveTo(from.x * width, from.y * height);
-      context.lineTo(to.x * width, to.y * height);
-    }
-    context.stroke();
-
-    context.fillStyle = '#ffffff';
-    const radius = Math.max(3, width / 220);
-    for (const point of hand.landmarks) {
-      context.beginPath();
-      context.arc(point.x * width, point.y * height, radius, 0, Math.PI * 2);
-      context.fill();
-    }
-  }
-}
-
-function drawFace(
-  context: CanvasRenderingContext2D,
-  snapshot: LandmarkSnapshot,
-  width: number,
-  height: number,
-): void {
-  // 그리는 데는 표시용 값을 쓴다. snapshot.face(관측값)는 건너뛴 프레임에서 null 이라
-  // 그대로 그리면 오버레이가 깜빡인다. 대신 재사용된 값은 아래에서 흐리게 표시한다.
-  const face = snapshot.displayFace;
-  if (!face) return;
-
-  // 윤곽선만 그린다. TESSELATION 은 선이 2,600개가 넘어서 그리는 비용이 검출 비용을 압도하고,
-  // 그러면 화면의 FPS 가 "얼굴 검출이 얼마나 무거운가" 가 아니라 "메쉬를 그리는 게 얼마나 무거운가"
-  // 를 재게 된다. 작업 지시서도 얼굴은 점만 찍어도 충분하다고 본다.
-  const connections = getVisionRuntime()?.FaceLandmarker.FACE_LANDMARKS_CONTOURS ?? [];
-
-  // 건너뛴 프레임의 재사용 값이면 흐리게 그린다. 지금 검출된 것과 눈으로 구분되게 하기 위해서다.
-  context.save();
-  if (snapshot.face !== face) context.globalAlpha = 0.35;
-
-  context.strokeStyle = FACE_COLOR;
-  context.lineWidth = Math.max(1, width / 640);
-  context.beginPath();
-  for (const connection of connections) {
-    const from = face.landmarks[connection.start];
-    const to = face.landmarks[connection.end];
-    if (!from || !to) continue;
-    context.moveTo(from.x * width, from.y * height);
-    context.lineTo(to.x * width, to.y * height);
-  }
-  context.stroke();
-
-  // 점 478개를 개별 path 로 그리면 그리기 비용이 눈에 띈다. 하나의 path 에 모아 한 번만 채운다.
-  const radius = Math.max(1, width / 900);
-  context.fillStyle = FACE_COLOR;
-  context.beginPath();
-  for (const point of face.landmarks) {
-    const x = point.x * width;
-    const y = point.y * height;
-    context.moveTo(x + radius, y);
-    context.arc(x, y, radius, 0, Math.PI * 2);
-  }
-  context.fill();
-
-  context.restore();
-}
-
-function draw(canvas: HTMLCanvasElement, snapshot: LandmarkSnapshot): void {
-  const context = canvas.getContext('2d');
-  if (!context) return;
-
-  // 입력 해상도에 맞춰 캔버스 버퍼 크기를 맞춘다. CSS 크기와는 별개다.
-  if (canvas.width !== snapshot.sourceWidth || canvas.height !== snapshot.sourceHeight) {
-    canvas.width = snapshot.sourceWidth;
-    canvas.height = snapshot.sourceHeight;
-  }
-
-  const { width, height } = canvas;
-  context.clearRect(0, 0, width, height);
-
-  // 얼굴을 먼저 그린다. 손이 얼굴 앞을 지날 때 손이 위에 오는 게 자연스럽다.
-  drawFace(context, snapshot, width, height);
-  drawHands(context, snapshot, width, height);
-}
 
 export function CameraLandmarkView() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -152,7 +60,7 @@ export function CameraLandmarkView() {
   // 검출 루프와 같은 tick 안에서 그린다. 이 경로는 React 상태를 건드리지 않는다.
   const handleFrame = useCallback((snapshot: LandmarkSnapshot) => {
     const canvas = canvasRef.current;
-    if (canvas) draw(canvas, snapshot);
+    if (canvas) drawSnapshot(canvas, snapshot, DEV_OVERLAY_COLORS);
   }, []);
 
   const {
