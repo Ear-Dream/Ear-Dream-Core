@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Button } from '../../components/Button';
+import { LogoMark } from '../../components/LogoMark';
 import { ScreenFrame } from '../../components/ScreenFrame';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing } from '../../constants/theme';
@@ -51,11 +52,7 @@ export function HomeScreen({ onStartSign, onStartVoice, onOpenLandmarkDev }: Hom
       }
     >
       <View style={styles.hero} accessibilityLabel={strings.common.logoAlt}>
-        {/* 로고(구름+달) 확정 자산 전 placeholder — 시안의 검은 원 2개 구성을 도형으로 근사. */}
-        <View style={styles.logoMark}>
-          <View style={styles.logoBig} />
-          <View style={styles.logoSmall} />
-        </View>
+        <LogoMark testID="home-logo" />
         <Text style={styles.appName}>{strings.common.appName}</Text>
       </View>
     </ScreenFrame>
@@ -82,28 +79,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.xl,
-  },
-  logoMark: {
-    width: 104,
-    height: 96,
-  },
-  logoBig: {
-    position: 'absolute',
-    left: 0,
-    bottom: 0,
-    width: 80,
-    height: 80,
-    borderRadius: radius.pill,
-    backgroundColor: colors.bg.overlay,
-  },
-  logoSmall: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    width: 34,
-    height: 34,
-    borderRadius: radius.pill,
-    backgroundColor: colors.bg.overlay,
   },
   appName: {
     fontFamily: fonts.bold,

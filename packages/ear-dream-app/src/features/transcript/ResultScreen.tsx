@@ -17,7 +17,8 @@ export interface ResultScreenProps {
 
 /**
  * 음성 전달 화면 (V2 시안 "음성 전달"): brand/subtle 카드 — 스피커 아이콘 + 파형 + 문장 + 캡션.
- * TTS 는 미구현이므로 "전달되고 있어요"는 표시일 뿐이다. 파형도 정적 mock 이다.
+ * TTS 는 미구현이므로 "전달되고 있어요"는 표시일 뿐이다. 파형에 넘길 소리원도 아직 없어서
+ * 무음(일자선)으로 그려진다 — TTS 가 붙으면 재생 레벨을 `amplitudes` 로 넘긴다.
  * 청인이 보는 화면이므로 문장은 큰 글자 · 고대비로 렌더링한다.
  */
 export function ResultScreen({ sentence, onGoHome, onBack }: ResultScreenProps) {
