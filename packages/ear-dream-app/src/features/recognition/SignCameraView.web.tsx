@@ -15,16 +15,18 @@ import { colors, radius } from '../../constants/theme';
 import type { LandmarkSnapshot } from './landmarks';
 import { PREVIEW_MIRRORED } from './landmarks';
 import type { OverlayColors } from './landmarks/overlay.web';
-import { drawSnapshot } from './landmarks/overlay.web';
+import { drawSnapshot, HANDEDNESS_COLORS, UNKNOWN_HAND_COLOR } from './landmarks/overlay.web';
 import { useLandmarker } from './landmarks/useLandmarker.web';
 import type { SignCameraDetectionState, SignCameraViewProps } from './SignCameraView';
 
 export type { SignCameraDetectionState, SignCameraViewProps };
 
-// 와이어프레임 오버레이 배색. 카메라 영상 위 가시성용 중립색이며 확정 디자인이 아니다.
-// (개발 화면은 handedness 검증을 위해 손별 색을 쓴다 — CameraLandmarkView.web.tsx)
+// 오버레이 배색. 손은 handedness 라벨별 색(개발 화면과 공유)으로 좌우가 눈으로 구분되게 한다.
+// 라벨 자체는 아직 미검증(HANDEDNESS_VERIFIED=false)이므로 색은 라벨 표시일 뿐 정오 보증이 아니다.
+// 얼굴은 카메라 영상 위 가시성용 중립색이며 확정 디자인이 아니다.
 const WIRE_OVERLAY_COLORS: OverlayColors = {
-  fallbackHandColor: '#FFFFFF',
+  handColors: HANDEDNESS_COLORS,
+  fallbackHandColor: UNKNOWN_HAND_COLOR,
   handPointColor: '#FFFFFF',
   faceColor: 'rgba(255, 255, 255, 0.55)',
 };

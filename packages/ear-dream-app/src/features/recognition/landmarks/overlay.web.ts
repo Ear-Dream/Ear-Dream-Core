@@ -11,6 +11,17 @@
 import type { LandmarkSnapshot } from './types';
 import { getVisionRuntime } from './visionRuntime.web';
 
+/**
+ * handedness 라벨별 뼈대 색. 개발 화면과 수어 입력 화면이 공유한다.
+ * 라벨이 실제 손과 맞는지는 아직 미검증이다(handedness.ts 의 HANDEDNESS_VERIFIED).
+ * 색은 "어떤 라벨이 붙었는가"를 보여줄 뿐, 라벨의 정오를 보증하지 않는다.
+ */
+export const HANDEDNESS_COLORS: Record<string, string> = {
+  Left: '#2f6df6',
+  Right: '#f6902f',
+};
+export const UNKNOWN_HAND_COLOR = '#9aa0a6';
+
 export interface OverlayColors {
   /** handedness 라벨("Left"/"Right")별 뼈대 색. 없으면 fallbackHandColor 를 쓴다. */
   handColors?: Record<string, string>;

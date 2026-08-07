@@ -21,22 +21,14 @@ import { useCallback, useRef, useState } from 'react';
 import { FACE_DETECT_EVERY_N_FRAMES, LANDMARKER_DELEGATE } from './config';
 import { HANDEDNESS_VERIFIED, PREVIEW_MIRRORED } from './handedness';
 import type { OverlayColors } from './overlay.web';
-import { drawSnapshot } from './overlay.web';
+import { drawSnapshot, HANDEDNESS_COLORS, UNKNOWN_HAND_COLOR } from './overlay.web';
 import type { LandmarkerDelegate, LandmarkSnapshot } from './types';
 import { useLandmarker } from './useLandmarker.web';
 
-// 손별 색. handedness 라벨에 따라 색을 다르게 줘서 어떤 라벨이 붙었는지 눈으로 바로 구분되게 한다.
-// 실측에 필요한 정보라 임의의 배색이 아니다.
-const HAND_COLORS: Record<string, string> = {
-  Left: '#2f6df6',
-  Right: '#f6902f',
-};
-const UNKNOWN_HAND_COLOR = '#9aa0a6';
-
 // 개발 화면 오버레이 배색. 얼굴은 손과 확실히 구분되는 색으로 둔다.
-// 그리기 자체는 overlay.web.ts 로 추출되어 제품 화면(SignCameraView.web)과 공유한다.
+// 손별 색(HANDEDNESS_COLORS)은 제품 화면과 공유한다 — overlay.web.ts 참고.
 const DEV_OVERLAY_COLORS: OverlayColors = {
-  handColors: HAND_COLORS,
+  handColors: HANDEDNESS_COLORS,
   fallbackHandColor: UNKNOWN_HAND_COLOR,
   handPointColor: '#ffffff',
   faceColor: '#31c48d',
@@ -200,7 +192,7 @@ export function CameraLandmarkView() {
             key={`${hand.handednessLabel}-${index}`}
             style={{
               ...styles.handRow,
-              borderLeftColor: HAND_COLORS[hand.handednessLabel] ?? UNKNOWN_HAND_COLOR,
+              borderLeftColor: HANDEDNESS_COLORS[hand.handednessLabel] ?? UNKNOWN_HAND_COLOR,
             }}
           >
             <strong>{hand.handednessLabel}</strong>
