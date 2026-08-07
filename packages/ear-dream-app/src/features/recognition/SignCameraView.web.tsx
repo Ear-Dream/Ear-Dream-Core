@@ -74,7 +74,7 @@ const webStyles: Record<string, React.CSSProperties> = {
     height: '100%',
     borderRadius: radius.lg,
     overflow: 'hidden',
-    background: colors.cameraBackground,
+    background: colors.bg.video,
   },
   stage: {
     position: 'absolute',

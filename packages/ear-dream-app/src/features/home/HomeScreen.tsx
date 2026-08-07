@@ -1,9 +1,9 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '../../components/Button';
 import { ScreenFrame } from '../../components/ScreenFrame';
-import { WireButton } from '../../components/WireButton';
 import { strings } from '../../constants/strings';
-import { colors, spacing } from '../../constants/theme';
+import { colors, fonts, radius, spacing } from '../../constants/theme';
 
 export interface HomeScreenProps {
   /** 농인 → 청인 트랙 시작 (수어 입력). */
@@ -14,46 +14,65 @@ export interface HomeScreenProps {
   onOpenLandmarkDev?: () => void;
 }
 
-/** 첫 화면(방향 선택). 중앙 로고 + 하단 트랙 선택 버튼. */
+/**
+ * 첫 화면 (V2 청인 섹션 버전, 사용자 확정): 로고 + "손으로 말하기"(primary) /
+ * "입으로 말하기"(outline) 2버튼. 부제 없음.
+ */
 export function HomeScreen({ onStartSign, onStartVoice, onOpenLandmarkDev }: HomeScreenProps) {
   return (
     <ScreenFrame
-      showHeader={false}
       footer={
         <>
-          <WireButton
+          <Button
             label={strings.home.startSign}
             onPress={onStartSign}
+            icon={<SignTrackIcon />}
             testID="home-start-sign"
           />
-          <WireButton
+          <Button
             label={strings.home.startVoice}
+            variant="outline"
             onPress={onStartVoice}
+            icon={<VoiceTrackIcon />}
             testID="home-start-voice"
           />
-          {/* 체험 시작의 동작은 미정이다(피그마에도 연한 스타일로만 존재). placeholder 로 비활성. */}
-          <WireButton
-            label={strings.home.startTrial}
-            variant="ghost"
-            disabled
-            testID="home-start-trial"
-          />
           {onOpenLandmarkDev ? (
-            <WireButton
-              label={strings.home.landmarkDev}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={strings.home.landmarkDev}
               onPress={onOpenLandmarkDev}
-              variant="ghost"
+              style={({ pressed }) => [styles.devLink, pressed && styles.devLinkPressed]}
               testID="home-landmark-dev"
-            />
+            >
+              <Text style={styles.devLinkText}>{strings.home.landmarkDev}</Text>
+            </Pressable>
           ) : null}
         </>
       }
     >
       <View style={styles.hero} accessibilityLabel={strings.common.logoAlt}>
-        <Text style={styles.logoGlyph}>{strings.common.logoGlyph}</Text>
+        {/* 로고(구름+달) 확정 자산 전 placeholder — 시안의 검은 원 2개 구성을 도형으로 근사. */}
+        <View style={styles.logoMark}>
+          <View style={styles.logoBig} />
+          <View style={styles.logoSmall} />
+        </View>
         <Text style={styles.appName}>{strings.common.appName}</Text>
       </View>
     </ScreenFrame>
+  );
+}
+
+/** "손으로 말하기" 좌측 아이콘 자리 — 확정 자산 전 placeholder 도형(시안: 흰 라운드 사각). */
+function SignTrackIcon() {
+  return <View style={styles.signIcon} />;
+}
+
+/** "입으로 말하기" 좌측 아이콘 자리 — 확정 자산 전 placeholder 도형(시안: 인디고 원). */
+function VoiceTrackIcon() {
+  return (
+    <View style={styles.voiceIconRing}>
+      <View style={styles.voiceIconDot} />
+    </View>
   );
 }
 
@@ -62,16 +81,66 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.md,
+    gap: spacing.xl,
   },
-  logoGlyph: {
-    fontSize: 56,
-    color: colors.textPrimary,
+  logoMark: {
+    width: 104,
+    height: 96,
+  },
+  logoBig: {
+    position: 'absolute',
+    left: 0,
+    bottom: 0,
+    width: 80,
+    height: 80,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bg.overlay,
+  },
+  logoSmall: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    width: 34,
+    height: 34,
+    borderRadius: radius.pill,
+    backgroundColor: colors.bg.overlay,
   },
   appName: {
+    fontFamily: fonts.bold,
     fontSize: 28,
-    fontWeight: '700',
-    color: colors.textPrimary,
+    color: colors.text.primary,
     textAlign: 'center',
+  },
+  signIcon: {
+    width: 22,
+    height: 22,
+    borderRadius: 7,
+    backgroundColor: colors.text.onBrand,
+  },
+  voiceIconRing: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.subtle,
+  },
+  voiceIconDot: {
+    width: 14,
+    height: 14,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.primary,
+  },
+  devLink: {
+    alignItems: 'center',
+    paddingVertical: spacing.sm,
+  },
+  devLinkPressed: {
+    opacity: 0.6,
+  },
+  devLinkText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.text.secondary,
   },
 });
