@@ -67,10 +67,15 @@ export const strings = {
     appBarTitle: '음성 입력',
     title: '말씀해 주세요',
     subtitle: '수어 영상으로 바꿔서 보여드릴게요',
-    micAlt: '음성 입력 시작 (마이크는 미구현, 탭하면 듣는 중 상태로 전환)',
+    micAlt: '음성 입력 시작 (파형만 실제 마이크 입력, 음성 인식은 미구현)',
     stopAlt: '듣기 정지',
     listeningBadge: '듣고 있어요',
     noiseCaption: '주변 소음이 크다면 키보드로 입력해주세요.',
+    /**
+     * 마이크를 열지 못했을 때 noiseCaption 대신 보여주는 안내 — 시안 외 임시 카피.
+     * 파형이 계속 일자로만 있는 이유를 알려주고 키보드 폴백으로 유도한다.
+     */
+    micUnavailableCaption: '마이크를 쓸 수 없습니다. 키보드로 입력해주세요.',
     keyboardFallback: '키보드로 입력하기',
     textPlaceholder: '전달할 내용을 입력하세요',
     textConfirm: '확인',
