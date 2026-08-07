@@ -1,115 +1,69 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '../../components/Button';
+import { CandidateRow } from '../../components/CandidateRow';
 import { ScreenFrame } from '../../components/ScreenFrame';
-import { WireButton } from '../../components/WireButton';
 import { MOCK_CANDIDATE_SENTENCES } from '../../constants/mock';
 import { strings } from '../../constants/strings';
-import { colors, radius, spacing, touchTarget } from '../../constants/theme';
-import { CorrectionOverlay } from './CorrectionOverlay';
+import { colors, fonts, spacing } from '../../constants/theme';
 
 export interface CandidateScreenProps {
-  /** 후보 선택 확정 또는 정정 오버레이의 직접 입력 완료. */
+  /** 후보 선택 확정 — 음성 전달 화면으로. */
   onConfirm: (sentence: string) => void;
-  /** 정정 "다시 입력" — 수어 입력 화면으로 복귀. */
-  onRetry: () => void;
-  onGoHome: () => void;
+  /** AppBar 뒤로가기 — 수어 입력 화면으로 복귀(다시 촬영). */
+  onBack: () => void;
 }
 
 /**
- * 후보 확인 화면(피그마 3). 후보 문장 카드에서 하나를 고르고 하단 버튼으로 확정한다.
- * 후보는 목업이며 개수 N 도 미확정이다(mock.ts). 오인식 정정 경로는 항상 화면에 보이게 둔다.
+ * 인식 결과(후보 확인) 화면 (V2 시안 "인식 결과"). 후보 행에서 하나를 고르고
+ * 하단 "문장 선택 완료"로 확정한다. 후보는 목업이며 개수 N 도 미확정이다(mock.ts).
  */
-export function CandidateScreen({ onConfirm, onRetry, onGoHome }: CandidateScreenProps) {
+export function CandidateScreen({ onConfirm, onBack }: CandidateScreenProps) {
   const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
-  const [correctionVisible, setCorrectionVisible] = useState(false);
 
   const selectedSentence = selectedIndex === null ? null : MOCK_CANDIDATE_SENTENCES[selectedIndex];
 
   return (
     <ScreenFrame
+      title={strings.candidates.appBarTitle}
+      onBack={onBack}
       footer={
-        <>
-          <WireButton
-            label={strings.candidates.notFound}
-            variant="ghost"
-            onPress={() => setCorrectionVisible(true)}
-            testID="candidates-not-found"
-          />
-          <WireButton
-            label={strings.candidates.confirm}
-            disabled={selectedSentence == null}
-            onPress={() => {
-              if (selectedSentence != null) onConfirm(selectedSentence);
-            }}
-            testID="candidates-confirm"
-          />
-          <WireButton
-            label={strings.common.backToHome}
-            variant="ghost"
-            onPress={onGoHome}
-            testID="candidates-home"
-          />
-        </>
+        <Button
+          label={strings.candidates.confirm}
+          disabled={selectedSentence == null}
+          onPress={() => {
+            if (selectedSentence != null) onConfirm(selectedSentence);
+          }}
+          testID="candidates-confirm"
+        />
       }
     >
-      {/* 카드 목록은 아래쪽에 몰아 왼손 엄지 도달 범위에 가깝게 둔다. */}
+      <Text style={styles.prompt}>{strings.candidates.prompt}</Text>
       <View style={styles.list}>
-        {MOCK_CANDIDATE_SENTENCES.map((sentence, index) => {
-          const selected = index === selectedIndex;
-          return (
-            <Pressable
-              key={sentence}
-              accessibilityRole="button"
-              accessibilityLabel={sentence}
-              accessibilityState={{ selected }}
-              onPress={() => setSelectedIndex(index)}
-              style={[styles.card, selected && styles.cardSelected]}
-              testID={`candidates-card-${index}`}
-            >
-              <Text style={styles.cardText}>{sentence}</Text>
-            </Pressable>
-          );
-        })}
+        {MOCK_CANDIDATE_SENTENCES.map((sentence, index) => (
+          <CandidateRow
+            key={sentence}
+            sentence={sentence}
+            selected={index === selectedIndex}
+            onPress={() => setSelectedIndex(index)}
+            testID={`candidates-card-${index}`}
+          />
+        ))}
       </View>
-
-      <CorrectionOverlay
-        visible={correctionVisible}
-        onRetry={onRetry}
-        onManualSubmit={onConfirm}
-        onClose={() => setCorrectionVisible(false)}
-      />
     </ScreenFrame>
   );
 }
 
 const styles = StyleSheet.create({
+  prompt: {
+    marginTop: spacing.sm,
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    color: colors.text.primary,
+  },
   list: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    gap: spacing.lg,
-    paddingVertical: spacing.lg,
-  },
-  card: {
-    minHeight: touchTarget.minHeight * 1.7,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.xl,
-    borderRadius: radius.lg,
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  cardSelected: {
-    backgroundColor: colors.surfaceSelected,
-    borderColor: colors.borderStrong,
-  },
-  cardText: {
-    fontSize: 18,
-    fontWeight: '600',
-    lineHeight: 26,
-    color: colors.textPrimary,
-    textAlign: 'center',
+    marginTop: spacing.lg,
+    gap: spacing.md,
   },
 });

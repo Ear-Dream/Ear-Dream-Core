@@ -1,89 +1,102 @@
 import { StyleSheet, Text, View } from 'react-native';
 
+import { Button } from '../../components/Button';
 import { ScreenFrame } from '../../components/ScreenFrame';
-import { WireButton } from '../../components/WireButton';
+import { Waveform } from '../../components/Waveform';
 import { strings } from '../../constants/strings';
-import { colors, radius, spacing } from '../../constants/theme';
+import { colors, fonts, radius, spacing } from '../../constants/theme';
 
 export interface ResultScreenProps {
-  /** 후보 확인(또는 직접 입력)에서 확정된 문장. */
+  /** 후보 확인에서 선택된 문장. */
   sentence: string;
-  /** 다시 번역 — 수어 입력 화면으로 복귀. */
-  onRestart: () => void;
+  /** "처음으로 돌아가기" — 첫 화면으로. */
   onGoHome: () => void;
+  /** AppBar 뒤로가기 — 인식 결과 화면으로 복귀. */
+  onBack: () => void;
 }
 
 /**
- * 결과 표시 화면(피그마 4). output 은 청인이 보므로 문장을 큰 글자 · 고대비로 렌더링한다.
- * 우측 상단 스피커는 표시 전용 자리이고, "음성 재생 중..." 도 표시일 뿐 TTS 는 미구현이다.
+ * 음성 전달 화면 (V2 시안 "음성 전달"): brand/subtle 카드 — 스피커 아이콘 + 파형 + 문장 + 캡션.
+ * TTS 는 미구현이므로 "전달되고 있어요"는 표시일 뿐이다. 파형도 정적 mock 이다.
+ * 청인이 보는 화면이므로 문장은 큰 글자 · 고대비로 렌더링한다.
  */
-export function ResultScreen({ sentence, onRestart, onGoHome }: ResultScreenProps) {
+export function ResultScreen({ sentence, onGoHome, onBack }: ResultScreenProps) {
   return (
     <ScreenFrame
-      headerRight={
-        <View style={styles.speakerBadge} accessibilityLabel={strings.result.speakerAlt}>
-          <Text style={styles.speakerGlyph}>{strings.result.speakerGlyph}</Text>
-        </View>
-      }
-      footer={
-        <>
-          <WireButton
-            label={strings.result.retranslate}
-            variant="secondary"
-            onPress={onRestart}
-            testID="result-retranslate"
-          />
-          <WireButton
-            label={strings.common.backToHome}
-            variant="ghost"
-            onPress={onGoHome}
-            testID="result-home"
-          />
-        </>
-      }
+      title={strings.result.appBarTitle}
+      onBack={onBack}
+      footer={<Button label={strings.result.backToStart} onPress={onGoHome} testID="result-home" />}
     >
-      <View style={styles.sentenceCard} testID="result-sentence">
-        <Text style={styles.sentenceText}>{sentence}</Text>
+      <View style={styles.card} testID="result-sentence">
+        {/* 스피커 아이콘 — 확정 자산 전 placeholder 도형(인디고 원 + 스피커 모양). */}
+        <View style={styles.speakerCircle} accessibilityLabel={strings.result.speakerAlt}>
+          <View style={styles.speakerShape}>
+            <View style={styles.speakerBody} />
+            <View style={styles.speakerHorn} />
+          </View>
+        </View>
+        <Waveform testID="result-waveform" />
+        <Text style={styles.sentence}>{sentence}</Text>
+        <Text style={styles.caption}>{strings.result.caption}</Text>
       </View>
-      {/* TTS 미구현 — 피그마 시안의 상태 문구를 표시만 한다. */}
-      <Text style={styles.playing}>{strings.result.playing}</Text>
     </ScreenFrame>
   );
 }
 
 const styles = StyleSheet.create({
-  speakerBadge: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    backgroundColor: colors.surface,
-  },
-  speakerGlyph: {
-    fontSize: 18,
-  },
-  sentenceCard: {
+  card: {
     flex: 1,
     marginTop: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
+    gap: spacing.xl,
     padding: spacing.xl,
     borderRadius: radius.lg,
-    backgroundColor: colors.surfaceStrong,
+    borderWidth: 1,
+    borderColor: colors.brand.primary,
+    backgroundColor: colors.brand.subtle,
   },
-  sentenceText: {
+  speakerCircle: {
+    width: 88,
+    height: 88,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.primary,
+  },
+  speakerShape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  speakerBody: {
+    width: 10,
+    height: 14,
+    borderTopLeftRadius: 3,
+    borderBottomLeftRadius: 3,
+    backgroundColor: colors.text.onBrand,
+  },
+  speakerHorn: {
+    width: 0,
+    height: 0,
+    borderTopWidth: 12,
+    borderBottomWidth: 12,
+    borderRightWidth: 14,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: colors.text.onBrand,
+  },
+  sentence: {
     // 청인에게 보여주는 텍스트 — 큰 글자 · 고대비.
-    fontSize: 26,
-    fontWeight: '600',
-    lineHeight: 38,
-    color: colors.textPrimary,
+    fontFamily: fonts.bold,
+    fontSize: 28,
+    lineHeight: 40,
+    color: colors.text.primary,
     textAlign: 'center',
   },
-  playing: {
-    marginVertical: spacing.lg,
-    fontSize: 15,
-    color: colors.textSecondary,
+  caption: {
+    fontFamily: fonts.regular,
+    fontSize: 14,
+    color: colors.text.secondary,
     textAlign: 'center',
   },
 });

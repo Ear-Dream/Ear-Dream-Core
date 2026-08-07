@@ -53,7 +53,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
     padding: spacing.xl,
     borderRadius: radius.lg,
-    backgroundColor: colors.surfaceStrong,
+    backgroundColor: colors.bg.surface,
   },
   glyph: {
     fontSize: 40,
@@ -61,13 +61,13 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 16,
     fontWeight: '600',
-    color: colors.textPrimary,
+    color: colors.text.primary,
     textAlign: 'center',
   },
   body: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.textSecondary,
+    color: colors.text.secondary,
     textAlign: 'center',
   },
   code: {
