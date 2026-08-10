@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     model_calibration_path: str = "../../../Ear-Dream-Model/experiments/calibration.json"
 
     # ⚠️ 아래 수치는 전부 **프로토타입용 임시값**이다. 사용자 검증·실측 후 확정한다.
-    recognize_top_k: int = 3  # 후보 개수 N — 임시값, 실측 후 확정
+    recognize_top_k: int = 4  # 후보 개수 N — 임시값, 실측 후 확정. 4는 후보 시트 2×2 그리드에 맞춘 값
     # 최고 confidence(캘리브레이션 후) 미달 시 rejected. 0.45 = z-off(exp15) 캘리브레이션
     # (T=0.6024) 후 결합 스트레스(최악 조건 대리) 스윕의 coverage 87.8% / kept acc 86.1%
     # 균형점 (핸드오프 09_z_gap_response.md §2, calibration.json 권장값).
