@@ -67,24 +67,27 @@ const { data, error } = await api.GET('/api/v1/phrases', {
 packages/ear-dream-app/
 ├── App.tsx                 진입점
 ├── src/
-│   ├── api.ts              core 클라이언트 인스턴스 (이미 존재)
-│   ├── components/         재사용 UI (Button, Card ...)
+│   ├── api.ts              core 클라이언트 인스턴스
+│   ├── components/         재사용 UI (Button, Badge, ScreenFrame ...)
+│   ├── navigation/         AppNavigator — 상태 기반 화면 전환
 │   ├── features/           기능 단위 묶음
-│   │   ├── recognition/      카메라, 랜드마크, 후보 제시
-│   │   ├── phrases/          상황 문장 호출
-│   │   └── transcript/       청인용 결과 표시
+│   │   ├── home/             첫 화면
+│   │   ├── recognition/      카메라·랜드마크(landmarks/)·세그먼트 캡처(capture/)·
+│   │   │                     인식 큐(api/)·pill 큐·후보 하단 시트
+│   │   ├── transcript/       청인용 결과 표시 (+ speech/ TTS)
+│   │   └── voice/            청인 트랙 — 음성 입력 화면 (STT는 mock)
 │   ├── hooks/              커스텀 훅
 │   └── constants/          문자열, 색상, 치수
 ```
 
-기능이 늘어나기 전까지는 미리 만들지 않는다. 필요한 시점에 해당 디렉토리를 만든다.
+상황 문장(phrases) 등 미착수 기능의 디렉토리는 미리 만들지 않는다. 필요한 시점에 만든다.
 
 ## 기술 선택
 
 | 항목 | 방침 |
 | --- | --- |
 | 스타일 | React Native `StyleSheet`. Tailwind/NativeWind는 도입하지 않았다 |
-| 화면 전환 | 화면이 여러 개 필요해지면 `expo-router` 도입을 팀과 결정한다 (미도입) |
+| 화면 전환 | `src/navigation/AppNavigator`의 상태 기반 전환(자체 구현). `expo-router`는 미도입 — 필요해지면 팀과 결정 |
 | 서버 상태 | `@ear-dream/core` 클라이언트 + `useState`/`useEffect`로 시작 |
 | 전역 상태 | MVP에서는 `useState`/`useReducer`. 라이브러리는 실제로 필요해질 때 결정 |
 | 환경 변수 | `EXPO_PUBLIC_` 접두사만 앱 번들에 포함된다 |
@@ -106,8 +109,9 @@ packages/ear-dream-app/
 
 ## 미확정 수치를 확정처럼 쓰지 않는다
 
-후보 개수(N), 허용 지연 시간, 인식 정확도, 확정 방식(터치/제스처)은 사용자 검증 전까지
-정해지지 않았다. 값이 필요하면 상수로 분리하고 임시값임을 주석으로 남긴다.
+후보 개수(N), 허용 지연 시간, 인식 정확도는 사용자 검증 전까지 정해지지 않았다.
+(확정 방식은 정해졌다 — top-1 자동 확정 + pill 탭 사후 정정, 2026-08-10 pill 큐 UX 확정.)
+값이 필요하면 상수로 분리하고 임시값임을 주석으로 남긴다.
 
 ```typescript
 // 프로토타입 임시값. 사용자 검증 전까지 확정 아님 (3개 vs 5개 미검증)
@@ -130,8 +134,9 @@ API 스키마가 바뀐 뒤라면 먼저 타입을 재생성한다.
 pnpm generate:api-types
 ```
 
-화면 확인은 `pnpm dev:web`(브라우저)이 가장 빠르다. 다만 카메라와 수어 인식은 웹에서 동일하게
-동작하지 않으므로 실제 기기로 검증한다.
+화면 확인은 `pnpm dev:web`(브라우저)이 기본이다. 카메라·랜드마크 추출·수어 인식은
+브라우저 WASM 기반이라 현재 **웹에서만** 동작한다 — 실기기(Expo Go)는 웹 이외 화면의
+레이아웃 확인용이고, 해당 화면에는 안내 문구가 뜬다.
 
 ## 팀 협업
 
@@ -141,6 +146,9 @@ pnpm generate:api-types
 
 ## 알려진 제약
 
-- 손·얼굴 랜드마크 추출(MediaPipe)은 네이티브 모듈이 필요해 Expo Go에서 동작하지 않는다.
-  해당 작업 시점에 development build(`npx expo prebuild`) 전환이 필요하다
-- 웹에서는 카메라 기반 기능을 그대로 검증할 수 없다
+- 손·얼굴·포즈 랜드마크 추출(MediaPipe)은 브라우저 WASM 기반이라 **웹에서만** 동작한다.
+  Expo Go에서는 안내 문구가 표시되며 이는 의도된 동작이다. 네이티브 전환 시에는
+  `useLandmarker` 훅 구현만 교체하도록 격리되어 있다 (CLAUDE.md 「손 · 얼굴 · 포즈
+  랜드마크 추출」 절 참고)
+- `@mediapipe/tasks-vision`을 직접 import하면 Metro 빌드가 실패한다 — UMD 로컬 `<script>`
+  우회가 적용되어 있으니 되돌리지 말 것 (CLAUDE.md 참고)
