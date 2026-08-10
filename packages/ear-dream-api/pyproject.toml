@@ -5,8 +5,10 @@ description = "Ear Dream - 한손 수어 인식 실시간 통역 서비스 API (
 requires-python = ">=3.12"
 dependencies = [
     "fastapi[standard]>=0.115",
+    "numpy>=2.5.1",
     "pydantic>=2.9",
     "pydantic-settings>=2.5",
+    "torch>=2.13.0",
 ]
 
 [dependency-groups]

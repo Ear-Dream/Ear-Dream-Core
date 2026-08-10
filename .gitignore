@@ -20,6 +20,7 @@ packages/ear-dream-app/android/
 
 # Python
 .venv/
+packages/ear-dream-api/var/
 **/__pycache__/
 *.py[cod]
 .pytest_cache/
@@ -50,3 +51,4 @@ packages/ear-dream-app/public/mediapipe/
 
 # 팀 내부용 메모 (public 레포이므로 커밋하지 않는다)
 CLAUDE.local.md
+packages/ear-dream-api/app/examples/*.json
