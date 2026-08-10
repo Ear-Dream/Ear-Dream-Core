@@ -3,7 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { QualityIssue } from '@ear-dream/core';
 
 import { Button } from '../../components/Button';
-import { CandidateRow } from '../../components/CandidateRow';
+import { CANDIDATE_CELL_SIZE, CandidateCard } from '../../components/CandidateCard';
 import { strings } from '../../constants/strings';
 import { colors, fonts, maxScreenWidth, radius, spacing } from '../../constants/theme';
 import type { RecognitionEntry } from './api/useRecognitionQueue';
@@ -18,10 +18,15 @@ export interface WordCandidateSheetProps {
   onClose: () => void;
 }
 
+/** 시안(V2 "단어 선택")이 2×2 그리드다. 후보 개수 N 이 바뀌어도 열 수는 여기서만 정한다. */
+const GRID_COLUMNS = 2;
+
 /**
- * 확정 pill 탭 → 하단 시트: 그 단어의 top-k 후보 목록(탭=교체) + 삭제 + 닫기.
+ * 확정 pill 탭 → 하단 시트: 그 단어의 top-k 후보 그리드(탭=교체) + 삭제 + 닫기.
+ * 카드 그리드 비주얼은 V2 시안 "단어 선택" 프레임을 따른다. 시안의 "선택 → 확정 버튼"
+ * 2단계 대신 카드 탭 즉시 교체를 유지한다 — 오확정 정정이 pill 탭 → 후보 탭, 총 2회로
+ * 끝나야 해서다(PRD R-05 "2단계 이내").
  *
- * 오확정 정정이 pill 탭 → 후보 탭, 총 2회로 끝난다(PRD R-05 "2단계 이내").
  * 자체 구현(RN Modal) — 새 의존성 금지 방침. 시트·버튼 전부 화면 하단, 엄지 범위다.
  *
  * 시트가 열린 동안 캡처는 비활성이다 — Modal 이 아래 화면 터치를 자연히 가로막는다.
@@ -44,17 +49,18 @@ export function WordCandidateSheet({ entry, onChoose, onRemove, onClose }: WordC
         />
         {entry ? (
           <View style={styles.sheet} testID="word-sheet">
+            <View style={styles.grabber} />
             <Text style={styles.prompt}>{strings.wordSheet.prompt}</Text>
             {hint ? (
               <Text style={styles.advisoryHint} testID="word-sheet-advisory-hint">
                 {hint}
               </Text>
             ) : null}
-            <View style={styles.list}>
+            <View style={styles.grid}>
               {entry.result.candidates.map((candidate, index) => (
-                <CandidateRow
+                <CandidateCard
                   key={candidate.id}
-                  sentence={candidate.label}
+                  word={candidate.label}
                   selected={index === entry.chosenCandidateIndex}
                   onPress={() => onChoose(index)}
                   testID={`word-sheet-candidate-${index}`}
@@ -110,15 +116,23 @@ const styles = StyleSheet.create({
     maxWidth: maxScreenWidth,
     alignSelf: 'center',
     gap: spacing.md,
-    padding: spacing.lg,
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
-    backgroundColor: colors.bg.canvas,
+    backgroundColor: colors.bg.surface,
+  },
+  grabber: {
+    alignSelf: 'center',
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.border.default,
   },
   prompt: {
     fontFamily: fonts.bold,
-    fontSize: 17,
+    fontSize: 20,
     color: colors.text.primary,
   },
   // 어드바이저리 힌트 — 안내이지 실패가 아니므로 보조 톤(secondary)으로만 그린다.
@@ -128,8 +142,16 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     color: colors.text.secondary,
   },
-  list: {
-    gap: spacing.sm,
+  grid: {
+    // 2열 고정. 폭을 열어 두면 시트가 넓을 때 flexWrap 이 한 줄에 3개까지 밀어넣어
+    // 3 + 1 로 접힌다. 두 칸 + 사이 간격만큼으로 잘라 두 번째 카드 뒤에서 반드시 접히게 한다.
+    alignSelf: 'center',
+    width: CANDIDATE_CELL_SIZE * GRID_COLUMNS + spacing.md * (GRID_COLUMNS - 1),
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingVertical: spacing.sm,
   },
   actions: {
     gap: spacing.sm,

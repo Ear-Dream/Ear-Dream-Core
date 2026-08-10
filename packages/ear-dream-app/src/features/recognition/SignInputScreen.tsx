@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { RecognitionResult, SignSegment } from '@ear-dream/core';
 
-import { Button } from '../../components/Button';
+import { Badge } from '../../components/Badge';
+import { Chevron } from '../../components/Chevron';
 import { ScreenFrame } from '../../components/ScreenFrame';
 import { DETECTION_GUIDE_DELAY_MS, RESULT_NOTICE_AUTO_DISMISS_MS } from '../../constants/mock';
 import { strings } from '../../constants/strings';
-import { colors, fonts, radius, spacing } from '../../constants/theme';
+import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
 import type {
   QueueNotice,
   RecognitionEntry,
@@ -34,7 +35,7 @@ export interface RecognitionQueueControls {
 
 export interface SignInputScreenProps {
   queue: RecognitionQueueControls;
-  /** "문장 만들기" — 모든 pill 이 확정(done)일 때만 SignFlow 가 실제로 진행시킨다. */
+  /** "결과 확인" — 모든 pill 이 확정(done)일 때만 SignFlow 가 실제로 진행시킨다. */
   onCompose: () => void;
   /** /model 의 model_loaded. null = 카탈로그 미로드(미확인) — 배너를 띄우지 않는다. */
   modelReady: boolean | null;
@@ -45,10 +46,11 @@ export interface SignInputScreenProps {
 const CAPTURE_BUTTON_SIZE = 88;
 
 /**
- * 수어 입력 화면 — pill 큐(태그 입력) UX (2026-08-10 사용자 확정).
+ * 수어 입력 화면 — V2 시안의 비주얼(다크 뷰파인더 카드 + 녹화 배지 + 가이드 박스 +
+ * 하단 단어 스트립)에 pill 큐(태그 입력) UX(2026-08-10 사용자 확정)를 배선한 화면.
  *
  * 하단 대형 버튼을 **누르는 동안** 한 단어를 기록하고(boundary_mode: manual), 떼는 즉시
- * 큐 끝에 대기 pill(···)이 붙는다. 사용자는 응답을 기다리지 않고 바로 다음 단어를 찍을 수
+ * 스트립 끝에 대기 pill(···)이 붙는다. 사용자는 응답을 기다리지 않고 바로 다음 단어를 찍을 수
  * 있다 — 요청은 병렬, 순서는 큐가 보존한다. 응답이 오면 그 pill 이 top-1 단어로 자동
  * 확정된다(화면 전환 없음). 전면 "읽는 중" 스크림은 없다 — 대기 상태는 pill 이 표현한다.
  *
@@ -68,6 +70,7 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
   const [sheetLocalId, setSheetLocalId] = useState<string | null>(null);
   const recorder = useSegmentRecorder();
   const guide = useDebouncedGuide(detection);
+  const recordSeconds = useRecordSeconds(recorder.recording);
 
   const chipsScrollRef = useRef<ScrollView | null>(null);
   const { entries, notice, dismissNotice } = queue;
@@ -150,28 +153,59 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
       onBack={onBack}
       footer={
         <>
-          {entries.length > 0 ? (
-            <ScrollView
-              ref={chipsScrollRef}
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.chipsRow}
-              // 최신 pill(방금 붙은 대기 pill)이 항상 보이게 끝으로 앵커한다.
-              onContentSizeChange={() => chipsScrollRef.current?.scrollToEnd({ animated: true })}
-              testID="sign-input-chips"
+          {/* 단어 스트립(V2 시안 배치) — pill 이 왼쪽에 쌓이고 "결과 확인"은 오른쪽 고정.
+              스크롤과 무관하게 완료 버튼이 언제나 엄지에 닿는다. */}
+          <View style={styles.strip} testID="sign-input-words">
+            {entries.length === 0 ? (
+              <Text style={styles.stripEmptyHint}>{strings.signInput.wordsEmpty}</Text>
+            ) : (
+              <ScrollView
+                ref={chipsScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipsViewport}
+                contentContainerStyle={styles.chipsRow}
+                // 최신 pill(방금 붙은 대기 pill)이 항상 보이게 끝으로 앵커한다.
+                onContentSizeChange={() => chipsScrollRef.current?.scrollToEnd({ animated: true })}
+                testID="sign-input-chips"
+              >
+                {entries.map((entry) => (
+                  <QueuePill
+                    key={entry.localId}
+                    entry={entry}
+                    onPress={() => handlePillPress(entry)}
+                    onRemove={
+                      entry.state === 'failed' ? () => queue.removeEntry(entry.localId) : undefined
+                    }
+                    testID={`sign-input-pill-${entry.localId}`}
+                  />
+                ))}
+              </ScrollView>
+            )}
+
+            <Pressable
+              onPress={onCompose}
+              // 모든 pill 이 확정일 때만 활성 — 대기/실패 pill 이 문장에서 조용히 빠지는
+              // 사고(사용자 의도와 다른 문장)를 막는다. 이유는 아래 한 줄로 보인다.
+              disabled={!allDone}
+              accessibilityRole="button"
+              accessibilityState={{ disabled: !allDone }}
+              accessibilityLabel={strings.signInput.compose}
+              style={({ pressed }) => [
+                styles.composeButton,
+                !allDone && styles.composeButtonDisabled,
+                pressed && styles.composeButtonPressed,
+              ]}
+              testID="sign-input-compose"
             >
-              {entries.map((entry) => (
-                <QueuePill
-                  key={entry.localId}
-                  entry={entry}
-                  onPress={() => handlePillPress(entry)}
-                  onRemove={
-                    entry.state === 'failed' ? () => queue.removeEntry(entry.localId) : undefined
-                  }
-                  testID={`sign-input-pill-${entry.localId}`}
-                />
-              ))}
-            </ScrollView>
+              <Text style={styles.composeLabel}>{strings.signInput.compose}</Text>
+              <Chevron direction="right" size={10} color={colors.text.onBrand} />
+            </Pressable>
+          </View>
+          {composeBlockedReason ? (
+            <Text style={styles.composeBlockedText} testID="sign-input-compose-blocked">
+              {composeBlockedReason}
+            </Text>
           ) : null}
 
           {localError ? <Text style={styles.errorText}>{localError}</Text> : null}
@@ -195,22 +229,6 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
                 <Text style={styles.failureNoticeText}>{failureMessage(notice.failure)}</Text>
               </View>
             )
-          ) : null}
-
-          {entries.length > 0 ? (
-            <Button
-              label={strings.signInput.compose}
-              onPress={onCompose}
-              // 모든 pill 이 확정일 때만 활성 — 대기/실패 pill 이 문장에서 조용히 빠지는
-              // 사고(사용자 의도와 다른 문장)를 막는다. 이유는 아래 한 줄로 보인다.
-              disabled={!allDone}
-              testID="sign-input-compose"
-            />
-          ) : null}
-          {composeBlockedReason ? (
-            <Text style={styles.composeBlockedText} testID="sign-input-compose-blocked">
-              {composeBlockedReason}
-            </Text>
           ) : null}
 
           {/* 검출 상태가 바꾸는 표시(pill·배너)는 전부 버튼의 형제 요소다.
@@ -247,12 +265,17 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
               {strings.signInput.modelNotReady}
             </Text>
           ) : null}
-          <View style={styles.overlaySpacer} />
           {recorder.recording ? (
-            <Text style={styles.recordingBadge} testID="sign-input-recording">
-              ● {strings.signInput.recordingBadge}
-            </Text>
+            <View style={styles.recordBadge}>
+              <Badge
+                label={`${strings.signInput.recordingBadge} ${formatSeconds(recordSeconds)}`}
+                variant="recording"
+                testID="sign-input-recording"
+              />
+            </View>
           ) : null}
+          {/* 프레이밍 가이드 박스(V2 시안) — 얼굴·양어깨·손이 들어올 자리를 시각화한다. */}
+          <View style={styles.guideBox} />
           {detection.status === 'running' ? (
             <Text
               style={[styles.guideText, guide.kind !== 'ok' && styles.guideTextWarn]}
@@ -317,6 +340,25 @@ function useDebouncedGuide(detection: SignCameraDetectionState): {
   return { kind, message };
 }
 
+/** 녹화 배지의 경과 시간. 실제 recorder.recording 에 묶인다 — mock 타이머가 아니다. */
+function useRecordSeconds(recording: boolean): number {
+  const [seconds, setSeconds] = useState(0);
+  useEffect(() => {
+    if (!recording) return;
+    setSeconds(0);
+    const interval = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(interval);
+  }, [recording]);
+  return seconds;
+}
+
+/** 녹화 배지 시간 표기 (mm:ss). */
+function formatSeconds(total: number): string {
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 /**
  * rejected/low_quality 인라인 배너 문구. 에러가 아니라 안내다 — 사용자가 할 일은
  * 버튼을 다시 누르고 동작하는 것뿐이므로, 첫 번째로 매핑되는 이슈 하나만 짧게 보여준다.
@@ -360,11 +402,9 @@ const styles = StyleSheet.create({
     left: 0,
     padding: spacing.lg,
   },
-  overlaySpacer: {
-    flex: 1,
-  },
   modelBanner: {
     alignSelf: 'stretch',
+    marginBottom: spacing.sm,
     padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: 'rgba(0, 0, 0, 0.55)',
@@ -374,32 +414,78 @@ const styles = StyleSheet.create({
     color: colors.text.onVideo,
     textAlign: 'center',
   },
-  recordingBadge: {
-    alignSelf: 'center',
+  recordBadge: {
+    alignSelf: 'flex-start',
+  },
+  // V2 시안의 프레이밍 가이드 — 초록 라운드 프레임. 검출과 무관한 정적 가이드다.
+  guideBox: {
+    flex: 1,
+    marginTop: spacing.lg,
+    marginHorizontal: spacing.xl,
+    borderWidth: 2,
+    borderColor: colors.status.success,
+    borderRadius: radius.xl,
+  },
+  // 검출 안내 — 비차단 문구. 잘 보일 때는 초록, 조정이 필요하면 흰색으로 갈린다.
+  guideText: {
+    marginTop: spacing.lg,
     marginBottom: spacing.sm,
     fontFamily: fonts.bold,
-    fontSize: 15,
-    color: colors.status.error,
-  },
-  // 작은 pill — 비차단 안내다. 검출이 안 돼도 캡처를 막지 않으므로 크게 외치지 않는다.
-  guideText: {
-    alignSelf: 'center',
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.pill,
-    backgroundColor: 'rgba(0, 0, 0, 0.55)',
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 22,
+    lineHeight: 30,
     textAlign: 'center',
     color: colors.status.success,
   },
   guideTextWarn: {
+    fontSize: 17,
+    lineHeight: 24,
     color: colors.text.onVideo,
   },
+  // 하단 단어 스트립 — V2 시안 SelectedWordStrip 배치를 pill 큐로 채운 것.
+  strip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: radius.md,
+    backgroundColor: colors.brand.subtle,
+  },
+  // flexShrink 로 남는 폭만 차지하게 둔다 — "결과 확인" 이 pill 에 밀려 잘리면 안 된다.
+  chipsViewport: {
+    flexShrink: 1,
+  },
   chipsRow: {
+    alignItems: 'center',
     gap: spacing.sm,
     paddingVertical: spacing.xs,
+  },
+  stripEmptyHint: {
+    flexShrink: 1,
+    paddingHorizontal: spacing.sm,
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    color: colors.text.secondary,
+  },
+  composeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginLeft: 'auto',
+    minHeight: touchTarget.minHeight,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.sm,
+    backgroundColor: colors.brand.primary,
+  },
+  composeButtonDisabled: {
+    opacity: 0.45,
+  },
+  composeButtonPressed: {
+    opacity: 0.85,
+  },
+  composeLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    color: colors.text.onBrand,
   },
   errorText: {
     fontFamily: fonts.medium,

@@ -1,16 +1,16 @@
 import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { SentenceCandidate } from '@ear-dream/core';
 
 import { Button } from '../../components/Button';
-import { CandidateRow } from '../../components/CandidateRow';
+import { Ripple } from '../../components/Ripple';
 import { ScreenFrame } from '../../components/ScreenFrame';
-import { Waveform } from '../../components/Waveform';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing } from '../../constants/theme';
 import type { ComposerPhase } from '../recognition/api/useSentenceComposer';
 import type { SessionWord } from '../recognition/session';
+import { useSpeech } from './speech';
 
 export interface ResultScreenProps {
   /** 문장을 만든 입력 단어 열 — 문장과 병기해 무엇에서 나온 문장인지 보여준다. */
@@ -26,10 +26,16 @@ export interface ResultScreenProps {
 }
 
 /**
- * 음성 전달 화면 — 조립한 단어 열로 만든 문장을 청인에게 보여준다.
+ * 음성 전달 화면 (V2 시안 "음성 전달"): brand/subtle 카드 — 스피커 아이콘 + 문장 + 캡션.
+ * 문장은 /compose-sentence 결과다(입력 단어 병기 · word_list 구분 · 실패 시 재전송 포함).
  *
- * TTS 는 미구현이므로 "전달되고 있어요"는 표시일 뿐이다. 파형도 정적 mock 이다.
- * 청인이 보는 화면이므로 문장은 큰 글자 · 고대비로 렌더링한다.
+ * 문장이 완성되면 실제로 읽는다(웹 SpeechSynthesis). 폰을 든 사람은 그 소리를 듣지
+ * 못하므로 "지금 말하고 있어요"를 눈으로도 보여준다 — 소리로만 전달되는 피드백을 만들지
+ * 않는다는 원칙이다. 청인이 읽는 문장이라 큰 글자 · 고대비로 렌더링한다.
+ *
+ * 시안에 있던 파형은 뺐다(마스터 결정 유지). SpeechSynthesis 는 오디오 레벨을 노출하지
+ * 않아 재생 중인 소리의 파형을 진짜로 그릴 수 없다. 아무 관계 없는 움직임을 파형인 척
+ * 흔드느니, 소리가 나가는 중이라는 사실만 물결로 표시한다.
  *
  * source 구분: `word_list` 는 서버가 문장으로 다듬지 못하고 단어를 그대로 나열한 것이다.
  * 문장처럼 보이면 안 되므로 안내 문구 + 점선 테두리로 시각 구분한다(색에만 의존하지 않는다).
@@ -42,6 +48,12 @@ export function ResultScreen({ words, phase, onRetry, onGoHome, onBack }: Result
   const selected: SentenceCandidate | null =
     result?.candidates[selectedIndex] ?? result?.candidates[0] ?? null;
 
+  // 문장이 확정되는 순간(pending → done, 또는 다른 후보 선택) 자동으로 읽는다.
+  // 빈 문자열이면 훅이 아무것도 하지 않는다.
+  const { status, speak, error } = useSpeech(selected?.text ?? '');
+  const speaking = status === 'speaking';
+  const unavailable = status === 'unsupported' || status === 'error';
+
   return (
     <ScreenFrame
       title={strings.result.appBarTitle}
@@ -50,7 +62,18 @@ export function ResultScreen({ words, phase, onRetry, onGoHome, onBack }: Result
         phase.name === 'failed' ? (
           <Button label={strings.result.retryCompose} onPress={onRetry} testID="result-retry" />
         ) : (
-          <Button label={strings.result.backToStart} onPress={onGoHome} testID="result-home" />
+          <>
+            {selected ? (
+              <Button
+                label={strings.result.replay}
+                variant="outline"
+                disabled={status === 'unsupported'}
+                onPress={speak}
+                testID="result-replay"
+              />
+            ) : null}
+            <Button label={strings.result.backToStart} onPress={onGoHome} testID="result-home" />
+          </>
         )
       }
     >
@@ -74,13 +97,34 @@ export function ResultScreen({ words, phase, onRetry, onGoHome, onBack }: Result
               <Text style={styles.wordListNotice} testID="result-word-list-notice">
                 {strings.result.wordListNotice}
               </Text>
-            ) : (
-              <Waveform testID="result-waveform" />
-            )}
-            <Text style={styles.sentence}>{selected.text}</Text>
-            {selected.source !== 'word_list' ? (
-              <Text style={styles.caption}>{strings.result.caption}</Text>
             ) : null}
+
+            <View style={styles.speakerStage}>
+              {/* 스피커 아이콘 — 확정 자산 전 placeholder 도형(인디고 원 + 스피커 모양). */}
+              <View style={styles.speakerCircle} accessibilityLabel={strings.result.speakerAlt}>
+                <View style={styles.speakerShape}>
+                  <View style={styles.speakerBody} />
+                  <View style={styles.speakerHorn} />
+                </View>
+              </View>
+              {/* 소리가 나가는 중이라는 표시. 재생이 끝나면 멈춘다. */}
+              <Ripple
+                size={SPEAKER_RIPPLE_SIZE}
+                startScale={SPEAKER_SIZE / SPEAKER_RIPPLE_SIZE}
+                active={speaking}
+                testID="result-ripple"
+              />
+            </View>
+
+            <Text style={styles.sentence}>{selected.text}</Text>
+
+            <Text style={[styles.caption, unavailable && styles.captionWarning]}>
+              {unavailable
+                ? (error ?? strings.result.speechUnavailable)
+                : speaking
+                  ? strings.result.speaking
+                  : strings.result.caption}
+            </Text>
           </View>
 
           {/* 입력 단어 병기 — 어떤 단어에서 나온 문장인지 항상 보인다(정정 판단 근거). */}
@@ -94,13 +138,19 @@ export function ResultScreen({ words, phase, onRetry, onGoHome, onBack }: Result
               <Text style={styles.wordsLabel}>{strings.result.alternativesLabel}</Text>
               {result.candidates.map((candidate, index) =>
                 index === selectedIndex ? null : (
-                  <CandidateRow
+                  <Pressable
                     key={`${candidate.text}-${index}`}
-                    sentence={candidate.text}
-                    selected={false}
                     onPress={() => setSelectedIndex(index)}
+                    accessibilityRole="button"
+                    accessibilityLabel={candidate.text}
+                    style={({ pressed }) => [
+                      styles.alternativeRow,
+                      pressed && styles.alternativeRowPressed,
+                    ]}
                     testID={`result-alternative-${index}`}
-                  />
+                  >
+                    <Text style={styles.alternativeText}>{candidate.text}</Text>
+                  </Pressable>
                 ),
               )}
             </View>
@@ -115,6 +165,10 @@ export function ResultScreen({ words, phase, onRetry, onGoHome, onBack }: Result
     </ScreenFrame>
   );
 }
+
+const SPEAKER_SIZE = 88;
+/** 물결이 가장 멀리 퍼졌을 때의 지름. */
+const SPEAKER_RIPPLE_SIZE = 176;
 
 const styles = StyleSheet.create({
   card: {
@@ -142,6 +196,41 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textAlign: 'center',
   },
+  speakerStage: {
+    width: SPEAKER_RIPPLE_SIZE,
+    height: SPEAKER_RIPPLE_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  speakerCircle: {
+    width: SPEAKER_SIZE,
+    height: SPEAKER_SIZE,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.primary,
+  },
+  speakerShape: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  speakerBody: {
+    width: 10,
+    height: 14,
+    borderTopLeftRadius: 3,
+    borderBottomLeftRadius: 3,
+    backgroundColor: colors.text.onBrand,
+  },
+  speakerHorn: {
+    width: 0,
+    height: 0,
+    borderTopWidth: 12,
+    borderBottomWidth: 12,
+    borderRightWidth: 14,
+    borderTopColor: 'transparent',
+    borderBottomColor: 'transparent',
+    borderRightColor: colors.text.onBrand,
+  },
   sentence: {
     // 청인에게 보여주는 텍스트 — 큰 글자 · 고대비.
     fontFamily: fonts.bold,
@@ -155,6 +244,9 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text.secondary,
     textAlign: 'center',
+  },
+  captionWarning: {
+    color: colors.status.error,
   },
   wordsRow: {
     marginTop: spacing.lg,
@@ -174,6 +266,25 @@ const styles = StyleSheet.create({
   alternatives: {
     marginTop: spacing.lg,
     gap: spacing.sm,
+  },
+  // 대안 문장 행 — CandidateRow 삭제(마스터) 후 시안 아웃라인 톤으로 그린 행.
+  alternativeRow: {
+    minHeight: 52,
+    justifyContent: 'center',
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border.default,
+    backgroundColor: colors.bg.canvas,
+  },
+  alternativeRowPressed: {
+    opacity: 0.85,
+  },
+  alternativeText: {
+    fontFamily: fonts.medium,
+    fontSize: 16,
+    lineHeight: 24,
+    color: colors.text.primary,
   },
   centerCard: {
     flex: 1,

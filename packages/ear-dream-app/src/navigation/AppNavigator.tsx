@@ -20,7 +20,8 @@ import { VoiceInputScreen } from '../features/voice/VoiceInputScreen';
  * 흐름 (방향 전환 반영):
  *   농인→청인: home → signFlow(단어 기록 → 단어 확인 → 누적 → 문장) → home
  *     — 농인 트랙 내부 전환(입력/후보/결과)은 SignFlow 가 소유한다. 누적 칩과 세션이
- *       화면 전환을 넘어 유지되어야 해서다.
+ *       화면 전환을 넘어 유지되어야 해서다. 마스터의 signInput/result 라우트(mock 흐름)는
+ *       SignFlow 가 대체한다.
  *   청인→농인: home → voiceInput(듣는 중 또는 키보드) → recognizing(mock) → signVideo
  */
 export type WireScreen =

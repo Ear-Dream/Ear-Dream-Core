@@ -21,12 +21,12 @@ export const strings = {
 
   /**
    * 수어 입력 화면 — 방향 전환(단어 단위 인식 → 누적 → 문장) 반영.
-   * 새 방향의 화면은 피그마 「검증 필요」 섹션에만 있고 확정 시안이 아니라서,
-   * 아래 문구는 전부 시안 외 임시 카피다.
+   * 시안 카피가 있는 항목(녹화 배지 · 단어 스트립)은 그대로 옮겼고,
+   * pill 큐 · 인라인 안내 등 새 방향의 문구는 시안 외 임시 카피다.
    */
   signInput: {
     appBarTitle: '수어 입력',
-    recordingBadge: '기록 중',
+    recordingBadge: '녹화 중',
     captureAlt: '단어 기록 버튼. 누르는 동안 수어 한 단어를 기록합니다',
     captureHint: '버튼을 누른 채 한 단어를 동작해 주세요',
     cameraLoading: '카메라 준비 중...',
@@ -38,7 +38,7 @@ export const strings = {
      */
     guideShouldersMissing: '상체가 화면에 들어오면 더 정확해요',
     guideHandsMissing: '손이 화면에 보이게 해주세요',
-    guideAllVisible: '어깨와 손이 잘 보여요',
+    guideAllVisible: '어깨와 손이\n잘 보여요',
     /**
      * 인식 결과 인라인 안내 — rejected/low_quality 는 화면 전환 없이 입력 화면에 남아
      * 이 배너로만 알린다(흐름 유지 · 즉시 재시도 가능 · 추가 탭 0회). 에러가 아니므로
@@ -67,9 +67,12 @@ export const strings = {
     sendFailedTimeout: '서버 응답이 없어요 — 빨간 단어를 눌러 다시 보내주세요',
     /** stop() 이 빈 세그먼트를 돌려준 경우(카메라 정지 등) — 로컬 안내. */
     emptySegment: '카메라 화면이 잡히지 않았어요. 잠시 후 다시 눌러 주세요.',
-    compose: '문장 만들기',
-    /** "문장 만들기" 비활성 이유 — 대기/실패 pill 이 남아 있으면 만들 수 없다. */
-    composeBlockedPending: '단어를 읽는 중이에요 — 끝나면 문장을 만들 수 있어요',
+    /** 하단 단어 스트립(시안 카피) — 인식한 단어 pill 이 쌓이는 자리. */
+    wordsEmpty: '기록한 단어가 여기에 쌓여요',
+    /** 스트립 오른쪽 완료 버튼 — 문장을 만들어 결과 화면으로 (시안 카피 "결과 확인"). */
+    compose: '결과 확인',
+    /** "결과 확인" 비활성 이유 — 대기/실패 pill 이 남아 있으면 문장을 만들 수 없다. */
+    composeBlockedPending: '단어를 읽는 중이에요 — 끝나면 결과를 볼 수 있어요',
     composeBlockedFailed: '보내지 못한 단어가 있어요 — 다시 보내거나 지워주세요',
     /** 인식 큐 pill — 대기(…) / 확정(단어) / 실패(↻) 상태별 라벨과 스크린 리더 문구. */
     pillPendingLabel: '···',
@@ -104,14 +107,15 @@ export const strings = {
 
   /**
    * 단어 후보 하단 시트 — pill 큐 재구성(2026-08-10)으로 후보 "화면" 전환이 사라지고,
-   * 확정 pill 탭 시 열리는 시트가 top-k 후보 교체·삭제를 담당한다. 시안 외 임시 카피.
+   * 확정 pill 탭 시 열리는 시트가 top-k 후보 교체·삭제를 담당한다.
+   * prompt 는 V2 시안 "단어 선택" 카피, 나머지는 시안 외 임시 카피.
    *
    * rejected/low_quality 는 시트로 오지 않는다 — 입력 화면의 인라인 배너
    * (signInput.notice*)가 담당한다. 시트는 recognized(확정) 전용이고, 어드바이저리
    * quality_issues 가 있으면 힌트 한 줄만 보탠다(흐름 방해 금지).
    */
   wordSheet: {
-    prompt: '어떤 단어였는지 골라주세요.',
+    prompt: '단어를 선택해주세요',
     removeWord: '이 단어 지우기',
     close: '닫기',
     /**
@@ -126,13 +130,22 @@ export const strings = {
   },
 
   /**
-   * 문장 결과 화면 — 조립한 단어 열 + /compose-sentence 결과. 시안 외 임시 카피.
+   * 문장 결과 화면 — 조립한 단어 열 + /compose-sentence 결과.
+   * 스피커·재생 문구는 V2 시안 "음성 전달" 기준, 연동 상태 문구는 시안 외 임시 카피.
    * 청인이 보는 화면이므로 문장은 큰 글자 · 고대비.
    */
   result: {
     appBarTitle: '음성 전달',
-    speakerAlt: '음성 재생 (TTS 미구현 — 표시만 한다)',
+    speakerAlt: '음성 재생',
     caption: '상대방에게 음성으로 전달되고 있어요',
+    /**
+     * 재생 중 표시. 폰을 든 사람은 소리를 듣지 못하므로 음성이 나가는 중이라는 사실은
+     * 반드시 눈으로도 보여야 한다. 시안 외 임시 카피.
+     */
+    speaking: '지금 말하고 있어요',
+    replay: '다시 듣기',
+    /** 음성 합성을 쓸 수 없는 환경(현재 네이티브) 안내 — 시안 외 임시 카피. */
+    speechUnavailable: '이 환경에서는 소리가 나오지 않아요. 화면의 문장을 보여주세요.',
     composing: '문장을 만들고 있어요',
     /** source=word_list — 규칙/모델이 문장으로 다듬지 못하고 단어를 그대로 나열한 경우. */
     wordListNotice: '문장으로 다듬지 못해 단어를 그대로 나열했어요',
@@ -148,10 +161,15 @@ export const strings = {
     appBarTitle: '음성 입력',
     title: '말씀해 주세요',
     subtitle: '수어 영상으로 바꿔서 보여드릴게요',
-    micAlt: '음성 입력 시작 (마이크는 미구현, 탭하면 듣는 중 상태로 전환)',
+    micAlt: '음성 입력 시작 (파형만 실제 마이크 입력, 음성 인식은 미구현)',
     stopAlt: '듣기 정지',
     listeningBadge: '듣고 있어요',
     noiseCaption: '주변 소음이 크다면 키보드로 입력해주세요.',
+    /**
+     * 마이크를 열지 못했을 때 noiseCaption 대신 보여주는 안내 — 시안 외 임시 카피.
+     * 파형이 계속 일자로만 있는 이유를 알려주고 키보드 폴백으로 유도한다.
+     */
+    micUnavailableCaption: '마이크를 쓸 수 없습니다. 키보드로 입력해주세요.',
     keyboardFallback: '키보드로 입력하기',
     textPlaceholder: '전달할 내용을 입력하세요',
     textConfirm: '확인',
