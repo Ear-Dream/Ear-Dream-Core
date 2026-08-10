@@ -14,15 +14,23 @@ export interface ScreenFrameProps {
    * 화면의 모든 필수 조작(확정 · 정정 · 이동)은 여기에 둔다.
    */
   footer?: ReactNode;
+  /**
+   * AppBar · 본문 · 하단 조작 영역을 모두 덮는 오버레이(시트 · 스크림 등).
+   *
+   * body 가 아니라 root 의 자식이라야 하단 조작 영역까지 덮을 수 있고, 화면 전체가 아니라
+   * 이 골격의 폭(maxScreenWidth) 안에 갇혀야 웹에서 시트만 창 끝까지 퍼지지 않는다.
+   */
+  overlay?: ReactNode;
 }
 
-/** 화면 공통 골격: AppBar / 본문 / 하단 조작 영역. */
-export function ScreenFrame({ children, title, onBack, footer }: ScreenFrameProps) {
+/** 화면 공통 골격: AppBar / 본문 / 하단 조작 영역 (+ 전체를 덮는 오버레이). */
+export function ScreenFrame({ children, title, onBack, footer, overlay }: ScreenFrameProps) {
   return (
     <View style={styles.root}>
       {title != null && onBack != null ? <AppBar title={title} onBack={onBack} /> : null}
       <View style={styles.body}>{children}</View>
       {footer ? <View style={styles.footer}>{footer}</View> : null}
+      {overlay}
     </View>
   );
 }
