@@ -13,6 +13,7 @@ export { CameraLandmarkView } from './CameraLandmarkView';
 export type {
   DetectedFace,
   DetectedHand,
+  DetectedPose,
   FaceFrame,
   LandmarkerDelegate,
   LandmarkerStatus,

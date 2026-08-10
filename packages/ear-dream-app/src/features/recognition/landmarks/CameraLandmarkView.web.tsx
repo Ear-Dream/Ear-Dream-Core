@@ -32,6 +32,7 @@ const DEV_OVERLAY_COLORS: OverlayColors = {
   fallbackHandColor: UNKNOWN_HAND_COLOR,
   handPointColor: '#ffffff',
   faceColor: '#31c48d',
+  poseColor: '#e8b12f',
 };
 
 /** 개발 화면에서 골라볼 수 있는 얼굴 검출 주기. 확정값이 아니라 비교용 선택지다. */
@@ -61,6 +62,7 @@ export function CameraLandmarkView() {
     hands,
     face,
     displayFace,
+    pose,
     fps,
     timings,
     delegate: activeDelegate,
@@ -166,6 +168,10 @@ export function CameraLandmarkView() {
           <span>{timings.faceDetectMs > 0 ? `${timings.faceDetectMs.toFixed(1)}ms` : '—'}</span>
         </div>
         <div style={styles.hudRow}>
+          <strong>포즈 검출 시간</strong>
+          <span>{timings.poseDetectMs > 0 ? `${timings.poseDetectMs.toFixed(1)}ms` : '—'}</span>
+        </div>
+        <div style={styles.hudRow}>
           <strong>입력 해상도</strong>
           <span>{sourceWidth > 0 ? `${sourceWidth}x${sourceHeight}` : '—'}</span>
         </div>
@@ -184,6 +190,16 @@ export function CameraLandmarkView() {
                 : displayFace
                   ? `1 (${displayFace.landmarks.length}점)${face ? '' : ' — 유지값'}`
                   : '0 — 프레임 밖'}
+          </span>
+        </div>
+        <div style={styles.hudRow}>
+          <strong>검출된 포즈(어깨)</strong>
+          <span>
+            {status !== 'running'
+              ? '—'
+              : pose
+                ? `1 (${pose.landmarks.length}점)`
+                : '0 — 어깨가 프레임 밖'}
           </span>
         </div>
 

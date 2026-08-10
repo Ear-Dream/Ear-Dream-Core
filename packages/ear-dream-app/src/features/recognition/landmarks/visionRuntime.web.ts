@@ -17,7 +17,12 @@
  * 완전히 사라지므로 Metro 가 라이브러리를 볼 일이 없고, 타입 안전성은 그대로 유지된다.
  * 즉 API 형태가 바뀌면 여전히 `pnpm typecheck` 에서 잡힌다.
  */
-import type { FaceLandmarker, FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision';
+import type {
+  FaceLandmarker,
+  FilesetResolver,
+  HandLandmarker,
+  PoseLandmarker,
+} from '@mediapipe/tasks-vision';
 
 import { MEDIAPIPE_BUNDLE_PATH } from './config';
 
@@ -26,6 +31,7 @@ export interface VisionRuntime {
   FilesetResolver: typeof FilesetResolver;
   HandLandmarker: typeof HandLandmarker;
   FaceLandmarker: typeof FaceLandmarker;
+  PoseLandmarker: typeof PoseLandmarker;
 }
 
 let cached: VisionRuntime | null = null;
@@ -33,8 +39,11 @@ let pending: Promise<VisionRuntime> | null = null;
 
 function readGlobal(): VisionRuntime | null {
   const candidate = (globalThis as { Vision?: VisionRuntime }).Vision;
-  // 셋 다 확인한다. 하나라도 없으면 번들이 예상과 다른 것이므로 아래에서 명시적으로 실패시킨다.
-  return candidate?.HandLandmarker && candidate.FaceLandmarker && candidate.FilesetResolver
+  // 넷 다 확인한다. 하나라도 없으면 번들이 예상과 다른 것이므로 아래에서 명시적으로 실패시킨다.
+  return candidate?.HandLandmarker &&
+    candidate.FaceLandmarker &&
+    candidate.PoseLandmarker &&
+    candidate.FilesetResolver
     ? candidate
     : null;
 }

@@ -29,27 +29,36 @@ const WIRE_OVERLAY_COLORS: OverlayColors = {
   fallbackHandColor: UNKNOWN_HAND_COLOR,
   handPointColor: '#FFFFFF',
   faceColor: 'rgba(255, 255, 255, 0.55)',
+  // 어깨 2점 + 연결선 — 프레이밍 확인용 중립색. 확정 디자인이 아니다.
+  poseColor: 'rgba(255, 255, 255, 0.8)',
 };
 
-export function SignCameraView({ onDetectionChange }: SignCameraViewProps) {
+export function SignCameraView({ onDetectionChange, onFrame }: SignCameraViewProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
-  // 검출 루프와 같은 tick 안에서 그린다. 이 경로는 React 상태를 건드리지 않는다.
+  // 프레임 소비자(세그먼트 레코더)는 ref 로 들고 있는다 — 신원이 바뀌어도 루프가 흔들리지 않게.
+  const onFrameRef = useRef(onFrame);
+  onFrameRef.current = onFrame;
+
+  // 검출 루프와 같은 tick 안에서 그리고, 원본 스냅샷을 소비자에게 그대로 넘긴다.
+  // 이 경로는 React 상태를 건드리지 않는다.
   const handleFrame = useCallback((snapshot: LandmarkSnapshot) => {
     const canvas = canvasRef.current;
     if (canvas) drawSnapshot(canvas, snapshot, WIRE_OVERLAY_COLORS);
+    onFrameRef.current?.(snapshot);
   }, []);
 
-  const { status, error, hands, videoRef } = useLandmarker({ onFrame: handleFrame });
+  const { status, error, hands, pose, videoRef } = useLandmarker({ onFrame: handleFrame });
 
   // 콜백 신원이 바뀌어도 effect 가 다시 돌지 않게 ref 로 들고 있는다.
   const callbackRef = useRef(onDetectionChange);
   callbackRef.current = onDetectionChange;
 
   const handCount = hands.length;
+  const poseDetected = pose !== null;
   useEffect(() => {
-    callbackRef.current?.({ status, handCount, error });
-  }, [status, handCount, error]);
+    callbackRef.current?.({ status, handCount, poseDetected, error });
+  }, [status, handCount, poseDetected, error]);
 
   // 미리보기 반전은 video 와 canvas 를 함께 감싼 래퍼에 건다. 반전 여부는 handedness.ts 소유.
   const mirrorStyle: React.CSSProperties = PREVIEW_MIRRORED ? { transform: 'scaleX(-1)' } : {};

@@ -33,6 +33,16 @@ const MODELS = [
     sizeHint: '약 3.7MB',
     url: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task',
   },
+  {
+    // 어깨 기준 정규화(방향 전환)에 필요한 포즈 랜드마크 모델.
+    // lite 를 고른 이유: 지금 필요한 것은 어깨 양 포인트(큰 관절)라 lite 정밀도로 충분하다는
+    // 판단이다. 다만 이것은 실측 비교(lite vs full) 없이 내린 **임시 선택**이며,
+    // 어깨 좌표 품질이 정규화에 부족하다고 실측되면 full/heavy 로 올리고 URL 을 함께 바꾼다.
+    label: '포즈 랜드마크 모델',
+    filename: 'pose_landmarker_lite.task',
+    sizeHint: '약 5.5MB',
+    url: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task',
+  },
 ];
 
 async function exists(path) {

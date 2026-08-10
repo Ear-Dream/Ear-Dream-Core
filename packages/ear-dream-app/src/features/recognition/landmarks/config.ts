@@ -16,6 +16,12 @@ export const MAX_HANDS = 2;
  */
 export const MAX_FACES = 1;
 
+/**
+ * 포즈는 1개만 검출한다. 필요한 것은 사용자 본인의 어깨 양 포인트(어깨 기준 정규화)이지
+ * 다른 사람의 포즈가 아니다. MAX_FACES 와 같은 논리다.
+ */
+export const MAX_POSES = 1;
+
 /** FPS 이동평균 표본 수. 작업 지시서에 명시된 값(최근 30프레임)이라 임의값이 아니다. */
 export const FPS_SAMPLE_WINDOW = 30;
 
@@ -87,6 +93,21 @@ export const LANDMARKER_DELEGATE = 'GPU' as const;
 export const MEDIAPIPE_WASM_PATH = '/mediapipe/wasm';
 export const HAND_LANDMARKER_MODEL_PATH = '/mediapipe/models/hand_landmarker.task';
 export const FACE_LANDMARKER_MODEL_PATH = '/mediapipe/models/face_landmarker.task';
+/** 포즈는 lite 모델이다 — 임시 선택. 근거와 교체 절차는 scripts/setup-mediapipe-assets.mjs 참고. */
+export const POSE_LANDMARKER_MODEL_PATH = '/mediapipe/models/pose_landmarker_lite.task';
+
+/**
+ * 서버 전송용 landmarker 모델 버전 식별자 (CaptureMeta.landmarker_model_versions).
+ *
+ * setup-mediapipe-assets.mjs 의 다운로드 URL 경로(모델명/정밀도/버전)와 항상 함께 바꾼다.
+ * 아카이브된 데이터가 어느 landmarker 로 뽑혔는지 추적하는 용도라, 파일명만으로는 버전
+ * 디렉토리(.../1/)가 사라져서 부족하다.
+ */
+export const LANDMARKER_MODEL_VERSIONS: Record<string, string> = {
+  hand: 'hand_landmarker/float16/1',
+  face: 'face_landmarker/float16/1',
+  pose: 'pose_landmarker_lite/float16/1',
+};
 
 /**
  * MediaPipe 라이브러리 본체(IIFE 빌드). 번들러가 아니라 런타임 <script> 로 읽는다.
