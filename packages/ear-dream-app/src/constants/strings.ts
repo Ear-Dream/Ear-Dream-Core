@@ -27,6 +27,13 @@ export const strings = {
     failBadge: '인식 실패',
     failTitle: '손이 잘 안 보였어요',
     retake: '다시 촬영하기',
+    /**
+     * 하단 단어 스트립 — 촬영·선택을 반복하며 고른 단어가 쌓이는 자리. 시안 외 임시 카피.
+     */
+    wordsEmpty: '고른 단어가 여기에 쌓여요',
+    wordsDone: '결과 확인',
+    /** 칩의 × 접근성 라벨. 앞에 단어를 붙여 "자동차 빼기" 로 읽힌다. */
+    wordRemoveAlt: '빼기',
   },
 
   recognizing: {
@@ -51,15 +58,24 @@ export const strings = {
   },
 
   candidates: {
-    appBarTitle: '인식 결과',
-    prompt: '전달하고 싶은 문장을 선택해주세요.',
-    confirm: '문장 선택 완료',
+    appBarTitle: '수어 인식 중',
+    prompt: '단어를 선택해주세요',
+    confirm: '단어 선택 완료',
+    retake: '다시 촬영하기',
   },
 
   result: {
     appBarTitle: '음성 전달',
-    speakerAlt: '음성 재생 (TTS 미구현 — 표시만 한다)',
+    speakerAlt: '음성 재생',
     caption: '상대방에게 음성으로 전달되고 있어요',
+    /**
+     * 재생 중 표시. 폰을 든 사람은 소리를 듣지 못하므로 음성이 나가는 중이라는 사실은
+     * 반드시 눈으로도 보여야 한다. 시안 외 임시 카피.
+     */
+    speaking: '지금 말하고 있어요',
+    replay: '다시 듣기',
+    /** 음성 합성을 쓸 수 없는 환경(현재 네이티브) 안내 — 시안 외 임시 카피. */
+    speechUnavailable: '이 환경에서는 소리가 나오지 않아요. 화면의 문장을 보여주세요.',
     backToStart: '처음으로 돌아가기',
   },
 

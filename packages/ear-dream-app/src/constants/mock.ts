@@ -13,14 +13,45 @@
 export const MOCK_RECOGNITION_DELAY_MS = 2500;
 
 /**
- * 후보 문장 목업 (피그마 시안의 예시 3개 그대로).
- * 후보 개수 N 은 사용자 검증 전까지 미확정이다 — 3이 확정값이라는 뜻이 아니다.
+ * 후보 단어 목업.
+ *
+ * 인식 결과가 문장에서 단어로 바뀌면서(단어를 골라 문장을 조합하는 흐름) 후보도 단어가 됐다.
+ * 값은 V2 시안 "단어 선택" 프레임의 후보 4개(교통수단)를 그대로 옮긴 것이다.
+ *
+ * 후보 개수 N 은 사용자 검증 전까지 미확정이다 — 4가 확정값이라는 뜻이 아니라
+ * 시안이 2×2 그리드라 4개일 뿐이다.
  */
-export const MOCK_CANDIDATE_SENTENCES: readonly string[] = [
-  '집에 가고 싶어요',
-  '지하철 타려면 어디로 가요?',
-  '역으로 어떻게 가요?',
+export interface MockCandidateWord {
+  /**
+   * 어휘 ID. 표시어(word)만으로는 동음이의어를 구분할 수 없고, 확정 로그에 ID 가 남지 않으면
+   * 나중에 오인식률을 되짚을 수 없다. 실제 어휘 집합(T-04)이 정해지면 그 ID 로 대체한다.
+   */
+  id: string;
+  /** 화면에 보이는 표시어. */
+  word: string;
+  /** `CANDIDATE_ICONS` 의 키. 없으면 카드에 글자만 나온다. */
+  iconKey?: string;
+}
+
+export const MOCK_CANDIDATE_WORDS: readonly MockCandidateWord[] = [
+  { id: 'w-car', word: '자동차', iconKey: 'car' },
+  { id: 'w-subway', word: '지하철', iconKey: 'subway' },
+  { id: 'w-bus', word: '버스', iconKey: 'bus' },
+  { id: 'w-train', word: '기차', iconKey: 'train' },
 ];
+
+/**
+ * 고른 단어들을 전달 문장으로 합친다.
+ *
+ * 실제 문장 생성(조사·어미 붙이기, 어순 정리)은 미구현이다. 지금은 고른 순서대로 띄어
+ * 이어 붙이기만 하므로 "자동차 지하철" 같은 단어 나열로 보이는 게 정상이고, 그게 아직
+ * mock 이라는 표시다. 그럴듯한 문장으로 보이게 손대면 완성된 기능처럼 오해된다.
+ *
+ * 서버 문장 생성이 붙으면 이 함수를 그 호출로 대체한다.
+ */
+export function composeMockSentence(words: readonly MockCandidateWord[]): string {
+  return words.map((candidate) => candidate.word).join(' ');
+}
 
 /**
  * 청인 트랙 "수어로 보기" 화면의 인식 문장 목업 (피그마 시안 예시 문장 그대로).
