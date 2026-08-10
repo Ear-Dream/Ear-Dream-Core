@@ -4,6 +4,7 @@ dist/
 *.tsbuildinfo
 npm-debug.log*
 pnpm-debug.log*
+*.log
 
 # Expo / React Native
 .expo/
