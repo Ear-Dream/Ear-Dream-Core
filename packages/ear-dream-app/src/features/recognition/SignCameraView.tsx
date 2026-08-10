@@ -9,24 +9,31 @@ import { useEffect } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius, spacing } from '../../constants/theme';
-import type { LandmarkerStatus } from './landmarks';
+import type { LandmarkerStatus, LandmarkSnapshot } from './landmarks';
 
-/** 수어 입력 화면이 예외 오버레이("손이 안 보여요") 판단에 쓰는 검출 상태 요약. */
+/** 수어 입력 화면이 안내 문구("어깨가 안 보여요" 등) 판단에 쓰는 검출 상태 요약. */
 export interface SignCameraDetectionState {
   status: LandmarkerStatus;
   handCount: number;
+  /** 이 갱신 주기의 포즈(어깨) 관측 여부. 어깨 기준 정규화의 프레이밍 안내에 쓴다. */
+  poseDetected: boolean;
   error: string | null;
 }
 
 export interface SignCameraViewProps {
   /** 저빈도(HUD 주기)로 호출된다. 프레임 데이터가 아니라 상태 요약만 전달한다. */
   onDetectionChange?: (state: SignCameraDetectionState) => void;
+  /**
+   * 매 프레임 원본 스냅샷. 세그먼트 레코더(useSegmentRecorder.onFrame)에 그대로 연결한다.
+   * 리렌더 없는 경로이므로 여기서 React 상태를 건드리지 말 것.
+   */
+  onFrame?: (snapshot: LandmarkSnapshot) => void;
 }
 
 export function SignCameraView({ onDetectionChange }: SignCameraViewProps) {
   useEffect(() => {
     // 네이티브에서는 검출이 돌지 않으므로 한 번만 알려준다.
-    onDetectionChange?.({ status: 'unsupported', handCount: 0, error: null });
+    onDetectionChange?.({ status: 'unsupported', handCount: 0, poseDetected: false, error: null });
     // onDetectionChange 는 마운트 시점 한 번이면 충분하다.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

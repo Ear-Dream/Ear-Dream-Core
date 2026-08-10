@@ -2,13 +2,12 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
-import { composeMockSentence, type MockCandidateWord } from '../constants/mock';
 import { spacing } from '../constants/theme';
 import { HomeScreen } from '../features/home/HomeScreen';
+import { useVocabulary } from '../features/recognition/api/useVocabulary';
 import { LandmarkDevScreen } from '../features/recognition/LandmarkDevScreen';
 import { RecognizingScreen } from '../features/recognition/RecognizingScreen';
-import { SignInputScreen, type SignInputPhase } from '../features/recognition/SignInputScreen';
-import { ResultScreen } from '../features/transcript/ResultScreen';
+import { SignFlow } from '../features/recognition/SignFlow';
 import { SignVideoScreen } from '../features/voice/SignVideoScreen';
 import { VoiceInputScreen } from '../features/voice/VoiceInputScreen';
 
@@ -18,25 +17,19 @@ import { VoiceInputScreen } from '../features/voice/VoiceInputScreen';
  * 화면이 늘거나 딥링크/히스토리가 필요해지면 expo-router 도입을 팀과 결정한다(스킬 문서 방침).
  * 그때 갈아끼우기 쉽게 화면 컴포넌트는 네비게이션 구현을 모르고 콜백 props 만 받는다.
  *
- * 흐름 (피그마 UI v2):
- *   농인→청인: home → signInput(녹화) → 정지 → recognizing → signInput(후보 시트)
- *              → 단어 선택 → 다시 signInput(녹화) ... 반복 → "결과 확인" → result → home
- *   청인→농인: home → voiceInput(듣는 중 또는 키보드) → recognizing → signVideo
- *
- * 후보 선택은 라우트가 아니라 signInput 의 한 단계(phase)다. 시트 뒤에서 카메라가 살아 있어야
- * "취소하고 다시 찍기"가 재획득 없이 즉시 동작하기 때문이다.
- *
- * 고른 단어 목록은 signInput 이 아니라 여기가 들고 있다. 한 단어를 고를 때마다 recognizing 을
- * 거치면서 signInput 이 언마운트되므로, 화면 안에 두면 매번 지워진다.
- *
- * V2 시안은 모든 화면에 AppBar 뒤로가기가 있어 역방향 이동은 뒤로가기로 해결한다.
+ * 흐름 (방향 전환 반영):
+ *   농인→청인: home → signFlow(단어 기록 → 단어 확인 → 누적 → 문장) → home
+ *     — 농인 트랙 내부 전환(입력/후보/결과)은 SignFlow 가 소유한다. 누적 칩과 세션이
+ *       화면 전환을 넘어 유지되어야 해서다. 마스터의 signInput/result 라우트(mock 흐름)는
+ *       SignFlow 가 대체한다.
+ *   청인→농인: home → voiceInput(듣는 중 또는 키보드) → recognizing(mock) → signVideo
  */
 export type WireScreen =
   | { name: 'home' }
-  | { name: 'signInput'; phase: SignInputPhase }
-  /** 인식 중 화면은 양 트랙 공용 — next 로 트랙을 구분하고 문구 컨텍스트도 여기서 나온다. */
-  | { name: 'recognizing'; next: 'candidates' | 'signVideo' }
-  | { name: 'result'; sentence: string }
+  /** 농인 트랙 전체 (수어 입력 → 단어 확인 → 문장). */
+  | { name: 'signFlow' }
+  /** 청인 트랙 전용 "음성 인식 중" (STT 미구현 — mock 타이머). */
+  | { name: 'recognizing' }
   | { name: 'voiceInput' }
   | { name: 'signVideo' }
   /** __DEV__ 전용: T-03 랜드마크 확인 화면. */
@@ -44,75 +37,39 @@ export type WireScreen =
 
 export function AppNavigator() {
   const [screen, setScreen] = useState<WireScreen>({ name: 'home' });
-  const [words, setWords] = useState<readonly MockCandidateWord[]>([]);
 
-  // 첫 화면으로 나가는 건 이 대화를 끝낸다는 뜻이다 — 모은 단어를 다음 대화로 끌고 가지 않는다.
-  const goHome = useCallback(() => {
-    setWords([]);
-    setScreen({ name: 'home' });
-  }, []);
-  const goSignInput = useCallback(() => setScreen({ name: 'signInput', phase: 'recording' }), []);
+  // 서버 카탈로그(/vocabulary + /model)는 부팅 시 1회 로드한다. 실패해도 앱은 뜬다.
+  const catalog = useVocabulary();
+
+  const goHome = useCallback(() => setScreen({ name: 'home' }), []);
+  const goSignFlow = useCallback(() => setScreen({ name: 'signFlow' }), []);
   const goVoiceInput = useCallback(() => setScreen({ name: 'voiceInput' }), []);
 
   switch (screen.name) {
     case 'home':
       return (
         <HomeScreen
-          onStartSign={goSignInput}
+          onStartSign={goSignFlow}
           onStartVoice={goVoiceInput}
           onOpenLandmarkDev={__DEV__ ? () => setScreen({ name: 'landmarkDev' }) : undefined}
         />
       );
-    case 'signInput':
-      return (
-        <SignInputScreen
-          phase={screen.phase}
-          words={{
-            items: words,
-            onAdd: (candidate) => {
-              setWords((previous) => [...previous, candidate]);
-              // 한 단어를 담았으면 곧바로 다음 단어를 찍는 상태로 되돌아간다.
-              setScreen({ name: 'signInput', phase: 'recording' });
-            },
-            onRemove: (index) =>
-              setWords((previous) => previous.filter((_, at) => at !== index)),
-            onComplete: () =>
-              setScreen({ name: 'result', sentence: composeMockSentence(words) }),
-          }}
-          onStop={() => setScreen({ name: 'recognizing', next: 'candidates' })}
-          onRetake={goSignInput}
-          onBack={goHome}
-        />
-      );
-    case 'recognizing': {
-      const next = screen.next;
+    case 'signFlow':
+      return <SignFlow catalog={catalog} onExit={goHome} />;
+    case 'recognizing':
       return (
         <RecognizingScreen
-          context={next === 'candidates' ? 'sign' : 'voice'}
-          onDone={() => {
-            // union 분배 문제로 { name: next } 는 좁혀지지 않아 케이스별로 나눈다.
-            if (next === 'candidates') setScreen({ name: 'signInput', phase: 'candidates' });
-            else setScreen({ name: 'signVideo' });
-          }}
-          onCancel={next === 'candidates' ? goSignInput : goVoiceInput}
-        />
-      );
-    }
-    case 'result':
-      return (
-        <ResultScreen
-          sentence={screen.sentence}
-          onGoHome={goHome}
-          // 뒤로가기는 단어를 더 붙이거나 빼러 촬영 화면으로 — 모은 단어는 그대로 남아 있다.
-          onBack={goSignInput}
+          context="voice"
+          onDone={() => setScreen({ name: 'signVideo' })}
+          onCancel={goVoiceInput}
         />
       );
     case 'voiceInput':
       return (
         <VoiceInputScreen
-          onStopListening={() => setScreen({ name: 'recognizing', next: 'signVideo' })}
+          onStopListening={() => setScreen({ name: 'recognizing' })}
           // 입력 텍스트는 STT 미구현이라 다음 화면에서 아직 소비하지 않는다(mock).
-          onTextSubmit={() => setScreen({ name: 'recognizing', next: 'signVideo' })}
+          onTextSubmit={() => setScreen({ name: 'recognizing' })}
           onBack={goHome}
         />
       );

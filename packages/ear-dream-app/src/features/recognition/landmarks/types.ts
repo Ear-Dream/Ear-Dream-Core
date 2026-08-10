@@ -1,5 +1,5 @@
 /**
- * 랜드마크 추출(손 + 얼굴)의 플랫폼 중립 계약.
+ * 랜드마크 추출(손 + 얼굴 + 포즈)의 플랫폼 중립 계약.
  *
  * 이 파일에는 MediaPipe 나 DOM 타입이 등장하지 않는다. 지금은 브라우저 WASM 으로 구현하지만
  * 나중에 development build 의 네이티브 MediaPipe 나 서버 추론으로 갈아끼울 때, 소비하는 쪽
@@ -62,6 +62,30 @@ export interface DetectedFace {
   frame: FaceFrame;
 }
 
+/**
+ * 검출된 포즈 하나 (MediaPipe Pose 33점).
+ *
+ * 방향 전환으로 정규화 기준이 손목 → **어깨 양 포인트**가 되면서 포즈가 필요해졌다.
+ * 어깨는 손·얼굴 landmarker 에 없는 포즈 랜드마크다. T-03 은 33점 원본을 그대로 내보내고,
+ * 어깨 추출·정규화는 서버 전처리 소관이다(설계 결정 1).
+ *
+ * face 와 같은 원칙: 이 값은 **그 프레임의 관측값**이며 검출 실패 시 스냅샷에서 null 이다.
+ * 표시용 hold 값은 두지 않는다 — 포즈는 매 프레임 검출하므로 스킵으로 인한 깜빡임이 없다.
+ */
+export interface DetectedPose {
+  /** 33개 관절. 오버레이 등 화면 표시에 쓴다. */
+  landmarks: readonly LandmarkPoint[];
+  /** 33개 관절의 visibility [0, 1] (vision.d.ts NormalizedLandmark.visibility). */
+  visibility: readonly number[];
+  /**
+   * 33개 관절의 world 좌표(미터, [x, y, z]) — 모델이 주지 않으면 null.
+   * PoseObservation.world_landmarks 로 그대로 전송한다.
+   */
+  worldLandmarks: number[][] | null;
+  /** HandFrame 과 같은 표현(33 x [x, y, z])의 정규화 좌표 배열. 축약 없이 원본 그대로다. */
+  frame: number[][];
+}
+
 /** 추론 백엔드. 지정하지 않으면 라이브러리 기본값인 CPU 로 돈다. config.ts 참고. */
 export type LandmarkerDelegate = 'GPU' | 'CPU';
 
@@ -75,6 +99,8 @@ export interface LandmarkTimings {
   handDetectMs: number;
   /** 얼굴 검출을 실제로 수행한 프레임들의 평균. 꺼져 있으면 0. */
   faceDetectMs: number;
+  /** 포즈 검출 시간 평균. 포즈를 별도 모델로 얹은 실제 비용(미측정 항목)의 실측 근거다. */
+  poseDetectMs: number;
 }
 
 /** 한 프레임의 검출 결과. 렌더러가 프레임마다 읽는 값. */
@@ -97,6 +123,11 @@ export interface LandmarkSnapshot {
    * ⚠️ 이 값을 버퍼에 쌓거나 전송하지 말 것. 위 face 주석 참고.
    */
   displayFace: DetectedFace | null;
+  /**
+   * 이 프레임의 포즈 관측값. 검출 실패(어깨가 프레임 밖 등) 시 null.
+   * face 와 같은 원칙 — null 을 직전 값으로 메우지 않는다(대치는 서버 몫, 설계 결정 1).
+   */
+  pose: DetectedPose | null;
   /** 최근 프레임 이동평균 FPS. 개발 중 확인용. */
   fps: number;
   timings: LandmarkTimings;
@@ -105,6 +136,11 @@ export interface LandmarkSnapshot {
   /** 입력 영상의 실제 해상도. 오버레이 좌표 환산에 쓴다. */
   sourceWidth: number;
   sourceHeight: number;
+  /**
+   * 이 프레임을 처리한 실제 추론 백엔드(GPU 폴백 반영). 세그먼트 캡처 메타(CaptureMeta.delegate)에
+   * 그대로 실린다 — 어느 백엔드로 뽑은 좌표인지 모르는 아카이브는 분석 근거가 되지 못한다.
+   */
+  delegate: LandmarkerDelegate;
 }
 
 export type LandmarkerStatus =
@@ -157,6 +193,8 @@ export interface UseLandmarkerResult {
   hands: readonly DetectedHand[];
   face: DetectedFace | null;
   displayFace: DetectedFace | null;
+  /** 표시용 저빈도 포즈 관측값. 프레임 단위 값은 onFrame 스냅샷을 쓴다. */
+  pose: DetectedPose | null;
   fps: number;
   timings: LandmarkTimings;
   /**

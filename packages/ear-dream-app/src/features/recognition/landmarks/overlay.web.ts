@@ -29,7 +29,16 @@ export interface OverlayColors {
   /** 손 관절 점 색. */
   handPointColor: string;
   faceColor: string;
+  /** 어깨 2점 + 연결선 색. */
+  poseColor: string;
 }
+
+/**
+ * MediaPipe Pose 33점 중 어깨 인덱스.
+ * https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker 의 토폴로지 기준.
+ */
+const POSE_LEFT_SHOULDER = 11;
+const POSE_RIGHT_SHOULDER = 12;
 
 function drawHands(
   context: CanvasRenderingContext2D,
@@ -114,6 +123,43 @@ function drawFace(
   context.restore();
 }
 
+/**
+ * 어깨 2점과 연결선만 그린다 — 전신 스켈레톤은 그리지 않는다.
+ *
+ * 목적은 프레이밍 확인이다: 어깨 기준 정규화(방향 전환)가 성립하려면 어깨 양 포인트가
+ * 프레임 안에 있어야 하고, 사용자가 그걸 화면에서 바로 알 수 있어야 한다.
+ * 나머지 31점까지 그리면 카메라 위가 소음이 되고 그리기 비용만 는다.
+ */
+function drawPose(
+  context: CanvasRenderingContext2D,
+  snapshot: LandmarkSnapshot,
+  width: number,
+  height: number,
+  colors: OverlayColors,
+): void {
+  const pose = snapshot.pose;
+  if (!pose) return;
+
+  const left = pose.landmarks[POSE_LEFT_SHOULDER];
+  const right = pose.landmarks[POSE_RIGHT_SHOULDER];
+  if (!left || !right) return;
+
+  context.strokeStyle = colors.poseColor;
+  context.lineWidth = Math.max(2, width / 320);
+  context.beginPath();
+  context.moveTo(left.x * width, left.y * height);
+  context.lineTo(right.x * width, right.y * height);
+  context.stroke();
+
+  context.fillStyle = colors.poseColor;
+  const radius = Math.max(4, width / 180);
+  for (const point of [left, right]) {
+    context.beginPath();
+    context.arc(point.x * width, point.y * height, radius, 0, Math.PI * 2);
+    context.fill();
+  }
+}
+
 /** 한 프레임의 스냅샷을 캔버스에 그린다. 검출 루프와 같은 tick 에서 호출한다(리렌더 없음). */
 export function drawSnapshot(
   canvas: HTMLCanvasElement,
@@ -132,7 +178,8 @@ export function drawSnapshot(
   const { width, height } = canvas;
   context.clearRect(0, 0, width, height);
 
-  // 얼굴을 먼저 그린다. 손이 얼굴 앞을 지날 때 손이 위에 오는 게 자연스럽다.
+  // 어깨 → 얼굴 → 손 순으로 그린다. 손이 얼굴·어깨 앞을 지날 때 손이 위에 오는 게 자연스럽다.
+  drawPose(context, snapshot, width, height, colors);
   drawFace(context, snapshot, width, height, colors);
   drawHands(context, snapshot, width, height, colors);
 }

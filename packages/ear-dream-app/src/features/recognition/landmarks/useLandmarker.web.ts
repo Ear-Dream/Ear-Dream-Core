@@ -1,5 +1,5 @@
 /**
- * 랜드마크 추출 훅(손 + 얼굴) — 웹(브라우저 WASM) 구현.
+ * 랜드마크 추출 훅(손 + 얼굴 + 포즈) — 웹(브라우저 WASM) 구현.
  *
  * 이 파일만 MediaPipe 와 DOM 을 안다. 화면 쪽은 types.ts 의 계약만 보므로,
  * 나중에 네이티브 MediaPipe 나 서버 추론으로 갈아끼워도 UI 를 다시 짜지 않는다.
@@ -15,7 +15,7 @@
  * 모델 안으로 숨어버려서, 틀렸을 때 확인할 방법이 없어진다. 게다가 쓰지도 않는 포즈 모델을
  * 함께 지고 간다. 손+얼굴 두 모델을 따로 두면 각각의 처리 비용도 따로 잴 수 있다.
  */
-import type { FaceLandmarker, HandLandmarker } from '@mediapipe/tasks-vision';
+import type { FaceLandmarker, HandLandmarker, PoseLandmarker } from '@mediapipe/tasks-vision';
 import { useEffect, useRef, useState } from 'react';
 
 import type { HandFrame } from '@ear-dream/core';
@@ -30,11 +30,14 @@ import {
   LANDMARKER_DELEGATE,
   MAX_FACES,
   MAX_HANDS,
+  MAX_POSES,
   MEDIAPIPE_WASM_PATH,
+  POSE_LANDMARKER_MODEL_PATH,
 } from './config';
 import type {
   DetectedFace,
   DetectedHand,
+  DetectedPose,
   FaceFrame,
   LandmarkerDelegate,
   LandmarkerStatus,
@@ -55,18 +58,20 @@ interface DisplayState {
   hands: readonly DetectedHand[];
   face: DetectedFace | null;
   displayFace: DetectedFace | null;
+  pose: DetectedPose | null;
   fps: number;
   timings: LandmarkTimings;
   sourceWidth: number;
   sourceHeight: number;
 }
 
-const NO_TIMINGS: LandmarkTimings = { handDetectMs: 0, faceDetectMs: 0 };
+const NO_TIMINGS: LandmarkTimings = { handDetectMs: 0, faceDetectMs: 0, poseDetectMs: 0 };
 
 const EMPTY_DISPLAY: DisplayState = {
   hands: [],
   face: null,
   displayFace: null,
+  pose: null,
   fps: 0,
   timings: NO_TIMINGS,
   sourceWidth: 0,
@@ -74,15 +79,15 @@ const EMPTY_DISPLAY: DisplayState = {
 };
 
 /**
- * 손·얼굴 landmarker 를 같은 백엔드로 함께 만든다.
- * 한쪽만 성공하면 성공한 쪽을 닫는다 — 안 닫으면 WASM 힙에 그대로 남는다.
+ * 손·얼굴·포즈 landmarker 를 같은 백엔드로 함께 만든다.
+ * 일부만 성공하면 성공한 쪽을 닫는다 — 안 닫으면 WASM 힙에 그대로 남는다.
  */
-async function createLandmarkerPair(
+async function createLandmarkerTrio(
   vision: VisionRuntime,
   fileset: Awaited<ReturnType<typeof vision.FilesetResolver.forVisionTasks>>,
   delegate: LandmarkerDelegate,
-): Promise<[HandLandmarker, FaceLandmarker]> {
-  const [hand, face] = await Promise.allSettled([
+): Promise<[HandLandmarker, FaceLandmarker, PoseLandmarker]> {
+  const [hand, face, pose] = await Promise.allSettled([
     vision.HandLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: HAND_LANDMARKER_MODEL_PATH, delegate },
       // 양손 모두 검출한다. 어느 손을 쓸지 고르는 로직은 T-04.
@@ -96,14 +101,24 @@ async function createLandmarkerPair(
       runningMode: 'VIDEO',
       // outputFaceBlendshapes 는 켜지 않는다. 표정 축약은 서버 전처리 소관이다. config.ts 참고.
     }),
+    vision.PoseLandmarker.createFromOptions(fileset, {
+      baseOptions: { modelAssetPath: POSE_LANDMARKER_MODEL_PATH, delegate },
+      numPoses: MAX_POSES,
+      runningMode: 'VIDEO',
+      // outputSegmentationMasks 는 켜지 않는다. 좌표만 필요하고 마스크는 추가 비용이다.
+    }),
   ]);
 
-  if (hand.status === 'fulfilled' && face.status === 'fulfilled') {
-    return [hand.value, face.value];
+  if (hand.status === 'fulfilled' && face.status === 'fulfilled' && pose.status === 'fulfilled') {
+    return [hand.value, face.value, pose.value];
   }
   if (hand.status === 'fulfilled') hand.value.close();
   if (face.status === 'fulfilled') face.value.close();
-  throw hand.status === 'rejected' ? hand.reason : (face as PromiseRejectedResult).reason;
+  if (pose.status === 'fulfilled') pose.value.close();
+  const failed = [hand, face, pose].find(
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
+  );
+  throw failed?.reason ?? new Error('landmarker 생성 실패');
 }
 
 function describeStartupError(cause: unknown): string {
@@ -182,6 +197,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     let stream: MediaStream | null = null;
     let handLandmarker: HandLandmarker | null = null;
     let faceLandmarker: FaceLandmarker | null = null;
+    let poseLandmarker: PoseLandmarker | null = null;
 
     // MediaPipe 는 VIDEO 모드에서 타임스탬프가 단조증가하기를 요구한다.
     // 같은 값을 두 번 넣으면 예외를 던지므로 아래 루프에서 반드시 t > lastTimestamp 로 막는다.
@@ -193,14 +209,18 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     const frameDurations: number[] = [];
     const handDurations: number[] = [];
     const faceDurations: number[] = [];
+    const poseDurations: number[] = [];
     let handDetectMs = 0;
     let faceDetectMs = 0;
+    let poseDetectMs = 0;
     let previousFrameAt = 0;
     let lastHudAt = 0;
 
     // 화면 표시 전용으로 들고 있는 직전 얼굴. 스냅샷의 face(관측값)와 절대 섞지 않는다.
     let heldFace: DetectedFace | null = null;
     let processedFrames = 0;
+    // 실제로 적용된 백엔드(GPU 폴백 반영). 스냅샷마다 실어 캡처 메타로 흘러간다.
+    let appliedDelegate: LandmarkerDelegate = requestedDelegate;
 
     function measureFps(now: number): number {
       if (previousFrameAt > 0) {
@@ -241,24 +261,34 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       const fileset = await vision.FilesetResolver.forVisionTasks(MEDIAPIPE_WASM_PATH);
       if (cancelled) return;
 
-      // 두 모델은 항상 함께 만든다. faceEnabled 는 "이번 프레임에 부를지" 만 정한다 —
+      // 세 모델은 항상 함께 만든다. faceEnabled 는 "이번 프레임에 부를지" 만 정한다 —
       // 토글할 때마다 모델을 만들고 닫으면 그 비용이 측정하려는 FPS 에 섞여 들어간다.
       let delegate: LandmarkerDelegate = requestedDelegate;
       try {
-        [handLandmarker, faceLandmarker] = await createLandmarkerPair(vision, fileset, delegate);
+        [handLandmarker, faceLandmarker, poseLandmarker] = await createLandmarkerTrio(
+          vision,
+          fileset,
+          delegate,
+        );
       } catch (cause) {
         // WebGL 을 못 쓰는 환경이 있을 수 있다. 백엔드 때문에 전체가 죽는 것보다 느려도 도는 게 낫다.
         if (delegate === 'CPU') throw cause;
         console.warn('GPU delegate 생성 실패, CPU 로 폴백합니다.', cause);
         delegate = 'CPU';
-        [handLandmarker, faceLandmarker] = await createLandmarkerPair(vision, fileset, delegate);
+        [handLandmarker, faceLandmarker, poseLandmarker] = await createLandmarkerTrio(
+          vision,
+          fileset,
+          delegate,
+        );
       }
       if (cancelled) {
         handLandmarker.close();
         faceLandmarker.close();
+        poseLandmarker.close();
         return;
       }
 
+      appliedDelegate = delegate;
       setActiveDelegate(delegate);
       setStatus('running');
       rafId = requestAnimationFrame(tick);
@@ -268,7 +298,8 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       rafId = requestAnimationFrame(tick);
 
       const video = videoRef.current;
-      if (!handLandmarker || !faceLandmarker || !video || video.readyState < 2) return;
+      if (!handLandmarker || !faceLandmarker || !poseLandmarker || !video || video.readyState < 2)
+        return;
       if (video.videoWidth === 0) return;
 
       // 카메라가 아직 새 프레임을 주지 않았으면 같은 프레임을 다시 처리하지 않는다.
@@ -326,17 +357,38 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
         heldFace = face;
       }
 
+      // 포즈는 손·얼굴과 같은 프레임 · 같은 타임스탬프로 매번 처리한다. 시점이 어긋나면
+      // 세그먼트를 만들 때 손 동작과 어깨 위치가 어긋난 채로 쌓인다.
+      const poseStartedAt = performance.now();
+      const poseResult = poseLandmarker.detectForVideo(video, timestampMs);
+      poseDetectMs = pushSample(poseDurations, performance.now() - poseStartedAt);
+
+      // 이 프레임의 관측값. 검출 실패면 null 로 남긴다 — 직전 값으로 메우지 않는다(face 와 같은 원칙).
+      let pose: DetectedPose | null = null;
+      const poseLandmarks = poseResult.landmarks[0];
+      if (poseLandmarks) {
+        pose = {
+          landmarks: poseLandmarks.map((point) => ({ x: point.x, y: point.y, z: point.z })),
+          visibility: poseLandmarks.map((point) => point.visibility),
+          worldLandmarks:
+            poseResult.worldLandmarks[0]?.map((point) => [point.x, point.y, point.z]) ?? null,
+          frame: poseLandmarks.map((point) => [point.x, point.y, point.z]),
+        };
+      }
+
       processedFrames += 1;
 
       const snapshot: LandmarkSnapshot = {
         hands,
         face,
         displayFace: heldFace,
+        pose,
         fps: measureFps(timestampMs),
-        timings: { handDetectMs, faceDetectMs },
+        timings: { handDetectMs, faceDetectMs, poseDetectMs },
         timestampMs,
         sourceWidth: video.videoWidth,
         sourceHeight: video.videoHeight,
+        delegate: appliedDelegate,
       };
 
       onFrameRef.current?.(snapshot);
@@ -348,6 +400,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
           hands: snapshot.hands,
           face: snapshot.face,
           displayFace: snapshot.displayFace,
+          pose: snapshot.pose,
           fps: snapshot.fps,
           timings: snapshot.timings,
           sourceWidth: snapshot.sourceWidth,
@@ -367,6 +420,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       cancelAnimationFrame(rafId);
       handLandmarker?.close();
       faceLandmarker?.close();
+      poseLandmarker?.close();
       stream?.getTracks().forEach((track) => track.stop());
       if (videoRef.current) videoRef.current.srcObject = null;
     };
@@ -380,6 +434,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     hands: display.hands,
     face: display.face,
     displayFace: display.displayFace,
+    pose: display.pose,
     fps: display.fps,
     timings: display.timings,
     delegate: activeDelegate,
