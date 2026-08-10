@@ -236,7 +236,8 @@ def test_recognize_archives_request_body(client, tmp_path):
     body = make_recognize_request(make_frames(n=2), request_id="req-archive")  # 프레임 부족 → 422
     res = client.post("/api/v1/recognize", json=body)
     assert res.status_code == 422
+    # 네이밍 규칙: {MMDD_HHMM}_{sess8}/{seq:03d}_{req8}.json.gz — req8 은 앞 8자 "req-arch"
     archived = list(
-        (settings.package_root / settings.archive_dir).glob("sess-1/req-archive.json.gz")
+        (settings.package_root / settings.archive_dir).glob("*_sess-1/001_req-arch.json.gz")
     )
     assert len(archived) == 1

@@ -12,9 +12,11 @@ CHECKPOINT_AVAILABLE = model_module.resolve_checkpoint_path().exists()
 
 
 def _read_record(tmp_path, session_id: str, request_id: str) -> dict:
-    path = tmp_path / "diagnostics" / session_id / f"{request_id}.json"
-    assert path.exists(), f"diagnostics record not written: {path}"
-    return json.loads(path.read_text(encoding="utf-8"))
+    # 네이밍 규칙: {MMDD_HHMM}_{sess8}/{seq:03d}_{req8}_{status}[_{top1라벨}].json
+    pattern = f"*_{session_id[:8]}/[0-9][0-9][0-9]_{request_id[:8]}_*.json"
+    matches = list((tmp_path / "diagnostics").glob(pattern))
+    assert len(matches) == 1, f"diagnostics record not written: {pattern} -> {matches}"
+    return json.loads(matches[0].read_text(encoding="utf-8"))
 
 
 @pytest.mark.skipif(not CHECKPOINT_AVAILABLE, reason="model checkpoint not available")

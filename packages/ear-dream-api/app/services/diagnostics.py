@@ -4,7 +4,14 @@
 아카이브(`var/archive/`)에는 좌표 원본이 이미 있으므로 여기에는 **요약 통계와 모델
 softmax 전체**만 싣는다 — 좌표 원본은 request_id 로 조인한다.
 
-저장 경로: {api 패키지 루트}/{settings.diagnostics_dir}/{session_id}/{request_id}.json
+저장 경로 (아카이브와 같은 네이밍 규칙 — app/services/archive.py 참조):
+
+    {api 패키지 루트}/{settings.diagnostics_dir}/{MMDD_HHMM}_{sess8}/{seq:03d}_{req8}_{status}[_{top1라벨}].json
+    예: var/diagnostics/0810_1430_1576b87c/003_b2b7be10_recognized_꿈.json
+
+진단은 응답 후 기록이므로 결과(status·top1 라벨)를 파일명에 싣는다 — ls 만으로 훑을 수
+있게. 세션 폴더명과 seq 는 아카이브가 정한 값을 request.state 경유로 전달받아 재사용한다
+(아카이브 파일과 `{seq:03d}_{req8}` 접두로 조인된다). 아카이브가 비활성이면 자체 계산한다.
 (설정 diagnostics_enabled 로 on/off. var/ 는 .gitignore 대상)
 
 기록 시점: /recognize 가 RecognitionResult 를 만든 모든 경로 (recognized / rejected /
@@ -44,7 +51,15 @@ from app.ml.preprocess import PreprocessOutput, normalize_signer, trim_rest_boun
 # sorted 규약과 일치를 강제(불일치 = 로드 거부)하므로 여기서는 동일한 매핑이다.
 from app.ml.vocab import CLASS_INDEX_TO_ENTRY
 from app.schemas.recognition import RecognitionResult, RecognizeRequest
-from app.services.archive import _sanitize  # 파일명 안전화 규칙을 아카이브와 공유한다
+
+# 파일명 안전화·세션 폴더·순번 규칙을 아카이브와 공유한다 (같은 폴더명·seq 로 조인)
+from app.services.archive import (
+    ArchiveInfo,
+    next_seq,
+    resolve_session_dir,
+    sanitize_component,
+    short_id,
+)
 
 logger = get_logger("diagnostics")
 
@@ -271,21 +286,44 @@ def build_recognize_diagnostics(
     }
 
 
-def write_diagnostics_record(record: dict[str, Any], *, subdir: str | None = None) -> Path | None:
+def write_diagnostics_record(
+    record: dict[str, Any],
+    *,
+    subdir: str | None = None,
+    session_dirname: str | None = None,
+    seq: int | None = None,
+) -> Path | None:
     """레코드를 저장하고 경로를 돌려준다. 어떤 예외도 밖으로 던지지 않는다.
 
-    subdir: diagnostics_dir 아래 추가 디렉토리 (재생 분석은 "replay" 를 쓴다 —
-    라이브 기록과 섞이지 않게).
+    - subdir: diagnostics_dir 아래 추가 디렉토리 (재생 분석은 "replay" 를 쓴다 —
+      라이브 기록과 섞이지 않게)
+    - session_dirname/seq: 아카이브가 이미 정한 세션 폴더명·순번 — 아카이브 파일과
+      `{seq:03d}_{req8}` 접두로 조인되게 한다. None 이면 자체 계산한다.
+
+    파일명: {seq:03d}_{req8}_{status}[_{top1라벨}].json — 응답 후 기록이므로 결과를
+    이름에 싣는다 (예: 003_b2b7be10_recognized_꿈.json).
     """
     try:
         base = settings.package_root / settings.diagnostics_dir
         if subdir:
-            base = base / _sanitize(subdir, "extra")
-        target_dir = base / _sanitize(str(record.get("session_id", "unknown")), "unknown")
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target = (
-            target_dir / f"{_sanitize(str(record.get('request_id', 'unknown')), 'unknown')}.json"
+            base = base / sanitize_component(subdir, "extra")
+        session_id = str(record.get("session_id", "unknown"))
+        target_dir = (
+            base / session_dirname if session_dirname else resolve_session_dir(base, session_id)
         )
+        target_dir.mkdir(parents=True, exist_ok=True)
+        if seq is None:
+            seq = next_seq(target_dir, "*.json")
+
+        parts = [f"{seq:03d}", short_id(str(record.get("request_id", "unknown")), "unknown")]
+        response = record.get("response") or {}
+        if response.get("status"):
+            parts.append(sanitize_component(str(response["status"]), "status"))
+        top1 = ((record.get("model_output") or {}).get("top1") or {}).get("label")
+        if top1:  # low_quality 등 모델 출력이 없으면 생략
+            parts.append(sanitize_component(str(top1), "top1"))
+
+        target = target_dir / ("_".join(parts) + ".json")
         target.write_text(json.dumps(record, ensure_ascii=False, indent=1) + "\n", encoding="utf-8")
         return target
     except Exception:
@@ -301,8 +339,12 @@ def record_recognize_diagnostics(
     pp: PreprocessOutput | None,
     probs: np.ndarray | None,
     latency_ms: float | None = None,
+    archive_info: ArchiveInfo | None = None,
 ) -> Path | None:
-    """빌드+저장 원스톱 (라우트용). 비활성이거나 실패하면 None — 요청 처리를 막지 않는다."""
+    """빌드+저장 원스톱 (라우트용). 비활성이거나 실패하면 None — 요청 처리를 막지 않는다.
+
+    archive_info 가 있으면 아카이브와 같은 세션 폴더명·seq 를 써서 파일명으로 조인된다.
+    """
     if not settings.diagnostics_enabled:
         return None
     try:
@@ -312,4 +354,8 @@ def record_recognize_diagnostics(
     except Exception:
         logger.exception("diagnostics build failed")
         return None
-    return write_diagnostics_record(record)
+    return write_diagnostics_record(
+        record,
+        session_dirname=archive_info.session_dirname if archive_info else None,
+        seq=archive_info.seq if archive_info else None,
+    )

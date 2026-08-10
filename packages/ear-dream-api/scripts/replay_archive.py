@@ -9,8 +9,14 @@
     uv run python scripts/replay_archive.py --json               # 기계 판독용 JSON 출력
     uv run python scripts/replay_archive.py --no-write           # 진단 레코드 저장 생략
 
-진단 레코드는 라이브 기록과 섞이지 않게 `var/diagnostics/replay/{session}/{request}.json`
-에 저장한다. 좌표 원본은 아카이브에 있으므로 레코드에는 요약 통계만 실린다.
+진단 레코드는 라이브 기록과 섞이지 않게 `var/diagnostics/replay/` 아래에 저장한다.
+좌표 원본은 아카이브에 있으므로 레코드에는 요약 통계만 실린다.
+
+폴더/파일 패턴은 신형(`{MMDD_HHMM}_{sess8}/{seq:03d}_{req8}.json.gz`)과 구형
+(`{session_id}/{request_id}.json.gz`) 모두 스캔한다 — 기존 var/ 데이터는 마이그레이션하지
+않는다. 세션·요청 식별은 파일명이 아니라 **JSON 내용의 session_id/request_id** 에서 읽는다
+(파일명은 축약이라 정본이 아니다). --session/--exclude 필터는 폴더명 전체와 sess8 토큰
+양쪽에 prefix 매칭한다.
 """
 
 from __future__ import annotations
@@ -254,15 +260,30 @@ def print_report(rows: list[dict[str, Any]], invalid: list[dict[str, Any]]) -> N
 
 
 # ---------------------------------------------------------------- 메인
+def _session_token(dirname: str) -> str:
+    """폴더명에서 세션 토큰을 뽑는다 — 신형 `{MMDD_HHMM}_{sess8}` 은 시각 접두를 뗀
+    sess8, 구형(`{session_id}`)은 폴더명 전체."""
+    parts = dirname.split("_")
+    if len(parts) >= 3 and parts[0].isdigit() and parts[1].isdigit():
+        return "_".join(parts[2:])
+    return dirname
+
+
+def _dir_matches(dirname: str, prefix: str) -> bool:
+    """--session/--exclude prefix 매칭 — 폴더명 전체와 sess8 토큰 양쪽에 적용해
+    신·구 패턴 모두에서 같은 필터가 통한다."""
+    return dirname.startswith(prefix) or _session_token(dirname).startswith(prefix)
+
+
 def iter_archive_files(
     archive_dir: Path, sessions: list[str], excludes: list[str]
 ) -> list[tuple[str, Path]]:
     out: list[tuple[str, Path]] = []
     for session_dir in sorted(p for p in archive_dir.iterdir() if p.is_dir()):
         name = session_dir.name
-        if sessions and not any(name.startswith(s) for s in sessions):
+        if sessions and not any(_dir_matches(name, s) for s in sessions):
             continue
-        if any(name.startswith(e) for e in excludes):
+        if any(_dir_matches(name, e) for e in excludes):
             continue
         for f in sorted(session_dir.glob("*.json.gz"), key=lambda p: p.stat().st_mtime):
             out.append((name, f))
@@ -299,9 +320,16 @@ def main() -> int:
     rows: list[dict[str, Any]] = []
     invalid: list[dict[str, Any]] = []
     for session, path in iter_archive_files(archive_dir, args.session, args.exclude):
+        # 파일명은 축약(seq_req8)이라 정본이 아니다 — 식별자는 JSON 내용에서 읽고,
+        # 본문이 JSON 조차 아닐 때만 폴더/파일명을 fallback 으로 쓴다.
         request_id = path.name.removesuffix(".json.gz")
         try:
             payload = json.loads(gzip.decompress(path.read_bytes()))
+            if isinstance(payload, dict):
+                if isinstance(payload.get("session_id"), str):
+                    session = payload["session_id"]
+                if isinstance(payload.get("request_id"), str):
+                    request_id = payload["request_id"]
             request = RecognizeRequest.model_validate(payload)
         except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
             invalid.append(

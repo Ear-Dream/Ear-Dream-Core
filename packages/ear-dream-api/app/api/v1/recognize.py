@@ -109,14 +109,15 @@ def _quality_issues(kp: np.ndarray) -> tuple[list[QualityIssue], list[QualityIss
 
 
 def _archive_path_str(raw_request: Request) -> str:
-    """로그용 아카이브 경로 (패키지 루트 기준 상대경로). 비활성/실패면 '-'."""
+    """로그용 아카이브 경로. 비활성/실패면 '-'.
+
+    **절대경로**로 남긴다 — VS Code 터미널이 자동 링크화해서 로그에서 바로 열린다.
+    한 줄이 길어지므로 로그의 마지막 필드(archive=/diag=)에만 쓴다.
+    """
     info = getattr(raw_request.state, "archive_info", None)
     if info is None or info.path is None:
         return "-"
-    try:
-        return str(info.path.relative_to(settings.package_root))
-    except ValueError:
-        return str(info.path)
+    return str(info.path)
 
 
 @router.post("/recognize", response_model=RecognitionResult)
@@ -218,13 +219,18 @@ def recognize(
         diag_path = "-"
         if result is not None and kp is not None:
             written = record_recognize_diagnostics(
-                request, kp, result, pp=pp, probs=probs, latency_ms=elapsed_ms
+                request,
+                kp,
+                result,
+                pp=pp,
+                probs=probs,
+                latency_ms=elapsed_ms,
+                # 아카이브와 같은 세션 폴더명·seq 를 쓰게 한다 (파일명 접두로 조인)
+                archive_info=getattr(raw_request.state, "archive_info", None),
             )
             if written is not None:
-                try:
-                    diag_path = str(written.relative_to(settings.package_root))
-                except ValueError:
-                    diag_path = str(written)
+                # 절대경로 — VS Code 터미널 자동 링크화용 (마지막 필드라 줄이 길어도 된다)
+                diag_path = str(written)
         # NFR-01(허용 지연 시간) 확정 근거 — latency_ms 필드는 반드시 남긴다
         logger.info(
             "recognize req=%s sess=%s frames=%s→%s interp=%s status=%s top1=%s "
