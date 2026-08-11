@@ -12,6 +12,9 @@
 진단 레코드는 라이브 기록과 섞이지 않게 `var/diagnostics/replay/` 아래에 저장한다.
 좌표 원본은 아카이브에 있으므로 레코드에는 요약 통계만 실린다.
 
+재생마다 서버 파이프라인 구간(조립→전처리→추론)의 latency 를 실측해 행·집계에 싣는다 —
+NFR-01 검토의 오프라인 참고 수치다 (HTTP 오버헤드 미포함이라 라이브 로그보다 짧다).
+
 폴더/파일 패턴은 신형(`{MMDD_HHMM}_{sess8}/{seq:03d}_{req8}.json.gz`)과 구형
 (`{session_id}/{request_id}.json.gz`) 모두 스캔한다 — 기존 var/ 데이터는 마이그레이션하지
 않는다. 세션·요청 식별은 파일명이 아니라 **JSON 내용의 session_id/request_id** 에서 읽는다
@@ -26,6 +29,7 @@ import gzip
 import json
 import math
 import sys
+import time
 from collections import Counter
 from pathlib import Path
 from typing import Any
@@ -40,7 +44,7 @@ from app.api.v1.recognize import _quality_issues
 from app.core.config import settings
 from app.ml.assembly import assemble_frames
 from app.ml.model import get_model_state
-from app.ml.preprocess import PREPROCESS_VERSION, preprocess_eval
+from app.ml.preprocess_spoter import PREPROCESS_VERSION, preprocess_spoter
 from app.ml.vocab import VOCAB_VERSION
 from app.schemas.recognition import (
     PreprocessInfo,
@@ -59,7 +63,8 @@ from app.services.diagnostics import (
 def replay_one(request: RecognizeRequest) -> dict[str, Any]:
     """아카이브 요청 하나를 라우트와 동일한 결정 흐름으로 재생해 진단 레코드를 만든다."""
     state = get_model_state()
-    kp = assemble_frames(request.segment.frames, settings.pose_visibility_threshold)
+    started = time.perf_counter()
+    kp, assembly_meta = assemble_frames(request.segment.frames, settings.pose_visibility_threshold)
     blocking, advisory = _quality_issues(kp)
 
     pp = None
@@ -76,15 +81,11 @@ def replay_one(request: RecognizeRequest) -> dict[str, Any]:
         )
     else:
         frames = request.segment.frames
-        # v2 등방 정규화의 AR 은 요청의 실측 해상도에서, use_z 는 체크포인트 계약에서
-        # 온다 (라우트와 동일 배선)
-        capture = request.segment.capture
-        aspect_ratio = capture.source_width / capture.source_height
-        pp = preprocess_eval(kp, aspect_ratio=aspect_ratio, use_z=state.use_z)
+        pp = preprocess_spoter(frames, kp)
         probs = state.predict_probs(pp.x)
         order = np.argsort(probs)[::-1][: settings.recognize_top_k]
         best = float(probs[order[0]])
-        if best < settings.reject_threshold:
+        if best < state.reject_threshold:
             status, candidates = RecognitionStatus.rejected, []
         else:
             status = RecognitionStatus.recognized
@@ -102,17 +103,26 @@ def replay_one(request: RecognizeRequest) -> dict[str, Any]:
             candidates=candidates,
             quality_issues=advisory,
             preprocess=PreprocessInfo(
-                used_start_ms=frames[pp.used_start_index].t_ms,
-                used_end_ms=frames[max(pp.used_end_index - 1, 0)].t_ms,
-                used_frame_count=pp.used_frame_count,
-                interpolated_frame_count=pp.interpolated_frame_count,
+                used_start_ms=frames[0].t_ms,
+                used_end_ms=frames[-1].t_ms,
+                used_frame_count=pp.model_frame_count,
+                interpolated_frame_count=0,  # spoter 계약: 보간 없음
                 preprocess_version=PREPROCESS_VERSION,
             ),
             model_version=state.model_version,
             vocab_version=VOCAB_VERSION,
         )
+    latency_ms = (time.perf_counter() - started) * 1000.0
 
-    return build_recognize_diagnostics(request, kp, result, pp=pp, probs=probs)
+    return build_recognize_diagnostics(
+        request,
+        kp,
+        result,
+        assembly_meta=assembly_meta,
+        pp=pp,
+        probs=probs,
+        latency_ms=latency_ms,
+    )
 
 
 # ---------------------------------------------------------------- 행/집계
@@ -122,13 +132,12 @@ def _row_from_record(session: str, request_id: str, rec: dict[str, Any]) -> dict
     top3 = "-"
     top1_label, top1_prob = "-", None
     if mo is not None:
-        sm = mo["softmax"]
+        sm = mo["softmax_top"]
         top1_label, top1_prob = sm[0]["label"], sm[0]["prob"]
         top3 = " ".join(f"{e['label']}({e['prob']:.2f})" for e in sm[:3])
     pre = rec.get("preprocess") or {}
-    norm = (pre.get("normalization") or {}) if pre else {}
-    post = norm.get("post_norm") or {}
-    hand_z = post.get("hand_z") or {}
+    rates = pre.get("part_detection_rates") or {}
+    resample = pre.get("resample") or {}
     return {
         "session": session,
         "request_id": request_id,
@@ -137,15 +146,15 @@ def _row_from_record(session: str, request_id: str, rec: dict[str, Any]) -> dict
         "approx_fps": req.get("approx_fps"),
         "hand_ratio": asm.get("hand_present_ratio"),
         "shoulder_vis": (asm.get("shoulder_visibility") or {}).get("mean"),
-        "shoulder_scale": norm.get("shoulder_width_scale"),
-        "hand_z_mean": hand_z.get("mean"),
-        "interp": (pre.get("trim") or {}).get("interpolated_frame_count"),
-        "used_frames": (pre.get("trim") or {}).get("used_frame_count"),
+        "pose_rate": rates.get("pose"),
+        "face_rate": rates.get("face"),
+        "model_frames": resample.get("model_frame_count"),
         "top1_label": top1_label,
         "top1_prob": top1_prob,
         "top3": top3,
         "status": rec["response"]["status"],
         "issues": ",".join(rec["response"]["quality_issues"]) or "-",
+        "latency_ms": (rec.get("response") or {}).get("latency_ms"),
     }
 
 
@@ -196,14 +205,15 @@ def aggregate(rows: list[dict[str, Any]], invalid: list[dict[str, Any]]) -> dict
         "top1_prob": _num_summary([r["top1_prob"] for r in rows]),
         "top1_prob_values": [r["top1_prob"] for r in rows if r["top1_prob"] is not None],
         "frames": _num_summary([float(r["frames"]) for r in rows]),
-        "used_frames": _num_summary(
-            [float(r["used_frames"]) for r in rows if r["used_frames"] is not None]
+        "model_frames": _num_summary(
+            [float(r["model_frames"]) for r in rows if r["model_frames"] is not None]
         ),
         "approx_fps": _num_summary([r["approx_fps"] for r in rows]),
         "hand_present_ratio": _num_summary([r["hand_ratio"] for r in rows]),
         "shoulder_vis_mean": _num_summary([r["shoulder_vis"] for r in rows]),
-        "shoulder_width_scale": _num_summary([r["shoulder_scale"] for r in rows]),
-        "hand_z_mean": _num_summary([r["hand_z_mean"] for r in rows]),
+        "pose_detection_rate": _num_summary([r["pose_rate"] for r in rows]),
+        "face_detection_rate": _num_summary([r["face_rate"] for r in rows]),
+        "latency_ms": _num_summary([r["latency_ms"] for r in rows]),
         "resolutions": dict(Counter(r["resolution"] for r in rows)),
     }
 
@@ -211,7 +221,7 @@ def aggregate(rows: list[dict[str, Any]], invalid: list[dict[str, Any]]) -> dict
 def print_report(rows: list[dict[str, Any]], invalid: list[dict[str, Any]]) -> None:
     header = (
         f"{'sess':8} {'req':8} {'frm':>4} {'res':>9} {'fps':>5} {'hand%':>5} "
-        f"{'shVis':>5} {'scale':>6} {'top-1':<14} {'top-3':<44} {'status':<11} issues"
+        f"{'pose%':>5} {'mdlT':>4} {'ms':>6} {'top-1':<14} {'top-3':<44} {'status':<11} issues"
     )
     print(header)
     print("-" * len(header))
@@ -220,14 +230,16 @@ def print_report(rows: list[dict[str, Any]], invalid: list[dict[str, Any]]) -> N
         print(
             f"{r['session'][:8]:8} {r['request_id'][:8]:8} {r['frames']:>4} "
             f"{r['resolution']:>9} {_fmt(r['approx_fps'], '.1f'):>5} "
-            f"{_fmt(r['hand_ratio']):>5} {_fmt(r['shoulder_vis']):>5} "
-            f"{_fmt(r['shoulder_scale'], '.3f'):>6} {top1:<14} {r['top3']:<44} "
+            f"{_fmt(r['hand_ratio']):>5} {_fmt(r['pose_rate']):>5} "
+            f"{_fmt(r['model_frames']):>4} "
+            f"{_fmt(r['latency_ms'], '.1f'):>6} {top1:<14} {r['top3']:<44} "
             f"{r['status']:<11} {r['issues']}"
         )
     for r in invalid:
         print(
             f"{r['session'][:8]:8} {r['request_id'][:8]:8} {'-':>4} {'-':>9} {'-':>5} "
-            f"{'-':>5} {'-':>5} {'-':>6} {'-':<14} {'-':<44} {'invalid_422':<11} {r['error']}"
+            f"{'-':>5} {'-':>5} {'-':>4} {'-':>6} {'-':<14} {'-':<44} "
+            f"{'invalid_422':<11} {r['error']}"
         )
 
     agg = aggregate(rows, invalid)
@@ -241,12 +253,13 @@ def print_report(rows: list[dict[str, Any]], invalid: list[dict[str, Any]]) -> N
     print(f"top-1 클래스 등장 횟수: {agg['top1_class_counts']}")
     for key, label in [
         ("frames", "프레임 수"),
-        ("used_frames", "트리밍 후 프레임 수"),
+        ("model_frames", "모델 입력 프레임 수 (30fps 리샘플 후)"),
         ("approx_fps", "추정 fps"),
         ("hand_present_ratio", "손 검출율"),
         ("shoulder_vis_mean", "어깨 visibility 평균"),
-        ("shoulder_width_scale", "어깨 너비 scale"),
-        ("hand_z_mean", "정규화 후 손 z 평균"),
+        ("pose_detection_rate", "pose 검출율 (전처리)"),
+        ("face_detection_rate", "face 검출율 (전처리)"),
+        ("latency_ms", "파이프라인 latency (ms, HTTP 미포함)"),
     ]:
         s = agg[key]
         if s is None:

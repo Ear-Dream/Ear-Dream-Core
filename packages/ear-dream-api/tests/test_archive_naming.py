@@ -13,7 +13,7 @@ from app.ml import model as model_module
 from app.services.archive import sanitize_component
 from tests.conftest import make_frames, make_recognize_request
 
-CHECKPOINT_AVAILABLE = model_module.resolve_checkpoint_path().exists()
+CHECKPOINT_AVAILABLE = (model_module.resolve_bundle_dir() / "release.json").exists()
 
 # conftest 의 session_id 는 "sess-1" — sess8 도 "sess-1" 이다
 SESSION_DIR_RE = re.compile(r"^\d{4}_\d{4}_sess-1$")
@@ -79,7 +79,7 @@ def test_sanitize_replaces_instead_of_removing():
     assert sanitize_component("..", "fallback") == "fallback"
 
 
-@pytest.mark.skipif(not CHECKPOINT_AVAILABLE, reason="model checkpoint not available")
+@pytest.mark.skipif(not CHECKPOINT_AVAILABLE, reason="model bundle not available")
 def test_diagnostics_shares_seq_and_names_result(client, tmp_path):
     """진단 파일은 아카이브와 같은 폴더명·seq 를 쓰고, 파일명에 결과(status·top1)를 싣는다."""
     res = client.post(

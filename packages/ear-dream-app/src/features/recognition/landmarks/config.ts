@@ -92,6 +92,14 @@ export const LANDMARKER_DELEGATE = 'GPU' as const;
  */
 export const MEDIAPIPE_WASM_PATH = '/mediapipe/wasm';
 export const HAND_LANDMARKER_MODEL_PATH = '/mediapipe/models/hand_landmarker.task';
+/**
+ * ⚠️ 얼굴 메쉬 점 개수는 이 모델 파일이 결정한다 — tasks-vision 옵션에는 점 개수를 바꾸는
+ * 항목이 없다(FaceLandmarkerOptions 에 legacy FaceMesh 의 refineLandmarks 에 해당하는
+ * 옵션이 존재하지 않는다). 현재 고정된 face_landmarker/float16/1 은 홍채(468·473)를 포함한
+ * **478점**을 출력하며, 새 모델(SPOTER-208)의 얼굴 서브셋 계약이 468·473 을 요구하므로
+ * 478점 출력이 계약이다. 468점짜리 변형 모델로 교체하면 홍채가 없어 계약 위반이 된다 —
+ * 모델 파일 URL(scripts/setup-mediapipe-assets.mjs)을 바꿀 때 반드시 점 개수를 확인할 것.
+ */
 export const FACE_LANDMARKER_MODEL_PATH = '/mediapipe/models/face_landmarker.task';
 /** 포즈는 lite 모델이다 — 임시 선택. 근거와 교체 절차는 scripts/setup-mediapipe-assets.mjs 참고. */
 export const POSE_LANDMARKER_MODEL_PATH = '/mediapipe/models/pose_landmarker_lite.task';

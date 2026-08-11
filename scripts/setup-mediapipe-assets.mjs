@@ -28,6 +28,9 @@ const MODELS = [
     url: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task',
   },
   {
+    // 이 번들은 홍채 포함 478점을 출력한다. 점 개수는 옵션이 아니라 모델 파일이 결정하며,
+    // 서버 전처리 계약(spoter2_mp_xy_v1)의 얼굴 서브셋이 홍채 인덱스(468·473)를 쓰므로
+    // 468점 변형(홍채 없음)으로 교체하면 계약 위반이다 — URL 변경 시 반드시 확인할 것.
     label: '얼굴 랜드마크 모델',
     filename: 'face_landmarker.task',
     sizeHint: '약 3.7MB',

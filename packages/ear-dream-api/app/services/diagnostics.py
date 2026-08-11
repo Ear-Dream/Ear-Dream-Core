@@ -1,8 +1,8 @@
 """/recognize 진단 로깅 — 요청·전처리·모델 원시 출력을 request_id 로 조인해 저장한다.
 
-목적: 실사용 요청이 전부 rejected 로 나오는 문제의 원인 분석(ml-dev 진단의 입력).
+목적: 실사용 요청의 인식 실패 원인 분석(ml-dev 진단의 입력).
 아카이브(`var/archive/`)에는 좌표 원본이 이미 있으므로 여기에는 **요약 통계와 모델
-softmax 전체**만 싣는다 — 좌표 원본은 request_id 로 조인한다.
+softmax 상위**만 싣는다 — 좌표 원본은 request_id 로 조인한다.
 
 저장 경로 (아카이브와 같은 네이밍 규칙 — app/services/archive.py 참조):
 
@@ -19,9 +19,8 @@ low_quality). 503·422 는 결과가 없으므로 기록하지 않는다 (422 �
 
 기록 실패는 인식 요청을 막지 않는다 (베스트 에포트 — archive 와 동일 원칙).
 
-⚠️ 이 모듈의 정규화 통계는 app/ml/preprocess.normalize_signer 의 scale 계산을
-   **관측용으로만 재현**한다. 전처리 정본은 여전히 preprocess.py 한 곳이다 — 여기 값은
-   학습 분포와의 비교용 진단 수치일 뿐, 추론 경로에 관여하지 않는다.
+⚠️ 이 모듈의 정규화 통계는 app/ml/preprocess_spoter 의 결과를 **관측용으로만 요약**한다.
+   전처리 정본은 여전히 preprocess_spoter.py 한 곳이다.
 """
 
 from __future__ import annotations
@@ -36,19 +35,13 @@ import numpy as np
 
 from app.core.config import settings
 from app.core.logging import get_logger
-from app.ml.keypoint_layout import (
-    L_SHOULDER,
-    L_WRIST,
-    LEFT_HAND,
-    R_SHOULDER,
-    R_WRIST,
-    RIGHT_HAND,
-)
+from app.ml.assembly import AssemblyMeta
+from app.ml.keypoint_layout import LEFT_HAND, RIGHT_HAND
 from app.ml.model import get_model_state
-from app.ml.preprocess import PreprocessOutput, normalize_signer, trim_rest_bounds, zero_z
+from app.ml.preprocess_spoter import TARGET_FPS, PreprocessOutput
 
-# 클래스 인덱스 라벨링용. 정본은 체크포인트 class_labels 이지만, 로드 시 vocab.py 의
-# sorted 규약과 일치를 강제(불일치 = 로드 거부)하므로 여기서는 동일한 매핑이다.
+# 클래스 인덱스 라벨링용. 정본은 release.json class_labels 이지만, 로드 시
+# vocab300.json(CLASS_INDEX_TO_ENTRY)과 일치를 강제(불일치 = 로드 거부)하므로 동일 매핑이다.
 from app.ml.vocab import CLASS_INDEX_TO_ENTRY
 from app.schemas.recognition import RecognitionResult, RecognizeRequest
 
@@ -63,10 +56,19 @@ from app.services.archive import (
 
 logger = get_logger("diagnostics")
 
-DIAGNOSTICS_SCHEMA = "recognize-diagnostics-v1"
+# v3 (SPOTER-208 전환):
+#   - assembly.hand_slot_assignment 은 assembly 모듈의 배정 메타(AssemblyMeta.summary())
+#     그대로다 — 경로 분포(paths)·기하-라벨 불일치·단일손 슬롯 전환 횟수. (stash v2.6 포팅)
+#   - preprocess 섹션이 spoter2_mp_xy_v1 계약으로 바뀌었다: trim/보간 없음 →
+#     부위별 검출율·30fps 리샘플·정규화 후 범위 요약. v2 의 어깨 scale/hand_z 통계 제거.
+#   - model_output.softmax 는 300 클래스 전체 대신 상위 10개만 싣는다 (파일 크기).
+DIAGNOSTICS_SCHEMA = "recognize-diagnostics-v3"
 
-# MediaPipe pose 원본 인덱스 (어깨·손목 visibility 통계용)
+# 어깨 visibility 통계용 MediaPipe pose 원본 인덱스
 _MP_L_SHOULDER, _MP_R_SHOULDER = 11, 12
+
+# softmax 기록 상위 개수 (전체 300개는 레코드만 불린다 — entropy 로 분포 요약)
+_SOFTMAX_TOP_N = 10
 
 
 def _f(value: float | np.floating | None) -> float | None:
@@ -113,19 +115,19 @@ def _request_summary(request: RecognizeRequest) -> dict[str, Any]:
     }
 
 
-def _assembly_stats(request: RecognizeRequest, kp: np.ndarray) -> dict[str, Any]:
-    """조립 결과 (T, 130, 3) + 원 요청 프레임으로 검출·배정 통계를 만든다."""
+def _assembly_stats(
+    request: RecognizeRequest, kp: np.ndarray, meta: AssemblyMeta
+) -> dict[str, Any]:
+    """조립 결과 (T, 130, 3) + 원 요청 프레임으로 검출·배정 통계를 만든다.
+
+    배정 경로 통계는 assembly 가 조립하면서 만든 메타(AssemblyMeta)를 그대로 싣는다 —
+    여기서 배정 로직을 재계산하지 않는다 (재계산은 assembly 와의 드리프트 위험).
+    """
     frames = request.segment.frames
     t_total = len(frames)
 
     hands_n = np.array([len(f.hands) for f in frames], dtype=np.int64)
     hands_dist = {str(k): int((hands_n == k).sum()) for k in (0, 1, 2)}
-
-    # 좌/우 슬롯 배정 경로: assembly._assign_hands 와 동일 조건 — 포즈 양 손목(xy)이
-    # 조립 배열에 살아 있으면 기하 매칭, 아니면 handedness 라벨 fallback.
-    lw_ok = ~np.isnan(kp[:, L_WRIST, :2]).any(axis=1)
-    rw_ok = ~np.isnan(kp[:, R_WRIST, :2]).any(axis=1)
-    wrists_ok = lw_ok & rw_ok
     with_hands = hands_n > 0
 
     left_slot = ~np.isnan(kp[:, LEFT_HAND, :]).all(axis=(1, 2))
@@ -149,10 +151,7 @@ def _assembly_stats(request: RecognizeRequest, kp: np.ndarray) -> dict[str, Any]
     return {
         "hands_per_frame": hands_dist,
         "hand_present_ratio": _f(with_hands.mean()) if t_total else None,
-        "hand_slot_assignment": {
-            "geometry_frames": int((wrists_ok & with_hands).sum()),
-            "label_fallback_frames": int((~wrists_ok & with_hands).sum()),
-        },
+        "hand_slot_assignment": meta.summary(),
         "slot_filled_frames": {"left": int(left_slot.sum()), "right": int(right_slot.sum())},
         "face_detected_ratio": _f(face_detected / t_total) if t_total else None,
         "pose_null_ratio": _f(pose_null / t_total) if t_total else None,
@@ -165,67 +164,45 @@ def _assembly_stats(request: RecognizeRequest, kp: np.ndarray) -> dict[str, Any]
     }
 
 
-def _preprocess_stats(
-    kp: np.ndarray, pp: PreprocessOutput, aspect_ratio: float, use_z: bool
-) -> dict[str, Any]:
-    """트리밍·보간 요약 + 정규화 직후 좌표 통계 (학습 분포 비교용 소수 요약).
+def _preprocess_stats(request: RecognizeRequest, pp: PreprocessOutput) -> dict[str, Any]:
+    """spoter2_mp_xy_v1 전처리 결과 요약 — 리샘플·부위 검출율·정규화 후 범위.
 
-    normalize_signer 의 scale(유효 프레임 중앙값 어깨 너비)을 관측용으로 재현한다.
-    v2 등방 정규화와 동일하게 픽셀 비율 복원(x ← x×AR) **후** 좌표로 계산한다 —
-    서빙 경로(preprocess_eval)가 실제로 쓰는 값과 같아야 진단 수치로 의미가 있다.
-    use_z=False(z-off 모델)면 서빙과 동일하게 z 를 0 으로 고정한 좌표로 통계를 낸다 —
-    hand_z 등 z 통계가 모델이 실제로 본 값(0)을 정직하게 기록해야 한다 (핸드오프 09 §3).
+    학습 분포와의 비교용 관측 수치다: pose(global)는 어깨 기준 정규화라 대체로 수 단위,
+    hands/face(local)는 정상 검출 시 [-1, 1] 범위가 기대값이다 (계약 문서 §15.2).
     """
-    if not use_z:
-        kp = zero_z(kp)
-    start, end = trim_rest_bounds(kp)
-    trimmed = kp[start:end]
-    if trimmed.shape[0] == 0:
-        trimmed = np.zeros((2, kp.shape[1], 3), dtype=np.float32)
+    x = pp.x  # (T, 208)
+    pose_block = x[:, 0:50]
+    hands_block = x[:, 50:134]
+    face_block = x[:, 134:208]
+    part_mask = pp.part_mask.astype(bool)
 
-    iso = trimmed.astype(np.float32).copy()
-    iso[:, :, 0] *= np.float32(aspect_ratio)
-    ls = iso[:, L_SHOULDER, :]
-    rs = iso[:, R_SHOULDER, :]
-    center = (ls + rs) / 2.0
-    width = np.linalg.norm((ls - rs)[:, :2], axis=1)
-    valid = ~np.isnan(center).any(axis=1) & ~np.isnan(width) & (width > 1e-6)
-    used_fixed_fallback = not bool(valid.any())
-    scale = 0.25 if used_fixed_fallback else float(np.nanmedian(width[valid]))
-
-    norm = normalize_signer(trimmed, aspect_ratio=aspect_ratio)
-    norm_width = np.linalg.norm((norm[:, L_SHOULDER, :2] - norm[:, R_SHOULDER, :2]), axis=1)
-    hand_block = norm[:, LEFT_HAND + RIGHT_HAND, :]
+    def _detected_stats(block: np.ndarray, cols: list[int]) -> dict[str, Any] | None:
+        """해당 부위가 검출된 프레임의 값만 요약한다 (0-채움 프레임 제외)."""
+        rows = part_mask[:, cols].any(axis=1)
+        if not rows.any():
+            return None
+        return _series_stats(block[rows].ravel())
 
     return {
-        "trim": {
-            "start_index": start,
-            "end_index": end,
-            "used_frame_count": pp.used_frame_count,
-            "interpolated_frame_count": pp.interpolated_frame_count,
+        "resample": {
+            "source_frame_count": pp.source_frame_count,
+            "resampled_frame_count": pp.resampled_frame_count,
+            "model_frame_count": pp.model_frame_count,
+            "target_fps": TARGET_FPS,  # ⚠️ 임시 정책 (preprocess_spoter docstring)
+            "uniform_sampled": pp.resampled_frame_count > pp.model_frame_count,
         },
-        "normalization": {
-            "aspect_ratio": _f(aspect_ratio),
-            # 체크포인트 계약 — False 면 위 post_norm 의 z 통계는 zero_z 적용 후 값(=0)이다
-            "use_z": use_z,
-            "shoulder_width_scale": _f(scale),
-            "shoulder_valid_frame_ratio": _f(valid.mean()) if valid.size else None,
-            "used_fixed_fallback": used_fixed_fallback,
-            "post_norm": {
-                # 정규화 후 어깨 너비는 프레임별로 scale 나눔이라 중앙값≈1 이 정상
-                "shoulder_width": _series_stats(norm_width),
-                "left_wrist_y": _series_stats(norm[:, LEFT_HAND[0], 1]),
-                "right_wrist_y": _series_stats(norm[:, RIGHT_HAND[0], 1]),
-                "hand_x": _series_stats(hand_block[:, :, 0].ravel()),
-                "hand_y": _series_stats(hand_block[:, :, 1].ravel()),
-                "hand_z": _series_stats(hand_block[:, :, 2].ravel()),
-            },
+        "part_detection_rates": {name: _f(rate) for name, rate in pp.part_detection_rates.items()},
+        "post_norm": {
+            # PARTS 인덱스: 0=pose, 1=right_hand, 2=left_hand, 3=face
+            "pose": _detected_stats(pose_block, [0]),
+            "hands": _detected_stats(hands_block, [1, 2]),
+            "face": _detected_stats(face_block, [3]),
         },
     }
 
 
 def _model_output(probs: np.ndarray) -> dict[str, Any]:
-    """30 클래스 softmax 전체 — 라벨과 함께 내림차순."""
+    """softmax 상위 _SOFTMAX_TOP_N — 라벨과 함께 내림차순. entropy 는 전체 분포 기준."""
     order = np.argsort(probs)[::-1]
     softmax = [
         {
@@ -235,11 +212,12 @@ def _model_output(probs: np.ndarray) -> dict[str, Any]:
             "label": CLASS_INDEX_TO_ENTRY[i].label,
             "prob": _f(probs[i]),
         }
-        for rank, i in enumerate(order)
+        for rank, i in enumerate(order[:_SOFTMAX_TOP_N])
     ]
     p = np.clip(probs.astype(np.float64), 1e-12, 1.0)
     return {
-        "softmax": softmax,
+        "softmax_top": softmax,
+        "num_classes": int(probs.shape[0]),
         "top1": {"label": softmax[0]["label"], "prob": softmax[0]["prob"]},
         "entropy": _f(-(p * np.log(p)).sum()),
     }
@@ -251,13 +229,16 @@ def build_recognize_diagnostics(
     kp: np.ndarray,
     result: RecognitionResult,
     *,
+    assembly_meta: AssemblyMeta,
     pp: PreprocessOutput | None,
     probs: np.ndarray | None,
     latency_ms: float | None = None,
 ) -> dict[str, Any]:
-    """진단 레코드(dict)를 만든다. pp/probs 는 low_quality 로 추론을 건너뛰면 None."""
-    cap = request.segment.capture
-    aspect_ratio = cap.source_width / cap.source_height
+    """진단 레코드(dict)를 만든다. pp/probs 는 low_quality 로 추론을 건너뛰면 None.
+
+    assembly_meta 는 assemble_frames 가 kp 와 함께 돌려준 배정 메타다 — 진단은 이를
+    집계만 한다.
+    """
     state = get_model_state()
     return {
         "schema": DIAGNOSTICS_SCHEMA,
@@ -265,19 +246,17 @@ def build_recognize_diagnostics(
         "session_id": request.session_id,
         "request_id": request.request_id,
         "request": _request_summary(request),
-        "assembly": _assembly_stats(request, kp),
-        "preprocess": (
-            _preprocess_stats(kp, pp, aspect_ratio, state.use_z) if pp is not None else None
-        ),
+        "assembly": _assembly_stats(request, kp, assembly_meta),
+        "preprocess": _preprocess_stats(request, pp) if pp is not None else None,
         "model_output": _model_output(probs) if probs is not None else None,
         "response": {
             "status": result.status.value,
             "candidates": [c.model_dump() for c in result.candidates],
             "quality_issues": [i.value for i in result.quality_issues],
             # ⚠️ 임계·top_k 는 미확정 임시값 — 어떤 설정으로 판정했는지 레코드에 남긴다
-            "reject_threshold": settings.reject_threshold,
+            "reject_threshold": state.reject_threshold,
             "top_k": settings.recognize_top_k,
-            # temperature scaling (calibration.json) — conf 분포 비교 시 필수 맥락
+            # temperature scaling (release.json serving) — conf 분포 비교 시 필수 맥락
             "temperature": _f(state.temperature),
             "model_version": result.model_version,
             "vocab_version": result.vocab_version,
@@ -336,6 +315,7 @@ def record_recognize_diagnostics(
     kp: np.ndarray,
     result: RecognitionResult,
     *,
+    assembly_meta: AssemblyMeta,
     pp: PreprocessOutput | None,
     probs: np.ndarray | None,
     latency_ms: float | None = None,
@@ -349,7 +329,13 @@ def record_recognize_diagnostics(
         return None
     try:
         record = build_recognize_diagnostics(
-            request, kp, result, pp=pp, probs=probs, latency_ms=latency_ms
+            request,
+            kp,
+            result,
+            assembly_meta=assembly_meta,
+            pp=pp,
+            probs=probs,
+            latency_ms=latency_ms,
         )
     except Exception:
         logger.exception("diagnostics build failed")

@@ -1,82 +1,63 @@
-"""서빙 어휘 30단어 — 모델 레포 `data/meta/word_gloss.csv`·`target_words.txt` 기준.
+"""서빙 어휘 300단어 — SPOTER-208 pilot300 (AIHub 일상 고빈도 핵심단어 300).
 
-어휘 ID 는 AIHub(NIA) word_id 기반 `w_1510` 형식.
+데이터 정본은 `app/ml/data/vocab300.json` 이다 — 벤치마크 레포의 `data/classes.json`
+(WORDxxxx → class index) + `일상_고빈도_핵심단어_300.csv`(원본 단어 번호 → 한국어 단어)에서
+`scripts/build_spoter300_bundle.py` 가 생성한다. 손으로 수정하지 말고 스크립트로 재생성할 것.
 
-## 클래스 인덱스 ↔ 어휘 매핑 근거
+## 클래스 인덱스 ↔ 어휘 매핑 근거 (v2 sorted 규약에서 변경됨)
 
-모델 레포 `src/train.py` `load_manifest()` (lines 130~133):
+v2(30단어)는 학습 코드의 `sorted(단어)` 를 재현했지만, SPOTER-208 은 classes.json 이
+인덱스를 **명시적으로** 정의한다 (정렬 규약 아님 — WORD1157→0, WORD1351→1, ...).
+vocab300.json 의 각 항목이 `class_index` 를 그대로 싣고, CLASS_INDEX_TO_ENTRY 는 그
+순서로 배열된다. 서빙 번들 release.json 의 `class_labels` 와 로드 시 교차 검증하며
+(app/ml/model.py), 불일치면 로드를 거부한다 — 여기가 틀리면 조용히 전부 오답이 된다.
 
-    words = sorted(mf["word"].unique())
-    word_to_id = {w: i for i, w in enumerate(words)}
-
-즉 **클래스 인덱스 = manifest 의 한국어 단어 30개를 파이썬 기본 정렬(유니코드 코드포인트)한
-순서**다. manifest.csv(status=ok)의 unique 단어 집합이 아래 30단어와 일치함을 실측 확인했다
-(2026-08-08). CLASS_INDEX_TO_ENTRY 는 동일한 `sorted()` 를 재현해 만든다.
-여기가 틀리면 조용히 전부 오답이 되므로, 어휘를 바꾸면 학습 라벨 순서부터 다시 확인할 것.
+어휘 ID 는 기존 체계 유지: `w_{aihub 번호 4자리}` (예: "w_1157", "w_0003").
 """
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass, field
+from pathlib import Path
 
-VOCAB_VERSION = "ksl30-v2-2026-08-06"  # target_words.txt v2 (2026-08-06) 기준
+_DATA_PATH = Path(__file__).resolve().parent / "data" / "vocab300.json"
+_DATA = json.loads(_DATA_PATH.read_text(encoding="utf-8"))
+
+VOCAB_VERSION: str = str(_DATA["vocab_version"])
 
 
 @dataclass(frozen=True)
 class VocabEntry:
-    id: str  # "w_1510"
-    label: str  # "꿈"
-    aihub_word_id: str  # "1510" (NIA_SL_WORD1510)
+    id: str  # "w_1157"
+    label: str  # "나"
+    aihub_word_id: str  # "1157" (NIA_SL_WORD1157)
+    class_index: int  # 모델 출력 인덱스 (classes.json 정본)
     korean_aliases: tuple[str, ...] = field(default=())
 
 
-# target_words.txt 순서 그대로 (aihub word_id, label)
-_RAW: list[tuple[str, str, tuple[str, ...]]] = [
-    ("1510", "꿈", ()),
-    ("1514", "노래", ()),
-    ("1515", "놀다", ("놀이",)),
-    ("1519", "상처", ()),
-    ("1522", "딸", ()),
-    ("1528", "엄마", ("어머니",)),
-    ("1530", "바쁘다", ()),
-    ("1531", "남편", ()),
-    ("1534", "밥", ("식사",)),
-    ("1543", "세수", ()),
-    ("1544", "자다", ("잠",)),
-    ("1554", "피곤", ("피곤하다",)),
-    ("1555", "양치", ("양치질",)),
-    ("1565", "할머니", ()),
-    ("1566", "할아버지", ()),
-    ("1574", "형", ()),
-    ("1576", "환자", ()),
-    ("1577", "시작", ()),
-    ("1581", "시험", ()),
-    ("1589", "부탁", ()),
-    ("1592", "회사", ()),
-    ("1593", "기차", ()),
-    ("1597", "상담", ()),
-    ("1637", "없다", ()),
-    ("2005", "아기", ()),
-    ("2016", "어른", ()),
-    ("2036", "목마르다", ("목마름",)),
-    ("2108", "가루약", ()),
-    ("2131", "물약", ()),
-    ("2388", "돕다", ("도움",)),
-]
-
 ENTRIES: list[VocabEntry] = [
-    VocabEntry(id=f"w_{wid}", label=label, aihub_word_id=wid, korean_aliases=aliases)
-    for wid, label, aliases in _RAW
+    VocabEntry(
+        id=str(raw["id"]),
+        label=str(raw["label"]),
+        aihub_word_id=str(raw["aihub_word_id"]),
+        class_index=int(raw["class_index"]),
+    )
+    for raw in _DATA["entries"]
 ]
 
-assert len(ENTRIES) == 30
-assert len({e.id for e in ENTRIES}) == 30
-assert len({e.label for e in ENTRIES}) == 30  # 정렬 매핑이 유일하려면 라벨 중복이 없어야 한다
+VOCAB_SIZE = len(ENTRIES)
 
-# 클래스 인덱스 매핑: train.py load_manifest 의 sorted(unique words) 재현 (모듈 docstring 참조)
-CLASS_INDEX_TO_ENTRY: list[VocabEntry] = sorted(ENTRIES, key=lambda e: e.label)
+# 생성 스크립트가 이미 검증하지만, 데이터 파일이 손으로 편집되는 사고까지 막는 방어선
+assert VOCAB_SIZE == 300, f"vocab300.json 항목 수 {VOCAB_SIZE} != 300"
+assert len({e.id for e in ENTRIES}) == VOCAB_SIZE, "어휘 ID 중복"
+assert len({e.label for e in ENTRIES}) == VOCAB_SIZE, "한국어 라벨 중복 (인덱스 매핑 유일성 붕괴)"
+assert sorted(e.class_index for e in ENTRIES) == list(range(VOCAB_SIZE)), (
+    "class_index 가 0..299 전단사가 아니다"
+)
+
+# 클래스 인덱스 순 배열 — classes.json 이 정의한 명시적 인덱스 (모듈 docstring 참조)
+CLASS_INDEX_TO_ENTRY: list[VocabEntry] = sorted(ENTRIES, key=lambda e: e.class_index)
 
 ID_TO_ENTRY: dict[str, VocabEntry] = {e.id: e for e in ENTRIES}
 LABEL_TO_ENTRY: dict[str, VocabEntry] = {e.label: e for e in ENTRIES}
-
-VOCAB_SIZE = len(ENTRIES)

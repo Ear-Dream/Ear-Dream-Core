@@ -39,10 +39,13 @@ class HandObservation(BaseModel):
 
 
 class FaceObservation(BaseModel):
-    """얼굴 메쉬 관측값. 점 개수는 MediaPipe 모델 구성에 따라 468 또는 478 이므로
-    스키마에 개수를 박지 않고 서버 설정(face_point_counts)과 대조한다."""
+    """얼굴 메쉬 관측값. 허용 점 개수는 서버 설정(face_point_counts)과 대조한다 —
+    SPOTER-208 계약은 홍채(468·473) 인덱스가 필요해 **478점(refine landmarks) 필수**다
+    (config.py 주석 참조). 468점 페이로드는 422 로 거절된다."""
 
-    landmarks: list[Point3] = Field(description="얼굴 메쉬 전점 [x, y, z] (468 또는 478)")
+    landmarks: list[Point3] = Field(
+        description="얼굴 메쉬 전점 [x, y, z] (허용 개수는 /model 의 face_point_counts)"
+    )
 
     @field_validator("landmarks")
     @classmethod

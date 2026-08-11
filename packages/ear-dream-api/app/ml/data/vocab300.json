@@ -1,0 +1,1810 @@
+{
+ "vocab_version": "aihub300-pilot-v1-2026-08-11",
+ "source": {
+  "classes": "data/classes.json",
+  "words_csv": "일상_고빈도_핵심단어_300.csv",
+  "benchmark_dir": "sign_word_300"
+ },
+ "entries": [
+  {
+   "class_index": 0,
+   "id": "w_1157",
+   "label": "나",
+   "aihub_word_id": "1157"
+  },
+  {
+   "class_index": 1,
+   "id": "w_1351",
+   "label": "너",
+   "aihub_word_id": "1351"
+  },
+  {
+   "class_index": 2,
+   "id": "w_1353",
+   "label": "당신",
+   "aihub_word_id": "1353"
+  },
+  {
+   "class_index": 3,
+   "id": "w_1352",
+   "label": "저",
+   "aihub_word_id": "1352"
+  },
+  {
+   "class_index": 4,
+   "id": "w_1237",
+   "label": "이것",
+   "aihub_word_id": "1237"
+  },
+  {
+   "class_index": 5,
+   "id": "w_1242",
+   "label": "사람",
+   "aihub_word_id": "1242"
+  },
+  {
+   "class_index": 6,
+   "id": "w_0003",
+   "label": "수어",
+   "aihub_word_id": "0003"
+  },
+  {
+   "class_index": 7,
+   "id": "w_0331",
+   "label": "어떻게",
+   "aihub_word_id": "0331"
+  },
+  {
+   "class_index": 8,
+   "id": "w_0436",
+   "label": "얼마",
+   "aihub_word_id": "0436"
+  },
+  {
+   "class_index": 9,
+   "id": "w_0943",
+   "label": "가다",
+   "aihub_word_id": "0943"
+  },
+  {
+   "class_index": 10,
+   "id": "w_1149",
+   "label": "오다",
+   "aihub_word_id": "1149"
+  },
+  {
+   "class_index": 11,
+   "id": "w_1148",
+   "label": "서다",
+   "aihub_word_id": "1148"
+  },
+  {
+   "class_index": 12,
+   "id": "w_1295",
+   "label": "걷다",
+   "aihub_word_id": "1295"
+  },
+  {
+   "class_index": 13,
+   "id": "w_1274",
+   "label": "달리다",
+   "aihub_word_id": "1274"
+  },
+  {
+   "class_index": 14,
+   "id": "w_1273",
+   "label": "일어나다",
+   "aihub_word_id": "1273"
+  },
+  {
+   "class_index": 15,
+   "id": "w_1138",
+   "label": "눕다",
+   "aihub_word_id": "1138"
+  },
+  {
+   "class_index": 16,
+   "id": "w_1377",
+   "label": "자다",
+   "aihub_word_id": "1377"
+  },
+  {
+   "class_index": 17,
+   "id": "w_1143",
+   "label": "듣다",
+   "aihub_word_id": "1143"
+  },
+  {
+   "class_index": 18,
+   "id": "w_1185",
+   "label": "알다",
+   "aihub_word_id": "1185"
+  },
+  {
+   "class_index": 19,
+   "id": "w_1096",
+   "label": "모르다",
+   "aihub_word_id": "1096"
+  },
+  {
+   "class_index": 20,
+   "id": "w_1144",
+   "label": "생각",
+   "aihub_word_id": "1144"
+  },
+  {
+   "class_index": 21,
+   "id": "w_1207",
+   "label": "이해",
+   "aihub_word_id": "1207"
+  },
+  {
+   "class_index": 22,
+   "id": "w_1303",
+   "label": "기억",
+   "aihub_word_id": "1303"
+  },
+  {
+   "class_index": 23,
+   "id": "w_1106",
+   "label": "잊다",
+   "aihub_word_id": "1106"
+  },
+  {
+   "class_index": 24,
+   "id": "w_2205",
+   "label": "잊어버리다",
+   "aihub_word_id": "2205"
+  },
+  {
+   "class_index": 25,
+   "id": "w_0530",
+   "label": "묻다",
+   "aihub_word_id": "0530"
+  },
+  {
+   "class_index": 26,
+   "id": "w_2198",
+   "label": "알려주다",
+   "aihub_word_id": "2198"
+  },
+  {
+   "class_index": 27,
+   "id": "w_1589",
+   "label": "부탁",
+   "aihub_word_id": "1589"
+  },
+  {
+   "class_index": 28,
+   "id": "w_1597",
+   "label": "상담",
+   "aihub_word_id": "1597"
+  },
+  {
+   "class_index": 29,
+   "id": "w_0566",
+   "label": "소개",
+   "aihub_word_id": "0566"
+  },
+  {
+   "class_index": 30,
+   "id": "w_0858",
+   "label": "제안",
+   "aihub_word_id": "0858"
+  },
+  {
+   "class_index": 31,
+   "id": "w_2053",
+   "label": "동의",
+   "aihub_word_id": "2053"
+  },
+  {
+   "class_index": 32,
+   "id": "w_2226",
+   "label": "거절",
+   "aihub_word_id": "2226"
+  },
+  {
+   "class_index": 33,
+   "id": "w_2050",
+   "label": "계획",
+   "aihub_word_id": "2050"
+  },
+  {
+   "class_index": 34,
+   "id": "w_1190",
+   "label": "방법",
+   "aihub_word_id": "1190"
+  },
+  {
+   "class_index": 35,
+   "id": "w_0504",
+   "label": "의미",
+   "aihub_word_id": "0504"
+  },
+  {
+   "class_index": 36,
+   "id": "w_1193",
+   "label": "중요",
+   "aihub_word_id": "1193"
+  },
+  {
+   "class_index": 37,
+   "id": "w_1282",
+   "label": "가능",
+   "aihub_word_id": "1282"
+  },
+  {
+   "class_index": 38,
+   "id": "w_1097",
+   "label": "불가능",
+   "aihub_word_id": "1097"
+  },
+  {
+   "class_index": 39,
+   "id": "w_1384",
+   "label": "없다",
+   "aihub_word_id": "1384"
+  },
+  {
+   "class_index": 40,
+   "id": "w_1107",
+   "label": "충분",
+   "aihub_word_id": "1107"
+  },
+  {
+   "class_index": 41,
+   "id": "w_1304",
+   "label": "부족",
+   "aihub_word_id": "1304"
+  },
+  {
+   "class_index": 42,
+   "id": "w_1174",
+   "label": "맞다",
+   "aihub_word_id": "1174"
+  },
+  {
+   "class_index": 43,
+   "id": "w_1359",
+   "label": "틀리다",
+   "aihub_word_id": "1359"
+  },
+  {
+   "class_index": 44,
+   "id": "w_0738",
+   "label": "좋다",
+   "aihub_word_id": "0738"
+  },
+  {
+   "class_index": 45,
+   "id": "w_1278",
+   "label": "싫다",
+   "aihub_word_id": "1278"
+  },
+  {
+   "class_index": 46,
+   "id": "w_1381",
+   "label": "괜찮다",
+   "aihub_word_id": "1381"
+  },
+  {
+   "class_index": 47,
+   "id": "w_1133",
+   "label": "잘하다",
+   "aihub_word_id": "1133"
+  },
+  {
+   "class_index": 48,
+   "id": "w_1269",
+   "label": "못하다",
+   "aihub_word_id": "1269"
+  },
+  {
+   "class_index": 49,
+   "id": "w_1232",
+   "label": "쉽다",
+   "aihub_word_id": "1232"
+  },
+  {
+   "class_index": 50,
+   "id": "w_1211",
+   "label": "어렵다",
+   "aihub_word_id": "1211"
+  },
+  {
+   "class_index": 51,
+   "id": "w_1135",
+   "label": "빠르다",
+   "aihub_word_id": "1135"
+  },
+  {
+   "class_index": 52,
+   "id": "w_1337",
+   "label": "느리다",
+   "aihub_word_id": "1337"
+  },
+  {
+   "class_index": 53,
+   "id": "w_1130",
+   "label": "원하다",
+   "aihub_word_id": "1130"
+  },
+  {
+   "class_index": 54,
+   "id": "w_1139",
+   "label": "믿다",
+   "aihub_word_id": "1139"
+  },
+  {
+   "class_index": 55,
+   "id": "w_1577",
+   "label": "시작",
+   "aihub_word_id": "1577"
+  },
+  {
+   "class_index": 56,
+   "id": "w_1584",
+   "label": "관계",
+   "aihub_word_id": "1584"
+  },
+  {
+   "class_index": 57,
+   "id": "w_1204",
+   "label": "친구",
+   "aihub_word_id": "1204"
+  },
+  {
+   "class_index": 58,
+   "id": "w_1492",
+   "label": "가족",
+   "aihub_word_id": "1492"
+  },
+  {
+   "class_index": 59,
+   "id": "w_1104",
+   "label": "남자",
+   "aihub_word_id": "1104"
+  },
+  {
+   "class_index": 60,
+   "id": "w_1275",
+   "label": "여자",
+   "aihub_word_id": "1275"
+  },
+  {
+   "class_index": 61,
+   "id": "w_1189",
+   "label": "아기",
+   "aihub_word_id": "1189"
+  },
+  {
+   "class_index": 62,
+   "id": "w_1528",
+   "label": "엄마",
+   "aihub_word_id": "1528"
+  },
+  {
+   "class_index": 63,
+   "id": "w_1531",
+   "label": "남편",
+   "aihub_word_id": "1531"
+  },
+  {
+   "class_index": 64,
+   "id": "w_1524",
+   "label": "아내",
+   "aihub_word_id": "1524"
+  },
+  {
+   "class_index": 65,
+   "id": "w_1574",
+   "label": "형",
+   "aihub_word_id": "1574"
+  },
+  {
+   "class_index": 66,
+   "id": "w_1516",
+   "label": "누나",
+   "aihub_word_id": "1516"
+  },
+  {
+   "class_index": 67,
+   "id": "w_1556",
+   "label": "오빠",
+   "aihub_word_id": "1556"
+  },
+  {
+   "class_index": 68,
+   "id": "w_1518",
+   "label": "여동생",
+   "aihub_word_id": "1518"
+  },
+  {
+   "class_index": 69,
+   "id": "w_1522",
+   "label": "딸",
+   "aihub_word_id": "1522"
+  },
+  {
+   "class_index": 70,
+   "id": "w_1565",
+   "label": "할머니",
+   "aihub_word_id": "1565"
+  },
+  {
+   "class_index": 71,
+   "id": "w_1566",
+   "label": "할아버지",
+   "aihub_word_id": "1566"
+  },
+  {
+   "class_index": 72,
+   "id": "w_1568",
+   "label": "조카",
+   "aihub_word_id": "1568"
+  },
+  {
+   "class_index": 73,
+   "id": "w_0608",
+   "label": "친척",
+   "aihub_word_id": "0608"
+  },
+  {
+   "class_index": 74,
+   "id": "w_1535",
+   "label": "부부",
+   "aihub_word_id": "1535"
+  },
+  {
+   "class_index": 75,
+   "id": "w_2143",
+   "label": "신부",
+   "aihub_word_id": "2143"
+  },
+  {
+   "class_index": 76,
+   "id": "w_2144",
+   "label": "신혼",
+   "aihub_word_id": "2144"
+  },
+  {
+   "class_index": 77,
+   "id": "w_0239",
+   "label": "학부모",
+   "aihub_word_id": "0239"
+  },
+  {
+   "class_index": 78,
+   "id": "w_0140",
+   "label": "교수",
+   "aihub_word_id": "0140"
+  },
+  {
+   "class_index": 79,
+   "id": "w_0141",
+   "label": "교장",
+   "aihub_word_id": "0141"
+  },
+  {
+   "class_index": 80,
+   "id": "w_0187",
+   "label": "간호사",
+   "aihub_word_id": "0187"
+  },
+  {
+   "class_index": 81,
+   "id": "w_0163",
+   "label": "의사",
+   "aihub_word_id": "0163"
+  },
+  {
+   "class_index": 82,
+   "id": "w_0174",
+   "label": "통역사",
+   "aihub_word_id": "0174"
+  },
+  {
+   "class_index": 83,
+   "id": "w_0159",
+   "label": "요리사",
+   "aihub_word_id": "0159"
+  },
+  {
+   "class_index": 84,
+   "id": "w_0147",
+   "label": "디자이너",
+   "aihub_word_id": "0147"
+  },
+  {
+   "class_index": 85,
+   "id": "w_0157",
+   "label": "예술가",
+   "aihub_word_id": "0157"
+  },
+  {
+   "class_index": 86,
+   "id": "w_2184",
+   "label": "직원",
+   "aihub_word_id": "2184"
+  },
+  {
+   "class_index": 87,
+   "id": "w_2185",
+   "label": "사장",
+   "aihub_word_id": "2185"
+  },
+  {
+   "class_index": 88,
+   "id": "w_2190",
+   "label": "운전자",
+   "aihub_word_id": "2190"
+  },
+  {
+   "class_index": 89,
+   "id": "w_0212",
+   "label": "고등학생",
+   "aihub_word_id": "0212"
+  },
+  {
+   "class_index": 90,
+   "id": "w_0230",
+   "label": "여학생",
+   "aihub_word_id": "0230"
+  },
+  {
+   "class_index": 91,
+   "id": "w_2023",
+   "label": "청년",
+   "aihub_word_id": "2023"
+  },
+  {
+   "class_index": 92,
+   "id": "w_2024",
+   "label": "청소년",
+   "aihub_word_id": "2024"
+  },
+  {
+   "class_index": 93,
+   "id": "w_2032",
+   "label": "노인",
+   "aihub_word_id": "2032"
+  },
+  {
+   "class_index": 94,
+   "id": "w_0014",
+   "label": "외국인",
+   "aihub_word_id": "0014"
+  },
+  {
+   "class_index": 95,
+   "id": "w_2013",
+   "label": "한국인",
+   "aihub_word_id": "2013"
+  },
+  {
+   "class_index": 96,
+   "id": "w_0461",
+   "label": "농인",
+   "aihub_word_id": "0461"
+  },
+  {
+   "class_index": 97,
+   "id": "w_1530",
+   "label": "바쁘다",
+   "aihub_word_id": "1530"
+  },
+  {
+   "class_index": 98,
+   "id": "w_1222",
+   "label": "힘들다",
+   "aihub_word_id": "1222"
+  },
+  {
+   "class_index": 99,
+   "id": "w_0009",
+   "label": "슬프다",
+   "aihub_word_id": "0009"
+  },
+  {
+   "class_index": 100,
+   "id": "w_0011",
+   "label": "안타깝다",
+   "aihub_word_id": "0011"
+  },
+  {
+   "class_index": 101,
+   "id": "w_0026",
+   "label": "급하다",
+   "aihub_word_id": "0026"
+  },
+  {
+   "class_index": 102,
+   "id": "w_1294",
+   "label": "걱정",
+   "aihub_word_id": "1294"
+  },
+  {
+   "class_index": 103,
+   "id": "w_1123",
+   "label": "불안",
+   "aihub_word_id": "1123"
+  },
+  {
+   "class_index": 104,
+   "id": "w_1128",
+   "label": "당황",
+   "aihub_word_id": "1128"
+  },
+  {
+   "class_index": 105,
+   "id": "w_1134",
+   "label": "무섭다",
+   "aihub_word_id": "1134"
+  },
+  {
+   "class_index": 106,
+   "id": "w_1124",
+   "label": "밉다",
+   "aihub_word_id": "1124"
+  },
+  {
+   "class_index": 107,
+   "id": "w_1140",
+   "label": "즐겁다",
+   "aihub_word_id": "1140"
+  },
+  {
+   "class_index": 108,
+   "id": "w_1169",
+   "label": "행복",
+   "aihub_word_id": "1169"
+  },
+  {
+   "class_index": 109,
+   "id": "w_1195",
+   "label": "실망",
+   "aihub_word_id": "1195"
+  },
+  {
+   "class_index": 110,
+   "id": "w_1217",
+   "label": "희망",
+   "aihub_word_id": "1217"
+  },
+  {
+   "class_index": 111,
+   "id": "w_1201",
+   "label": "죄송",
+   "aihub_word_id": "1201"
+  },
+  {
+   "class_index": 112,
+   "id": "w_1290",
+   "label": "감사",
+   "aihub_word_id": "1290"
+  },
+  {
+   "class_index": 113,
+   "id": "w_1215",
+   "label": "창피",
+   "aihub_word_id": "1215"
+  },
+  {
+   "class_index": 114,
+   "id": "w_1220",
+   "label": "부럽다",
+   "aihub_word_id": "1220"
+  },
+  {
+   "class_index": 115,
+   "id": "w_1289",
+   "label": "감동",
+   "aihub_word_id": "1289"
+  },
+  {
+   "class_index": 116,
+   "id": "w_1224",
+   "label": "웃다",
+   "aihub_word_id": "1224"
+  },
+  {
+   "class_index": 117,
+   "id": "w_1399",
+   "label": "미소",
+   "aihub_word_id": "1399"
+  },
+  {
+   "class_index": 118,
+   "id": "w_1205",
+   "label": "우습다",
+   "aihub_word_id": "1205"
+  },
+  {
+   "class_index": 119,
+   "id": "w_1731",
+   "label": "재미없다",
+   "aihub_word_id": "1731"
+  },
+  {
+   "class_index": 120,
+   "id": "w_1212",
+   "label": "지겹다",
+   "aihub_word_id": "1212"
+  },
+  {
+   "class_index": 121,
+   "id": "w_1346",
+   "label": "귀찮다",
+   "aihub_word_id": "1346"
+  },
+  {
+   "class_index": 122,
+   "id": "w_0684",
+   "label": "괴롭다",
+   "aihub_word_id": "0684"
+  },
+  {
+   "class_index": 123,
+   "id": "w_0968",
+   "label": "난감하다",
+   "aihub_word_id": "0968"
+  },
+  {
+   "class_index": 124,
+   "id": "w_1236",
+   "label": "화나다",
+   "aihub_word_id": "1236"
+  },
+  {
+   "class_index": 125,
+   "id": "w_1255",
+   "label": "짜증",
+   "aihub_word_id": "1255"
+  },
+  {
+   "class_index": 126,
+   "id": "w_1251",
+   "label": "우울",
+   "aihub_word_id": "1251"
+  },
+  {
+   "class_index": 127,
+   "id": "w_1252",
+   "label": "후회",
+   "aihub_word_id": "1252"
+  },
+  {
+   "class_index": 128,
+   "id": "w_1158",
+   "label": "피곤하다",
+   "aihub_word_id": "1158"
+  },
+  {
+   "class_index": 129,
+   "id": "w_0953",
+   "label": "배고프다",
+   "aihub_word_id": "0953"
+  },
+  {
+   "class_index": 130,
+   "id": "w_1200",
+   "label": "배부르다",
+   "aihub_word_id": "1200"
+  },
+  {
+   "class_index": 131,
+   "id": "w_1244",
+   "label": "졸리다",
+   "aihub_word_id": "1244"
+  },
+  {
+   "class_index": 132,
+   "id": "w_1248",
+   "label": "춥다",
+   "aihub_word_id": "1248"
+  },
+  {
+   "class_index": 133,
+   "id": "w_1382",
+   "label": "덥다",
+   "aihub_word_id": "1382"
+  },
+  {
+   "class_index": 134,
+   "id": "w_1383",
+   "label": "따뜻하다",
+   "aihub_word_id": "1383"
+  },
+  {
+   "class_index": 135,
+   "id": "w_1301",
+   "label": "시원하다",
+   "aihub_word_id": "1301"
+  },
+  {
+   "class_index": 136,
+   "id": "w_2542",
+   "label": "뜨겁다",
+   "aihub_word_id": "2542"
+  },
+  {
+   "class_index": 137,
+   "id": "w_1152",
+   "label": "아프다",
+   "aihub_word_id": "1152"
+  },
+  {
+   "class_index": 138,
+   "id": "w_1145",
+   "label": "예쁘다",
+   "aihub_word_id": "1145"
+  },
+  {
+   "class_index": 139,
+   "id": "w_1314",
+   "label": "귀엽다",
+   "aihub_word_id": "1314"
+  },
+  {
+   "class_index": 140,
+   "id": "w_1156",
+   "label": "나쁘다",
+   "aihub_word_id": "1156"
+  },
+  {
+   "class_index": 141,
+   "id": "w_1177",
+   "label": "솔직",
+   "aihub_word_id": "1177"
+  },
+  {
+   "class_index": 142,
+   "id": "w_1188",
+   "label": "차분",
+   "aihub_word_id": "1188"
+  },
+  {
+   "class_index": 143,
+   "id": "w_0022",
+   "label": "침착",
+   "aihub_word_id": "0022"
+  },
+  {
+   "class_index": 144,
+   "id": "w_0023",
+   "label": "성실",
+   "aihub_word_id": "0023"
+  },
+  {
+   "class_index": 145,
+   "id": "w_1154",
+   "label": "깨끗하다",
+   "aihub_word_id": "1154"
+  },
+  {
+   "class_index": 146,
+   "id": "w_1186",
+   "label": "조심",
+   "aihub_word_id": "1186"
+  },
+  {
+   "class_index": 147,
+   "id": "w_1592",
+   "label": "회사",
+   "aihub_word_id": "1592"
+  },
+  {
+   "class_index": 148,
+   "id": "w_1496",
+   "label": "병원",
+   "aihub_word_id": "1496"
+  },
+  {
+   "class_index": 149,
+   "id": "w_0041",
+   "label": "보건소",
+   "aihub_word_id": "0041"
+  },
+  {
+   "class_index": 150,
+   "id": "w_0104",
+   "label": "식당",
+   "aihub_word_id": "0104"
+  },
+  {
+   "class_index": 151,
+   "id": "w_2183",
+   "label": "사무실",
+   "aihub_word_id": "2183"
+  },
+  {
+   "class_index": 152,
+   "id": "w_0215",
+   "label": "교실",
+   "aihub_word_id": "0215"
+  },
+  {
+   "class_index": 153,
+   "id": "w_0232",
+   "label": "연구실",
+   "aihub_word_id": "0232"
+  },
+  {
+   "class_index": 154,
+   "id": "w_0226",
+   "label": "서점",
+   "aihub_word_id": "0226"
+  },
+  {
+   "class_index": 155,
+   "id": "w_0168",
+   "label": "주차장",
+   "aihub_word_id": "0168"
+  },
+  {
+   "class_index": 156,
+   "id": "w_0206",
+   "label": "주유소",
+   "aihub_word_id": "0206"
+  },
+  {
+   "class_index": 157,
+   "id": "w_2177",
+   "label": "공항",
+   "aihub_word_id": "2177"
+  },
+  {
+   "class_index": 158,
+   "id": "w_0156",
+   "label": "기차역",
+   "aihub_word_id": "0156"
+  },
+  {
+   "class_index": 159,
+   "id": "w_0172",
+   "label": "터미널",
+   "aihub_word_id": "0172"
+  },
+  {
+   "class_index": 160,
+   "id": "w_1456",
+   "label": "시청",
+   "aihub_word_id": "1456"
+  },
+  {
+   "class_index": 161,
+   "id": "w_0489",
+   "label": "주민센터",
+   "aihub_word_id": "0489"
+  },
+  {
+   "class_index": 162,
+   "id": "w_0136",
+   "label": "경찰서",
+   "aihub_word_id": "0136"
+  },
+  {
+   "class_index": 163,
+   "id": "w_0655",
+   "label": "수영장",
+   "aihub_word_id": "0655"
+  },
+  {
+   "class_index": 164,
+   "id": "w_2153",
+   "label": "운동장",
+   "aihub_word_id": "2153"
+  },
+  {
+   "class_index": 165,
+   "id": "w_0634",
+   "label": "서울역",
+   "aihub_word_id": "0634"
+  },
+  {
+   "class_index": 166,
+   "id": "w_0170",
+   "label": "출근",
+   "aihub_word_id": "0170"
+  },
+  {
+   "class_index": 167,
+   "id": "w_0173",
+   "label": "근무",
+   "aihub_word_id": "0173"
+  },
+  {
+   "class_index": 168,
+   "id": "w_0175",
+   "label": "퇴사",
+   "aihub_word_id": "0175"
+  },
+  {
+   "class_index": 169,
+   "id": "w_0193",
+   "label": "구직",
+   "aihub_word_id": "0193"
+  },
+  {
+   "class_index": 170,
+   "id": "w_2196",
+   "label": "취업",
+   "aihub_word_id": "2196"
+  },
+  {
+   "class_index": 171,
+   "id": "w_0166",
+   "label": "재택근무",
+   "aihub_word_id": "0166"
+  },
+  {
+   "class_index": 172,
+   "id": "w_2179",
+   "label": "월급",
+   "aihub_word_id": "2179"
+  },
+  {
+   "class_index": 173,
+   "id": "w_0164",
+   "label": "이력서",
+   "aihub_word_id": "0164"
+  },
+  {
+   "class_index": 174,
+   "id": "w_1581",
+   "label": "시험",
+   "aihub_word_id": "1581"
+  },
+  {
+   "class_index": 175,
+   "id": "w_0228",
+   "label": "실습",
+   "aihub_word_id": "0228"
+  },
+  {
+   "class_index": 176,
+   "id": "w_0412",
+   "label": "학습",
+   "aihub_word_id": "0412"
+  },
+  {
+   "class_index": 177,
+   "id": "w_0223",
+   "label": "복습",
+   "aihub_word_id": "0223"
+  },
+  {
+   "class_index": 178,
+   "id": "w_0233",
+   "label": "예습",
+   "aihub_word_id": "0233"
+  },
+  {
+   "class_index": 179,
+   "id": "w_0878",
+   "label": "출석",
+   "aihub_word_id": "0878"
+  },
+  {
+   "class_index": 180,
+   "id": "w_0034",
+   "label": "독서",
+   "aihub_word_id": "0034"
+  },
+  {
+   "class_index": 181,
+   "id": "w_0238",
+   "label": "연구",
+   "aihub_word_id": "0238"
+  },
+  {
+   "class_index": 182,
+   "id": "w_0241",
+   "label": "훈련",
+   "aihub_word_id": "0241"
+  },
+  {
+   "class_index": 183,
+   "id": "w_0169",
+   "label": "채팅",
+   "aihub_word_id": "0169"
+  },
+  {
+   "class_index": 184,
+   "id": "w_0808",
+   "label": "전화번호",
+   "aihub_word_id": "0808"
+  },
+  {
+   "class_index": 185,
+   "id": "w_1540",
+   "label": "생활",
+   "aihub_word_id": "1540"
+  },
+  {
+   "class_index": 186,
+   "id": "w_0155",
+   "label": "여행사",
+   "aihub_word_id": "0155"
+  },
+  {
+   "class_index": 187,
+   "id": "w_2057",
+   "label": "관광",
+   "aihub_word_id": "2057"
+  },
+  {
+   "class_index": 188,
+   "id": "w_1503",
+   "label": "구경",
+   "aihub_word_id": "1503"
+  },
+  {
+   "class_index": 189,
+   "id": "w_1558",
+   "label": "이사",
+   "aihub_word_id": "1558"
+  },
+  {
+   "class_index": 190,
+   "id": "w_1557",
+   "label": "출장",
+   "aihub_word_id": "1557"
+  },
+  {
+   "class_index": 191,
+   "id": "w_1501",
+   "label": "운전면허",
+   "aihub_word_id": "1501"
+  },
+  {
+   "class_index": 192,
+   "id": "w_0201",
+   "label": "신용카드",
+   "aihub_word_id": "0201"
+  },
+  {
+   "class_index": 193,
+   "id": "w_0130",
+   "label": "월세",
+   "aihub_word_id": "0130"
+  },
+  {
+   "class_index": 194,
+   "id": "w_0131",
+   "label": "전세",
+   "aihub_word_id": "0131"
+  },
+  {
+   "class_index": 195,
+   "id": "w_2174",
+   "label": "용돈",
+   "aihub_word_id": "2174"
+  },
+  {
+   "class_index": 196,
+   "id": "w_0200",
+   "label": "수입",
+   "aihub_word_id": "0200"
+  },
+  {
+   "class_index": 197,
+   "id": "w_0005",
+   "label": "눈",
+   "aihub_word_id": "0005"
+  },
+  {
+   "class_index": 198,
+   "id": "w_1370",
+   "label": "귀",
+   "aihub_word_id": "1370"
+  },
+  {
+   "class_index": 199,
+   "id": "w_1235",
+   "label": "코",
+   "aihub_word_id": "1235"
+  },
+  {
+   "class_index": 200,
+   "id": "w_1279",
+   "label": "입",
+   "aihub_word_id": "1279"
+  },
+  {
+   "class_index": 201,
+   "id": "w_1181",
+   "label": "혀",
+   "aihub_word_id": "1181"
+  },
+  {
+   "class_index": 202,
+   "id": "w_1374",
+   "label": "이마",
+   "aihub_word_id": "1374"
+  },
+  {
+   "class_index": 203,
+   "id": "w_1375",
+   "label": "볼",
+   "aihub_word_id": "1375"
+  },
+  {
+   "class_index": 204,
+   "id": "w_1262",
+   "label": "턱",
+   "aihub_word_id": "1262"
+  },
+  {
+   "class_index": 205,
+   "id": "w_1376",
+   "label": "목",
+   "aihub_word_id": "1376"
+  },
+  {
+   "class_index": 206,
+   "id": "w_1226",
+   "label": "손",
+   "aihub_word_id": "1226"
+  },
+  {
+   "class_index": 207,
+   "id": "w_1147",
+   "label": "팔",
+   "aihub_word_id": "1147"
+  },
+  {
+   "class_index": 208,
+   "id": "w_1599",
+   "label": "다리",
+   "aihub_word_id": "1599"
+  },
+  {
+   "class_index": 209,
+   "id": "w_1253",
+   "label": "몸",
+   "aihub_word_id": "1253"
+  },
+  {
+   "class_index": 210,
+   "id": "w_1210",
+   "label": "얼굴",
+   "aihub_word_id": "1210"
+  },
+  {
+   "class_index": 211,
+   "id": "w_1249",
+   "label": "머리",
+   "aihub_word_id": "1249"
+  },
+  {
+   "class_index": 212,
+   "id": "w_1241",
+   "label": "머리카락",
+   "aihub_word_id": "1241"
+  },
+  {
+   "class_index": 213,
+   "id": "w_1371",
+   "label": "눈썹",
+   "aihub_word_id": "1371"
+  },
+  {
+   "class_index": 214,
+   "id": "w_1373",
+   "label": "치아",
+   "aihub_word_id": "1373"
+  },
+  {
+   "class_index": 215,
+   "id": "w_0288",
+   "label": "체온",
+   "aihub_word_id": "0288"
+  },
+  {
+   "class_index": 216,
+   "id": "w_2039",
+   "label": "몸무게",
+   "aihub_word_id": "2039"
+  },
+  {
+   "class_index": 217,
+   "id": "w_1115",
+   "label": "건강",
+   "aihub_word_id": "1115"
+  },
+  {
+   "class_index": 218,
+   "id": "w_0037",
+   "label": "감기",
+   "aihub_word_id": "0037"
+  },
+  {
+   "class_index": 219,
+   "id": "w_1533",
+   "label": "병",
+   "aihub_word_id": "1533"
+  },
+  {
+   "class_index": 220,
+   "id": "w_1576",
+   "label": "환자",
+   "aihub_word_id": "1576"
+  },
+  {
+   "class_index": 221,
+   "id": "w_0029",
+   "label": "검사",
+   "aihub_word_id": "0029"
+  },
+  {
+   "class_index": 222,
+   "id": "w_0064",
+   "label": "치료",
+   "aihub_word_id": "0064"
+  },
+  {
+   "class_index": 223,
+   "id": "w_0057",
+   "label": "회복",
+   "aihub_word_id": "0057"
+  },
+  {
+   "class_index": 224,
+   "id": "w_0060",
+   "label": "입원",
+   "aihub_word_id": "0060"
+  },
+  {
+   "class_index": 225,
+   "id": "w_0067",
+   "label": "퇴원",
+   "aihub_word_id": "0067"
+  },
+  {
+   "class_index": 226,
+   "id": "w_0689",
+   "label": "통증",
+   "aihub_word_id": "0689"
+  },
+  {
+   "class_index": 227,
+   "id": "w_1519",
+   "label": "상처",
+   "aihub_word_id": "1519"
+  },
+  {
+   "class_index": 228,
+   "id": "w_0071",
+   "label": "화상",
+   "aihub_word_id": "0071"
+  },
+  {
+   "class_index": 229,
+   "id": "w_0387",
+   "label": "골절",
+   "aihub_word_id": "0387"
+  },
+  {
+   "class_index": 230,
+   "id": "w_0046",
+   "label": "설사",
+   "aihub_word_id": "0046"
+  },
+  {
+   "class_index": 231,
+   "id": "w_0039",
+   "label": "변비",
+   "aihub_word_id": "0039"
+  },
+  {
+   "class_index": 232,
+   "id": "w_0970",
+   "label": "불면",
+   "aihub_word_id": "0970"
+  },
+  {
+   "class_index": 233,
+   "id": "w_0044",
+   "label": "붕대",
+   "aihub_word_id": "0044"
+  },
+  {
+   "class_index": 234,
+   "id": "w_2131",
+   "label": "물약",
+   "aihub_word_id": "2131"
+  },
+  {
+   "class_index": 235,
+   "id": "w_2108",
+   "label": "가루약",
+   "aihub_word_id": "2108"
+  },
+  {
+   "class_index": 236,
+   "id": "w_0132",
+   "label": "치약",
+   "aihub_word_id": "0132"
+  },
+  {
+   "class_index": 237,
+   "id": "w_1534",
+   "label": "밥",
+   "aihub_word_id": "1534"
+  },
+  {
+   "class_index": 238,
+   "id": "w_0115",
+   "label": "커피",
+   "aihub_word_id": "0115"
+  },
+  {
+   "class_index": 239,
+   "id": "w_0815",
+   "label": "우유",
+   "aihub_word_id": "0815"
+  },
+  {
+   "class_index": 240,
+   "id": "w_0007",
+   "label": "음료수",
+   "aihub_word_id": "0007"
+  },
+  {
+   "class_index": 241,
+   "id": "w_0099",
+   "label": "사과",
+   "aihub_word_id": "0099"
+  },
+  {
+   "class_index": 242,
+   "id": "w_0088",
+   "label": "딸기",
+   "aihub_word_id": "0088"
+  },
+  {
+   "class_index": 243,
+   "id": "w_0090",
+   "label": "라면",
+   "aihub_word_id": "0090"
+  },
+  {
+   "class_index": 244,
+   "id": "w_0087",
+   "label": "두부",
+   "aihub_word_id": "0087"
+  },
+  {
+   "class_index": 245,
+   "id": "w_0086",
+   "label": "돼지고기",
+   "aihub_word_id": "0086"
+  },
+  {
+   "class_index": 246,
+   "id": "w_0098",
+   "label": "비빔밥",
+   "aihub_word_id": "0098"
+  },
+  {
+   "class_index": 247,
+   "id": "w_0100",
+   "label": "사이다",
+   "aihub_word_id": "0100"
+  },
+  {
+   "class_index": 248,
+   "id": "w_0116",
+   "label": "콜라",
+   "aihub_word_id": "0116"
+  },
+  {
+   "class_index": 249,
+   "id": "w_0109",
+   "label": "술",
+   "aihub_word_id": "0109"
+  },
+  {
+   "class_index": 250,
+   "id": "w_0165",
+   "label": "자가용",
+   "aihub_word_id": "0165"
+  },
+  {
+   "class_index": 251,
+   "id": "w_0149",
+   "label": "구급차",
+   "aihub_word_id": "0149"
+  },
+  {
+   "class_index": 252,
+   "id": "w_0148",
+   "label": "마을버스",
+   "aihub_word_id": "0148"
+  },
+  {
+   "class_index": 253,
+   "id": "w_1593",
+   "label": "기차",
+   "aihub_word_id": "1593"
+  },
+  {
+   "class_index": 254,
+   "id": "w_0154",
+   "label": "여객선",
+   "aihub_word_id": "0154"
+  },
+  {
+   "class_index": 255,
+   "id": "w_0846",
+   "label": "차도",
+   "aihub_word_id": "0846"
+  },
+  {
+   "class_index": 256,
+   "id": "w_1342",
+   "label": "왼쪽",
+   "aihub_word_id": "1342"
+  },
+  {
+   "class_index": 257,
+   "id": "w_1343",
+   "label": "오른쪽",
+   "aihub_word_id": "1343"
+  },
+  {
+   "class_index": 258,
+   "id": "w_2100",
+   "label": "위",
+   "aihub_word_id": "2100"
+  },
+  {
+   "class_index": 259,
+   "id": "w_2577",
+   "label": "아래",
+   "aihub_word_id": "2577"
+  },
+  {
+   "class_index": 260,
+   "id": "w_1578",
+   "label": "밖",
+   "aihub_word_id": "1578"
+  },
+  {
+   "class_index": 261,
+   "id": "w_0948",
+   "label": "가깝다",
+   "aihub_word_id": "0948"
+  },
+  {
+   "class_index": 262,
+   "id": "w_0949",
+   "label": "멀다",
+   "aihub_word_id": "0949"
+  },
+  {
+   "class_index": 263,
+   "id": "w_0339",
+   "label": "아까",
+   "aihub_word_id": "0339"
+  },
+  {
+   "class_index": 264,
+   "id": "w_0320",
+   "label": "방금",
+   "aihub_word_id": "0320"
+  },
+  {
+   "class_index": 265,
+   "id": "w_0334",
+   "label": "예전",
+   "aihub_word_id": "0334"
+  },
+  {
+   "class_index": 266,
+   "id": "w_0309",
+   "label": "어젯밤",
+   "aihub_word_id": "0309"
+  },
+  {
+   "class_index": 267,
+   "id": "w_0336",
+   "label": "월요일",
+   "aihub_word_id": "0336"
+  },
+  {
+   "class_index": 268,
+   "id": "w_0347",
+   "label": "화요일",
+   "aihub_word_id": "0347"
+  },
+  {
+   "class_index": 269,
+   "id": "w_0329",
+   "label": "수요일",
+   "aihub_word_id": "0329"
+  },
+  {
+   "class_index": 270,
+   "id": "w_0316",
+   "label": "금요일",
+   "aihub_word_id": "0316"
+  },
+  {
+   "class_index": 271,
+   "id": "w_0257",
+   "label": "일요일",
+   "aihub_word_id": "0257"
+  },
+  {
+   "class_index": 272,
+   "id": "w_0344",
+   "label": "평일",
+   "aihub_word_id": "0344"
+  },
+  {
+   "class_index": 273,
+   "id": "w_0312",
+   "label": "공휴일",
+   "aihub_word_id": "0312"
+  },
+  {
+   "class_index": 274,
+   "id": "w_0338",
+   "label": "자정",
+   "aihub_word_id": "0338"
+  },
+  {
+   "class_index": 275,
+   "id": "w_0814",
+   "label": "월초",
+   "aihub_word_id": "0814"
+  },
+  {
+   "class_index": 276,
+   "id": "w_0932",
+   "label": "매일매일",
+   "aihub_word_id": "0932"
+  },
+  {
+   "class_index": 277,
+   "id": "w_2631",
+   "label": "영",
+   "aihub_word_id": "2631"
+  },
+  {
+   "class_index": 278,
+   "id": "w_2632",
+   "label": "일",
+   "aihub_word_id": "2632"
+  },
+  {
+   "class_index": 279,
+   "id": "w_2633",
+   "label": "이",
+   "aihub_word_id": "2633"
+  },
+  {
+   "class_index": 280,
+   "id": "w_2634",
+   "label": "삼",
+   "aihub_word_id": "2634"
+  },
+  {
+   "class_index": 281,
+   "id": "w_2635",
+   "label": "사",
+   "aihub_word_id": "2635"
+  },
+  {
+   "class_index": 282,
+   "id": "w_2636",
+   "label": "오",
+   "aihub_word_id": "2636"
+  },
+  {
+   "class_index": 283,
+   "id": "w_2637",
+   "label": "육",
+   "aihub_word_id": "2637"
+  },
+  {
+   "class_index": 284,
+   "id": "w_2638",
+   "label": "칠",
+   "aihub_word_id": "2638"
+  },
+  {
+   "class_index": 285,
+   "id": "w_2640",
+   "label": "구",
+   "aihub_word_id": "2640"
+  },
+  {
+   "class_index": 286,
+   "id": "w_2641",
+   "label": "십",
+   "aihub_word_id": "2641"
+  },
+  {
+   "class_index": 287,
+   "id": "w_1322",
+   "label": "빨강",
+   "aihub_word_id": "1322"
+  },
+  {
+   "class_index": 288,
+   "id": "w_1323",
+   "label": "노랑",
+   "aihub_word_id": "1323"
+  },
+  {
+   "class_index": 289,
+   "id": "w_1324",
+   "label": "초록",
+   "aihub_word_id": "1324"
+  },
+  {
+   "class_index": 290,
+   "id": "w_1325",
+   "label": "파랑",
+   "aihub_word_id": "1325"
+  },
+  {
+   "class_index": 291,
+   "id": "w_1321",
+   "label": "검정",
+   "aihub_word_id": "1321"
+  },
+  {
+   "class_index": 292,
+   "id": "w_1121",
+   "label": "흰",
+   "aihub_word_id": "1121"
+  },
+  {
+   "class_index": 293,
+   "id": "w_0290",
+   "label": "하늘",
+   "aihub_word_id": "0290"
+  },
+  {
+   "class_index": 294,
+   "id": "w_2538",
+   "label": "달",
+   "aihub_word_id": "2538"
+  },
+  {
+   "class_index": 295,
+   "id": "w_2551",
+   "label": "별",
+   "aihub_word_id": "2551"
+  },
+  {
+   "class_index": 296,
+   "id": "w_2552",
+   "label": "비",
+   "aihub_word_id": "2552"
+  },
+  {
+   "class_index": 297,
+   "id": "w_2549",
+   "label": "바람",
+   "aihub_word_id": "2549"
+  },
+  {
+   "class_index": 298,
+   "id": "w_2546",
+   "label": "바다",
+   "aihub_word_id": "2546"
+  },
+  {
+   "class_index": 299,
+   "id": "w_2563",
+   "label": "온도",
+   "aihub_word_id": "2563"
+  }
+ ]
+}

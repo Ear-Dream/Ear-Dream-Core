@@ -1,4 +1,4 @@
-"""/recognize — 수어 세그먼트 하나를 단어 후보 top-k 로 인식한다.
+"""/recognize — 수어 세그먼트 하나를 단어 후보 top-k 로 인식한다 (SPOTER-208, 300단어).
 
 라우트는 얇게 유지한다: 조립·전처리·추론은 app/ml, 아카이빙은 app/services 소관.
 응답 시간은 반드시 로깅한다 — NFR-01(허용 지연 시간) 확정의 유일한 근거 데이터다.
@@ -18,15 +18,10 @@ from fastapi.routing import APIRoute, APIRouter
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.examples import recognize_openapi_examples
-from app.ml.assembly import assemble_frames
+from app.ml.assembly import AssemblyMeta, assemble_frames
 from app.ml.keypoint_layout import L_SHOULDER, LEFT_HAND, R_SHOULDER, RIGHT_HAND
 from app.ml.model import get_model_state
-from app.ml.preprocess import (
-    MIN_TRIM_LEN,
-    PREPROCESS_VERSION,
-    preprocess_eval,
-    trim_rest_bounds,
-)
+from app.ml.preprocess_spoter import PREPROCESS_VERSION, preprocess_spoter
 from app.ml.vocab import VOCAB_VERSION
 from app.schemas.recognition import (
     PreprocessInfo,
@@ -63,8 +58,10 @@ class ArchivingRoute(APIRoute):
 router = APIRouter(tags=["recognize"], route_class=ArchivingRoute)
 
 
-# hand_partially_out 어드바이저리 판정 비율: 트리밍 후 구간에서 손이 잡힌 프레임 비율이
-# 이보다 낮으면 참고용으로 첨부한다. ⚠️ 임시값 — 실사용 데이터로 검증되지 않은 프로토타입 기준.
+# hand_partially_out 어드바이저리 판정 비율: 세그먼트에서 손이 잡힌 프레임 비율이 이보다
+# 낮으면 참고용으로 첨부한다. ⚠️ 임시값 — 실사용 데이터로 검증되지 않은 프로토타입 기준.
+# (SPOTER 전처리는 trim 없이 전 구간을 쓰므로 v2 와 달리 전체 세그먼트 기준이다 —
+#  결측 프레임은 보간 없이 0-채움되어 모델 입력에 그대로 남는다.)
 HAND_PRESENT_RATIO_ADVISORY = 0.5
 
 
@@ -73,11 +70,9 @@ def _quality_issues(kp: np.ndarray) -> tuple[list[QualityIssue], list[QualityIss
 
     - blocking: 추론이 무의미해 건너뛰는 조건 (no_hand_detected, too_few_valid_frames).
       low_quality + 빈 candidates 로 응답한다.
-    - advisory: 추론은 정상 진행하고 결과(recognized/rejected)에 참고용으로만 첨부하는
-      조건. 한 손으로 폰을 들고 쓰면 손이 프레임 밖에 있다가 들어오는 것이 정상 사용
-      패턴이고, 결측은 전처리가 처리하도록 설계돼 있다 — 앞뒤 결측은 trim_rest,
-      어깨 결측은 normalize_signer 의 fallback(유효 프레임 중앙값 → 극단 케이스 고정값),
-      구간 내 결측은 선형 보간. 클라이언트는 advisory 를 안내 문구로만 쓴다.
+    - advisory: 추론은 정상 진행하고 결과(recognized/rejected)에 참고용으로만 첨부.
+      SPOTER 전처리는 부위 미검출을 0-채움으로 보존하므로(보간·트리밍 없음) 결측이
+      많아도 추론 자체는 가능하다 — 클라이언트는 advisory 를 안내 문구로만 쓴다.
     """
     blocking: list[QualityIssue] = []
     advisory: list[QualityIssue] = []
@@ -85,24 +80,19 @@ def _quality_issues(kp: np.ndarray) -> tuple[list[QualityIssue], list[QualityIss
     hand_present = ~np.isnan(kp[:, LEFT_HAND + RIGHT_HAND, :]).all(axis=(1, 2))  # (T,)
     if not hand_present.any():
         blocking.append(QualityIssue.no_hand_detected)
-    elif int(hand_present.sum()) < MIN_TRIM_LEN:
-        # 손이 잡힌 프레임이 전처리 최소 트리밍 길이보다 적으면 인식이 무의미하다
+    elif int(hand_present.sum()) < settings.min_frames:
+        # 손이 잡힌 프레임이 최소 세그먼트 길이(임시값)보다 적으면 인식이 무의미하다
         blocking.append(QualityIssue.too_few_valid_frames)
-    else:
-        # 트리밍 후 구간 내에서 손 프레임 비율이 낮으면 중간 결측(보간 구간)이 많다는 뜻.
-        # 추론은 진행하되 참고용으로 첨부한다.
-        start, end = trim_rest_bounds(kp)
-        seg = hand_present[start:end]
-        if seg.size and float(seg.mean()) < HAND_PRESENT_RATIO_ADVISORY:
-            advisory.append(QualityIssue.hand_partially_out)
+    elif float(hand_present.mean()) < HAND_PRESENT_RATIO_ADVISORY:
+        # 손 프레임 비율이 낮으면 0-채움 결측 구간이 많다는 뜻 — 추론은 진행, 참고 첨부
+        advisory.append(QualityIssue.hand_partially_out)
 
     shoulders_ok = ~(
         np.isnan(kp[:, L_SHOULDER, :]).any(axis=1) | np.isnan(kp[:, R_SHOULDER, :]).any(axis=1)
     )
     if not shoulders_ok.any():
-        # 양어깨가 한 프레임도 안 잡히면 normalize_signer 가 고정 fallback 으로 동작한다.
-        # 예측 신뢰도가 떨어질 수 있으나 추론은 진행한다. 어깨가 일부 프레임에서만 잡히는
-        # 경우는 중앙값 fallback 이 처리하므로 이슈로 치지 않는다.
+        # 양어깨가 한 프레임도 안 잡히면 pose 부위가 전 구간 0-채움된다 (global 정규화가
+        # 어깨 기준이라 pose 는 미검출 처리). 손 local 특징만으로 추론은 진행한다.
         advisory.append(QualityIssue.shoulders_not_visible)
 
     return blocking, advisory
@@ -131,14 +121,14 @@ def recognize(
         "req": request.request_id,
         "sess": request.session_id,
         "frames_in": len(request.segment.frames),
-        "frames_used": "-",  # 트리밍 후 프레임 수
-        "interp": "-",  # 보간이 개입한 프레임 수
+        "frames_used": "-",  # 30fps 리샘플(+256 캡) 후 모델 입력 프레임 수
         "status": "error",
         "top1": "-",
         "issues": [],
     }
     # 진단 레코드 재료 (finally 에서 기록) — 결과가 만들어진 경로에서만 채워진다
     kp: np.ndarray | None = None
+    assembly_meta: AssemblyMeta | None = None
     pp = None
     probs: np.ndarray | None = None
     result: RecognitionResult | None = None
@@ -149,7 +139,7 @@ def recognize(
             raise HTTPException(status_code=503, detail="recognition model is not loaded")
 
         frames = request.segment.frames
-        kp = assemble_frames(frames, settings.pose_visibility_threshold)
+        kp, assembly_meta = assemble_frames(frames, settings.pose_visibility_threshold)
 
         blocking, advisory = _quality_issues(kp)
         if blocking:
@@ -166,23 +156,19 @@ def recognize(
             )
             return result
 
-        # v2 등방 정규화의 AR 은 요청의 실측 해상도에서 온다 (핸드오프 §3-1).
-        # use_z 는 체크포인트 계약(state.use_z)에서 온다 — 라우트가 정하지 않는다.
-        capture = request.segment.capture
-        aspect_ratio = capture.source_width / capture.source_height
-        pp = preprocess_eval(kp, aspect_ratio=aspect_ratio, use_z=state.use_z)
-        log["frames_used"] = pp.used_frame_count
-        log["interp"] = pp.interpolated_frame_count
+        pp = preprocess_spoter(frames, kp)
+        log["frames_used"] = pp.model_frame_count
         probs = state.predict_probs(pp.x)
 
         # top-k (개수는 미확정 임시값 — settings.recognize_top_k)
-        # 클래스 인덱스 → 어휘는 로드 시 검증된 체크포인트 class_labels(state.class_entries)
+        # 클래스 인덱스 → 어휘는 로드 시 검증된 release.json class_labels(state.class_entries)
         order = np.argsort(probs)[::-1][: settings.recognize_top_k]
         best = float(probs[order[0]])
         best_entry = state.class_entries[order[0]]
         log["top1"] = f"{best_entry.label}({best:.3f})"
 
-        if best < settings.reject_threshold:
+        # reject 임계는 로드 시 확정된 값 (release.json 권장값 또는 설정 오버라이드)
+        if best < state.reject_threshold:
             status, candidates = RecognitionStatus.rejected, []
         else:
             status = RecognitionStatus.recognized
@@ -203,10 +189,13 @@ def recognize(
             candidates=candidates,
             quality_issues=advisory,
             preprocess=PreprocessInfo(
-                used_start_ms=frames[pp.used_start_index].t_ms,
-                used_end_ms=frames[max(pp.used_end_index - 1, 0)].t_ms,
-                used_frame_count=pp.used_frame_count,
-                interpolated_frame_count=pp.interpolated_frame_count,
+                # SPOTER 전처리는 트리밍이 없다 — 사용 구간 = 세그먼트 전체
+                used_start_ms=frames[0].t_ms,
+                used_end_ms=frames[-1].t_ms,
+                # 모델 입력 프레임 수 (30fps 리샘플 + 256 캡 이후)
+                used_frame_count=pp.model_frame_count,
+                # 계약상 보간이 없다 (결측은 0-채움 보존) — 항상 0
+                interpolated_frame_count=0,
                 preprocess_version=PREPROCESS_VERSION,
             ),
             model_version=state.model_version,
@@ -217,11 +206,12 @@ def recognize(
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         # 진단 레코드 기록 (베스트 에포트 — 실패해도 응답을 막지 않는다)
         diag_path = "-"
-        if result is not None and kp is not None:
+        if result is not None and kp is not None and assembly_meta is not None:
             written = record_recognize_diagnostics(
                 request,
                 kp,
                 result,
+                assembly_meta=assembly_meta,
                 pp=pp,
                 probs=probs,
                 latency_ms=elapsed_ms,
@@ -233,13 +223,12 @@ def recognize(
                 diag_path = str(written)
         # NFR-01(허용 지연 시간) 확정 근거 — latency_ms 필드는 반드시 남긴다
         logger.info(
-            "recognize req=%s sess=%s frames=%s→%s interp=%s status=%s top1=%s "
+            "recognize req=%s sess=%s frames=%s→%s status=%s top1=%s "
             "issues=[%s] latency_ms=%.1f archive=%s diag=%s",
             log["req"],
             log["sess"],
             log["frames_in"],
             log["frames_used"],
-            log["interp"],
             log["status"],
             log["top1"],
             ",".join(log["issues"]),
