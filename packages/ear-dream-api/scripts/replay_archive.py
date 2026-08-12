@@ -81,7 +81,14 @@ def replay_one(request: RecognizeRequest) -> dict[str, Any]:
         )
     else:
         frames = request.segment.frames
-        pp = preprocess_spoter(frames, kp)
+        # 기하 보정 2종 — 라우트와 동일 (AR: 캡처 실측 해상도 사영, y: live_y_scale)
+        cap = request.segment.capture
+        pp = preprocess_spoter(
+            frames,
+            kp,
+            source_aspect=cap.source_width / cap.source_height,
+            y_scale=settings.live_y_scale,
+        )
         probs = state.predict_probs(pp.x)
         order = np.argsort(probs)[::-1][: settings.recognize_top_k]
         best = float(probs[order[0]])

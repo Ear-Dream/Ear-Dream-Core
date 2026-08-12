@@ -24,8 +24,9 @@ class CaptureMeta(BaseModel):
     """캡처 환경 메타데이터. 좌표 해석(종횡비)과 데이터셋 아카이브 분석에 필요하다.
 
     source_width/height: MediaPipe 정규화 좌표는 x를 너비로, y를 높이로 나누므로
-    x·y를 섞는 거리 계산이 종횡비에 의존한다. 서버는 보정하지 않지만(학습과 동일)
-    아카이브된 데이터의 특징값 이동을 추적하려면 해상도 기록이 필수다.
+    좌표 공간의 이방성이 종횡비에 의존한다. 서버 전처리가 이 실측값으로 라이브 좌표를
+    학습 종횡비(16:9) 관례로 사영한다(AR 보정 — preprocess_spoter 모듈 docstring) —
+    항상 캡처 실측 해상도를 실을 것.
     """
 
     source_width: int = Field(gt=0)

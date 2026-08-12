@@ -38,8 +38,14 @@ def test_recognize_writes_diagnostics_record(client, tmp_path):
     assert assignment["geometry_label_mismatch_frames"] == 0
     assert assignment["single_hand_slot_transitions"] == 0
 
-    # spoter 전처리 요약: 리샘플·부위 검출율·정규화 후 범위
+    # spoter 전처리 요약: 기하 보정(AR x + 원근 y)·리샘플·부위 검출율·정규화 후 범위
     pre = record["preprocess"]
+    # conftest 캡처는 720x1280(세로) — AR 보정 배율 = (720/1280)/(16/9) ≈ 0.3164
+    assert pre["ar_correction"]["source_aspect"] == pytest.approx(720 / 1280)
+    assert pre["ar_correction"]["ar_train"] == pytest.approx(16 / 9)
+    assert pre["ar_correction"]["x_scale"] == pytest.approx((720 / 1280) / (16 / 9))
+    # y 보정은 종횡비 무관 고정 상수 (settings.live_y_scale — 임시값)
+    assert pre["ar_correction"]["y_scale"] == pytest.approx(settings.live_y_scale)
     assert pre["resample"]["source_frame_count"] == 40
     assert 1 <= pre["resample"]["model_frame_count"] <= 256
     assert pre["part_detection_rates"]["pose"] == 1.0
@@ -64,6 +70,11 @@ def test_recognize_writes_diagnostics_record(client, tmp_path):
     assert record["response"]["reject_threshold"] == get_model_state().reject_threshold
     assert record["response"]["temperature"] is not None  # release.json 의 temperature
     assert record["response"]["latency_ms"] is not None
+    # 로짓 편향 제거 적용 여부 — 이 값으로 conf 분포의 정의(제거 전/후)를 구분한다.
+    # 실번들 상태에 따라 참/거짓 둘 다 가능하므로 상태와 일치하는지만 본다
+    state = get_model_state()
+    assert record["response"]["debias_alpha"] == pytest.approx(state.debias_alpha)
+    assert record["response"]["debias_loaded"] == (state.debias_bias is not None)
 
 
 @pytest.mark.skipif(not BUNDLE_AVAILABLE, reason="model bundle not available")

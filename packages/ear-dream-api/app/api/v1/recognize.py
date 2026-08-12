@@ -156,8 +156,19 @@ def recognize(
             )
             return result
 
-        pp = preprocess_spoter(frames, kp)
+        # 입력측 기하 보정 2종 (preprocess_spoter 모듈 docstring):
+        #   x — AR 보정: 캡처 실측 해상도(CaptureMeta)로 학습 16:9 관례에 사영
+        #   y — 원근 갭 보정: settings.live_y_scale (임시 상수 — config.py 주석)
+        cap = request.segment.capture
+        pp = preprocess_spoter(
+            frames,
+            kp,
+            source_aspect=cap.source_width / cap.source_height,
+            y_scale=settings.live_y_scale,
+        )
         log["frames_used"] = pp.model_frame_count
+        # probs 는 캘리브레이션 + 로짓 편향 제거 후 분포다 (app/ml/model docstring) —
+        # 아래 confidence·reject 판정 전부 이 분포 기준이다
         probs = state.predict_probs(pp.x)
 
         # top-k (개수는 미확정 임시값 — settings.recognize_top_k)

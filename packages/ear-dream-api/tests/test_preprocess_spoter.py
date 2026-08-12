@@ -14,6 +14,7 @@ from pydantic import ValidationError
 
 from app.ml.assembly import assemble_frames
 from app.ml.preprocess_spoter import (
+    AR_TRAIN,
     FACE_INDICES,
     FEAT_DIM,
     MAX_MODEL_FRAMES,
@@ -164,9 +165,11 @@ def _to_ref(points: list[list[float]]) -> list[dict]:
     return [{"x": p[0], "y": p[1], "z": p[2]} for p in points]
 
 
-def _run_server(frames: list[LandmarkFrame]):
+def _run_server(frames: list[LandmarkFrame], aspect: float = AR_TRAIN, y_scale: float = 1.0):
+    """기본 aspect 16/9(AR 배율 1.0)·y_scale 1.0 은 둘 다 항등 — 레퍼런스 대조 테스트는
+    보정 없는 레퍼런스 구현과 비트 단위 일치해야 하므로 항등으로 돌린다."""
     kp, _meta = assemble_frames(frames, THRESHOLD)
-    return preprocess_spoter(frames, kp)
+    return preprocess_spoter(frames, kp, source_aspect=aspect, y_scale=y_scale)
 
 
 # ---------------------------------------------------------------- 레퍼런스 대조
@@ -231,6 +234,109 @@ def test_degenerate_hand_bbox_is_masked():
     np.testing.assert_array_equal(out.part_mask, ref_mask)
     assert out.part_mask[2, 1] == 0  # right_hand 미검출 처리
     np.testing.assert_array_equal(out.x[2, 50:92], np.zeros(42, dtype=np.float32))
+
+
+# ---------------------------------------------------------------- 기하 보정 (AR x + y)
+def _scale_raw(raw: dict, x_scale: float = 1.0, y_scale: float = 1.0) -> dict:
+    """레퍼런스 raw dict 의 모든 부위 x·y 를 서버와 동일한 float32 곱으로 스케일한다.
+
+    서버는 float32 좌표에 float32 배율을 곱하므로(preprocess_spoter._frame_features),
+    기대값도 같은 연산으로 만들어야 비트 단위 대조가 성립한다. 이 변환은 live_eval
+    러너의 실험 구현(원시 좌표 전 부위 y×s 후 전처리)과 같은 수식이다 — 서버 내장
+    y_scale 이 러너 결과와 일치하는지의 대조가 여기서 성립한다."""
+    sx, sy = np.float32(x_scale), np.float32(y_scale)
+    out_frames = []
+    for frame in raw["frames"]:
+        new_frame = dict(frame)
+        for part in ("pose", "right_hand", "left_hand", "face"):
+            item = frame[part]
+            if item.get("landmarks"):
+                new_frame[part] = {
+                    **item,
+                    "landmarks": [
+                        {
+                            **p,
+                            "x": float(np.float32(p["x"]) * sx),
+                            "y": float(np.float32(p["y"]) * sy),
+                        }
+                        for p in item["landmarks"]
+                    ],
+                }
+        out_frames.append(new_frame)
+    return {"frames": out_frames}
+
+
+def test_ar_identity_at_train_aspect():
+    """AR_live == AR_TRAIN(16:9)이면 배율이 정확히 1.0(항등) — 보정 없는 레퍼런스와
+    비트 단위 동일해야 한다. 1920/1080 같은 실측 16:9 해상도도 같은 배율이다."""
+    assert 1920 / 1080 == AR_TRAIN
+    server_frames, raw = make_paired_frames(n=12)
+    out = _run_server(server_frames, aspect=1920 / 1080)
+    assert out.x_scale == 1.0
+    assert out.source_aspect == AR_TRAIN
+    ref_features, ref_mask = ref_process(raw)
+    np.testing.assert_array_equal(out.x, ref_features)
+    np.testing.assert_array_equal(out.part_mask, ref_mask)
+
+
+def test_ar_vertical_matches_x_scaled_reference():
+    """세로(9:16) 입력: 서버 출력 == "x 만 배율만큼 스케일한 원시 좌표"로 돌린 레퍼런스.
+
+    보정이 정규화 이전 원시 x 에만, 모든 부위(pose·양손·face)에 일괄 적용됨을 검증한다."""
+    aspect = 9.0 / 16.0
+    scale = aspect / AR_TRAIN  # ≈ 0.3164 (세로 캡처)
+    server_frames, raw = make_paired_frames(n=12)
+    out = _run_server(server_frames, aspect=aspect)
+    assert out.x_scale == pytest.approx(scale)
+    ref_features, ref_mask = ref_process(_scale_raw(raw, x_scale=scale))
+    np.testing.assert_array_equal(out.x, ref_features)
+    np.testing.assert_array_equal(out.part_mask, ref_mask)
+    # 항등 배율 결과와는 달라야 한다 — 보정이 실제로 걸렸는지 확인 (y 는 불변이지만
+    # global/local 정규화가 x 스케일에 의존하므로 특징값이 달라진다)
+    baseline = _run_server(server_frames, aspect=AR_TRAIN)
+    assert not np.array_equal(out.x, baseline.x)
+
+
+def test_y_scale_one_is_identity():
+    """y_scale == 1.0 이면 완전 항등 — 기본값(레퍼런스 대조 경로)과 비트 단위 동일하고
+    보정 없는 레퍼런스와도 일치한다 (config.live_y_scale=1.0 이 보정 끔이 되는 근거)."""
+    server_frames, raw = make_paired_frames(n=12)
+    out = _run_server(server_frames, aspect=AR_TRAIN, y_scale=1.0)
+    assert out.y_scale == 1.0
+    ref_features, ref_mask = ref_process(raw)
+    np.testing.assert_array_equal(out.x, ref_features)
+    np.testing.assert_array_equal(out.part_mask, ref_mask)
+
+
+def test_y_scale_matches_y_scaled_reference():
+    """y_scale=1.205 (서빙 기본값): 서버 출력 == "전 부위 y 를 배율만큼 스케일한 원시
+    좌표"로 돌린 레퍼런스. 이 변환이 live_eval 러너 실험 구현(전 부위 y×s 후 전처리)과
+    같은 수식이므로, 서버 내장 경로가 검증된 러너 결과와 일치함을 수치로 대조한다."""
+    from app.core.config import settings
+
+    y = settings.live_y_scale  # 1.205 — 임시값 (config.py 주석)
+    server_frames, raw = make_paired_frames(n=12)
+    out = _run_server(server_frames, aspect=AR_TRAIN, y_scale=y)
+    assert out.y_scale == pytest.approx(y)
+    ref_features, ref_mask = ref_process(_scale_raw(raw, y_scale=y))
+    np.testing.assert_array_equal(out.x, ref_features)
+    np.testing.assert_array_equal(out.part_mask, ref_mask)
+    # 항등 결과와 달라야 한다 — y 보정이 실제로 걸렸는지 (고정 상수라 16:9 에도 비항등)
+    baseline = _run_server(server_frames, aspect=AR_TRAIN)
+    assert not np.array_equal(out.x, baseline.x)
+
+
+def test_ar_and_y_scale_compose():
+    """세로 입력 + y 보정 동시 적용 (서빙 실경로): x·y 배율을 함께 건 레퍼런스와 일치."""
+    from app.core.config import settings
+
+    aspect = 9.0 / 16.0
+    y = settings.live_y_scale
+    server_frames, raw = make_paired_frames(n=12)
+    out = _run_server(server_frames, aspect=aspect, y_scale=y)
+    ref_features, ref_mask = ref_process(_scale_raw(raw, x_scale=aspect / AR_TRAIN, y_scale=y))
+    np.testing.assert_array_equal(out.x, ref_features)
+    np.testing.assert_array_equal(out.part_mask, ref_mask)
 
 
 # ---------------------------------------------------------------- 시간축

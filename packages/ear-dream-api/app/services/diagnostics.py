@@ -38,7 +38,7 @@ from app.core.logging import get_logger
 from app.ml.assembly import AssemblyMeta
 from app.ml.keypoint_layout import LEFT_HAND, RIGHT_HAND
 from app.ml.model import get_model_state
-from app.ml.preprocess_spoter import TARGET_FPS, PreprocessOutput
+from app.ml.preprocess_spoter import AR_TRAIN, TARGET_FPS, PreprocessOutput
 
 # 클래스 인덱스 라벨링용. 정본은 release.json class_labels 이지만, 로드 시
 # vocab300.json(CLASS_INDEX_TO_ENTRY)과 일치를 강제(불일치 = 로드 거부)하므로 동일 매핑이다.
@@ -62,6 +62,14 @@ logger = get_logger("diagnostics")
 #   - preprocess 섹션이 spoter2_mp_xy_v1 계약으로 바뀌었다: trim/보간 없음 →
 #     부위별 검출율·30fps 리샘플·정규화 후 범위 요약. v2 의 어깨 scale/hand_z 통계 제거.
 #   - model_output.softmax 는 300 클래스 전체 대신 상위 10개만 싣는다 (파일 크기).
+#   - (추가 필드, 2026-08-11) preprocess.ar_correction — AR 보정 배율 추적
+#     (preprocess_spoter 모듈 docstring). 필드 추가만이라 스키마 버전은 유지한다.
+#   - (추가 필드, 2026-08-12) 라이브 도메인 갭 개입 2종 추적:
+#     preprocess.ar_correction.y_scale — 원근 갭 y 보정 배율(settings.live_y_scale),
+#     response.debias_alpha / debias_loaded — 로짓 편향 제거 적용 여부.
+#     ⚠️ debias 적용 레코드부터 candidates·softmax_top 의 confidence 정의가
+#     **편향 제거 후 분포**로 바뀐다 (app/ml/model docstring) — 과거 레코드와 conf
+#     분포를 비교할 때 debias_alpha 로 구분할 것. 필드 추가만이라 버전은 유지한다.
 DIAGNOSTICS_SCHEMA = "recognize-diagnostics-v3"
 
 # 어깨 visibility 통계용 MediaPipe pose 원본 인덱스
@@ -184,6 +192,15 @@ def _preprocess_stats(request: RecognizeRequest, pp: PreprocessOutput) -> dict[s
         return _series_stats(block[rows].ravel())
 
     return {
+        # 입력측 기하 보정 추적 — 아카이브 분석 시 적용 여부·배율을 레코드만으로 판별한다
+        # (x_scale = source_aspect / AR_TRAIN, 16:9 입력이면 1.0 = 항등.
+        #  y_scale 은 settings.live_y_scale 고정 상수 — 1.0 이면 보정 끔)
+        "ar_correction": {
+            "source_aspect": _f(pp.source_aspect),
+            "ar_train": _f(AR_TRAIN),
+            "x_scale": _f(pp.x_scale),
+            "y_scale": _f(pp.y_scale),
+        },
         "resample": {
             "source_frame_count": pp.source_frame_count,
             "resampled_frame_count": pp.resampled_frame_count,
@@ -258,6 +275,10 @@ def build_recognize_diagnostics(
             "top_k": settings.recognize_top_k,
             # temperature scaling (release.json serving) — conf 분포 비교 시 필수 맥락
             "temperature": _f(state.temperature),
+            # 로짓 편향 제거 (app/ml/model docstring) — alpha>0 && loaded 면 이 레코드의
+            # candidates·softmax_top confidence 는 **편향 제거 후 분포** 기준이다
+            "debias_alpha": _f(state.debias_alpha),
+            "debias_loaded": state.debias_bias is not None,
             "model_version": result.model_version,
             "vocab_version": result.vocab_version,
             "latency_ms": _f(latency_ms),

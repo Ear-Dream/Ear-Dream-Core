@@ -29,6 +29,32 @@
 3모델이라 서버가 배정한다 — app/ml/assembly.assemble_frames (포즈 손목 기하 매칭,
 실사용 검증 완료)의 결과 배열에서 LEFT_HAND/RIGHT_HAND 슬롯의 **원본 좌표**를 읽는다.
 assembly 는 배정만 하고 좌표를 가공하지 않으므로 여기서 읽는 값은 MediaPipe 원본이다.
+
+종횡비(AR) 보정 — 정규화 이전 입력측 사영 (2026-08-11):
+  (a) 학습 데이터(AI Hub)는 **정확히 16:9** 영상의 MediaPipe 정규화 좌표(x/너비,
+      y/높이)를 보정 없이 그대로 썼다 (사용자 실측 확인). 정규화 좌표 공간의 이방성이
+      프레임 종횡비에 의존하므로, "16:9 정규화 좌표 관례" 자체가 이 계약의 일부다.
+  (b) 라이브 캡처(휴대폰 세로 등)는 종횡비가 달라 좌표를 그대로 넣으면 학습 분포와
+      어긋난다. 보정식 **x' = x × (AR_live / AR_TRAIN)** (y 불변)은 라이브 좌표를
+      "같은 장면을 16:9 프레임으로 찍었을 때의 정규화 좌표"로 사영한다 — 즉 이 보정은
+      train/serve skew 를 만드는 게 아니라 **없애는** 것이다. AR_live == 16/9 면
+      배율 1.0(항등)이다.
+  (c) 실증 근거: 라벨된 test 1500클립에 세로(9:16) 왜곡을 시뮬레이션(x 스케일 스윕
+      s=3.16 지점)한 결과 top-1 98.3% → 61.7% 붕괴.
+      ~/Documents/Ear-Dream-Benchmarks/sign_word_300/runs/ar_distortion_experiment/results.json
+  (d) ⚠️ AR 보정만으로 라이브 붕괴가 전부 설명되지는 않는다 — 추출기 갭 등 잔여
+      미지수가 남아 있다. 보정 후 분포는 진단 레코드의 ar_correction 필드와 replay 로
+      추적한다.
+  적용 지점은 _frame_features 의 부위 루프 **한 곳**이다 (모든 부위의 원시 xy 에
+  정규화 이전 적용) — 부위별로 흩뿌리지 말 것.
+
+y축 기하 보정 — AR 보정과 같은 지점의 입력측 사영 (2026-08-11 실측):
+  셀피 원근(가까운 카메라·올려다보는 구도)으로 어깨 대비 몸통 세로 비례가 짧게 잡히는
+  갭(스튜디오 어깨-엉덩이 y비 1.94 vs 라이브 1.61)을 **y' = y × s** (전 부위 일괄,
+  정규화 이전)로 보정한다. 배율 s 는 settings.live_y_scale (기본 1.205 — 근거·리스크는
+  config.py 주석). AR 보정과 달리 s 는 종횡비에서 유도되는 값이 아니라 **고정 상수**라
+  16:9 입력에도 항등이 아니다 — s == 1.0 일 때만 완전 항등(IEEE 곱 항등)이다.
+  적용 지점은 AR 보정과 같은 _frame_features 한 곳이다 (x 는 AR 배율, y 는 s).
 """
 
 from __future__ import annotations
@@ -41,8 +67,15 @@ import numpy as np
 from app.ml.keypoint_layout import LEFT_HAND, RIGHT_HAND
 from app.schemas.landmark import LandmarkFrame
 
-# 전처리 계약 버전 — 학습 산출물(release.json feature_version)과 일치해야 로드된다
+# 전처리 계약 버전 — 학습 산출물(release.json feature_version)과 일치해야 로드된다.
+# AR 보정(모듈 docstring) 추가에도 이 값은 **올리지 않는다**: 모델 경계의 피처 계약
+# ([T, 208], 16:9 정규화 좌표 관례)은 불변이고, 보정은 라이브 입력을 그 계약에 맞추는
+# 입력측 적응이다. 올리면 release.json feature_version 로드 게이트가 로드를 거부한다.
 PREPROCESS_VERSION = "spoter2_mp_xy_v1"
+
+# 학습 데이터(AI Hub) 프레임 종횡비 — 전 영상이 정확히 16:9 (사용자 실측 확인).
+# 이 비율의 정규화 좌표 관례가 학습 계약이다 (모듈 docstring AR 보정 절).
+AR_TRAIN = 16.0 / 9.0
 
 FEAT_DIM = 208
 POSE_POINT_COUNT = 25  # MediaPipe pose 0~24
@@ -126,9 +159,14 @@ def _part_points(frame: LandmarkFrame, kp130_row: np.ndarray, name: str) -> np.n
     raise ValueError(f"unknown part: {name}")
 
 
-def _frame_features(frame: LandmarkFrame, kp130_row: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+def _frame_features(
+    frame: LandmarkFrame, kp130_row: np.ndarray, x_scale: np.float32, y_scale: np.float32
+) -> tuple[np.ndarray, np.ndarray]:
     """프레임 하나 → (208,) float32 + part_mask (4,) uint8. 레퍼런스 process() 의
-    프레임 루프 본문과 동일한 순서·연산이다."""
+    프레임 루프 본문과 동일한 순서·연산이다 — 단, 입력측 기하 보정 2종이 정규화 이전에
+    모든 부위의 원시 좌표에 적용된다 (모듈 docstring): x 는 AR 보정(x_scale), y 는
+    원근 갭 보정(y_scale). 학습 분포로의 사영이라 레퍼런스와의 skew 가 아니다.
+    둘 다 1.0 이면 IEEE 곱 항등."""
     features = np.zeros(FEAT_DIM, dtype=np.float32)
     mask = np.zeros(len(PARTS), dtype=np.uint8)
     specs = (
@@ -141,6 +179,11 @@ def _frame_features(frame: LandmarkFrame, kp130_row: np.ndarray) -> tuple[np.nda
     for part_index, (name, width, normalizer) in enumerate(specs):
         points = _part_points(frame, kp130_row, name)
         if points is not None:
+            # 기하 보정 — 여기 **한 곳**에서만 (부위별로 흩뿌리지 말 것). _part_points 는
+            # 항상 새 배열을 돌려주므로 in-place 가 안전하다. float32 스칼라 곱으로
+            # 고정한다 — 레퍼런스 대조 테스트가 같은 연산으로 기대값을 만든다.
+            points[:, 0] *= x_scale  # AR 보정 (16:9 관례 사영)
+            points[:, 1] *= y_scale  # 원근 갭 보정 (settings.live_y_scale)
             normalized = normalizer(points)
             if normalized is not None and np.all(np.isfinite(normalized)):
                 features[offset : offset + width] = normalized.reshape(-1)
@@ -188,6 +231,9 @@ class PreprocessOutput:
     source_frame_count: int  # 요청 원본 프레임 수
     resampled_frame_count: int  # 30fps 리샘플 후 (256 캡 이전)
     model_frame_count: int  # 최종 모델 입력 T
+    source_aspect: float  # 요청 실측 W/H (CaptureMeta.source_width/height)
+    x_scale: float  # 적용된 AR 보정 x 배율 = source_aspect / AR_TRAIN (진단 추적용)
+    y_scale: float  # 적용된 원근 갭 y 배율 (settings.live_y_scale — 진단 추적용)
 
     @property
     def part_detection_rates(self) -> dict[str, float]:
@@ -196,14 +242,31 @@ class PreprocessOutput:
         return {name: float(self.part_mask[:, i].sum()) / t for i, name in enumerate(PARTS)}
 
 
-def preprocess_spoter(frames: Sequence[LandmarkFrame], kp130: np.ndarray) -> PreprocessOutput:
+def preprocess_spoter(
+    frames: Sequence[LandmarkFrame],
+    kp130: np.ndarray,
+    source_aspect: float,
+    y_scale: float = 1.0,
+) -> PreprocessOutput:
     """요청 프레임 + assembly 조립 배열 → 모델 입력 (T, 208).
 
     kp130: assemble_frames 결과 (T_raw, 130, 3) — 손 슬롯 배정 결과만 읽는다.
+    source_aspect: 캡처 프레임 W/H 실측값 (CaptureMeta.source_width/height) — AR 보정
+      x' = x × (source_aspect / AR_TRAIN) 의 입력이다 (모듈 docstring). 16/9 면 항등.
+    y_scale: 원근 갭 y 보정 배율 (모듈 docstring). 기본 1.0 은 **항등**이다 — 레퍼런스
+      대조 테스트가 보정 없는 레퍼런스와 일치해야 하기 때문. 서빙 호출부(라우트·replay)
+      는 settings.live_y_scale 을 명시적으로 넘긴다.
     """
     assert kp130.shape[0] == len(frames), "kp130 과 frames 길이 불일치"
+    assert source_aspect > 0 and np.isfinite(source_aspect), "source_aspect 는 유한 양수여야 한다"
+    assert y_scale > 0 and np.isfinite(y_scale), "y_scale 은 유한 양수여야 한다"
 
-    per_frame = [_frame_features(frame, kp130[t]) for t, frame in enumerate(frames)]
+    x_scale = float(source_aspect) / AR_TRAIN
+    x_scale_f32 = np.float32(x_scale)
+    y_scale_f32 = np.float32(y_scale)
+    per_frame = [
+        _frame_features(frame, kp130[t], x_scale_f32, y_scale_f32) for t, frame in enumerate(frames)
+    ]
     features = np.stack([f for f, _ in per_frame])  # (T_raw, 208)
     mask = np.stack([m for _, m in per_frame])  # (T_raw, 4)
 
@@ -220,4 +283,7 @@ def preprocess_spoter(frames: Sequence[LandmarkFrame], kp130: np.ndarray) -> Pre
         source_frame_count=len(frames),
         resampled_frame_count=resampled_count,
         model_frame_count=int(x.shape[0]),
+        source_aspect=float(source_aspect),
+        x_scale=x_scale,
+        y_scale=float(y_scale),
     )

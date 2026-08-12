@@ -24,8 +24,20 @@ var/ 는 .gitignore — 모델 파일은 레포에 커밋하지 않는다. GitHu
 /health 의 model_loaded 가 false 다 (기존 시맨틱 유지).
 
 추론: [T,208] → forward → logits ÷ temperature(release.json, 현재 1.8489) → softmax
-→ top-k. 최고 confidence < reject_threshold 면 rejected. reject 임계는 release.json
-recommended_reject_threshold(0.5)가 기본이고 settings.reject_threshold 로 오버라이드한다.
+→ **로짓 편향 제거**(아래) → top-k. 최고 confidence < reject_threshold 면 rejected.
+reject 임계는 release.json recommended_reject_threshold(0.5)가 기본이고
+settings.reject_threshold 로 오버라이드한다.
+
+로짓 편향 제거 — 라이브 도메인 갭 개입 (2026-08-11 실측, config.debias_alpha 주석 참조):
+  번들의 live_debias.npy (num_classes,) — 라벨 없는 실사용 아카이브 405건의 평균
+  log-softmax — 를 캘리브레이션과 같은 패턴으로 로드해, softmax 후
+  log(p) − α·(bias − bias.mean()) 을 다시 softmax 한다 (평균 센터링으로 스케일 보존.
+  수식은 live_eval 러너 검증 구현의 포팅 — 동일 연산 유지). 파일이 없으면 α=0 항등 +
+  경고 로그 1회.
+  ⚠️ confidence 정의 변경: reject 임계 비교와 응답 confidence 는 이제 **편향 제거 후
+  분포의 softmax** 다 — 편향 제거 이전 값이 아니다. 임계(0.15)·conf 분포를 과거
+  기록과 비교할 때 이 정의 차이를 감안할 것 (진단 레코드 response.debias_* 에 적용
+  여부가 남는다).
 """
 
 from __future__ import annotations
@@ -49,6 +61,9 @@ logger = logging.getLogger(__name__)
 # kept acc 95.3%. 라이브 분포 미검증 — config.py 주석 참조)
 FALLBACK_REJECT_THRESHOLD = 0.5
 
+# 로짓 편향 벡터 파일명 (번들 디렉토리 내 — 모듈 docstring 편향 제거 절)
+DEBIAS_FILENAME = "live_debias.npy"
+
 
 @dataclass
 class ModelState:
@@ -63,12 +78,18 @@ class ModelState:
     temperature: float = 1.0
     # rejected 판정 임계 (release.json 권장값 또는 설정 오버라이드 — 로드 시 확정)
     reject_threshold: float = FALLBACK_REJECT_THRESHOLD
+    # 로짓 편향 제거 (모듈 docstring) — 번들 live_debias.npy 부재 시 bias=None, α=0 항등.
+    # live_eval 러너는 이 두 필드를 직접 바꿔 실험 조건을 오버라이드한다.
+    debias_bias: np.ndarray | None = None  # (num_classes,) float64 — 평균 log-softmax
+    debias_alpha: float = 0.0  # 실제 적용되는 강도 (settings.debias_alpha, 부재 폴백 0)
     error: str | None = None
 
     def predict_probs(self, x: np.ndarray) -> np.ndarray:
-        """(T, 208) float32 → 캘리브레이션된 softmax 확률 (num_classes,).
+        """(T, 208) float32 → 캘리브레이션 + 편향 제거된 softmax 확률 (num_classes,).
 
         padding_mask 는 전 프레임 유효(False) — 서빙은 배치 1, 패딩 없음.
+        ⚠️ 반환 확률이 confidence 의 정의다 — 편향 제거가 켜져 있으면(모듈 docstring)
+        reject 임계 비교·응답 confidence 모두 **제거 후 분포** 기준이다.
         """
         assert self.model is not None
         assert x.ndim == 2 and x.shape[1] == FEAT_DIM, f"expected (T,{FEAT_DIM}), got {x.shape}"
@@ -76,7 +97,15 @@ class ModelState:
         padding_mask = torch.zeros(1, x.shape[0], dtype=torch.bool)
         with torch.no_grad():
             logits = self.model(features, padding_mask)  # (1, C)
-            return torch.softmax(logits / self.temperature, dim=-1).squeeze(0).numpy()
+            probs = torch.softmax(logits / self.temperature, dim=-1).squeeze(0).numpy()
+        if self.debias_bias is None or self.debias_alpha == 0.0:
+            return probs  # α=0 항등 — 편향 제거 이전과 완전 동일
+        # 편향 제거 — live_eval 러너 검증 구현과 동일 연산 (평균 센터링으로 스케일 보존,
+        # log 클램프 1e-12 포함). 수정 시 대조 테스트(test_model_bundle)와 동시 변경.
+        lp = np.log(np.maximum(probs.astype(np.float64), 1e-12))
+        lp -= self.debias_alpha * (self.debias_bias - self.debias_bias.mean())
+        e = np.exp(lp - lp.max())
+        return (e / e.sum()).astype(np.float32)
 
 
 def resolve_bundle_dir() -> Path:
@@ -119,6 +148,34 @@ def _validate_release(release: dict) -> None:
         )
 
 
+def _load_debias(bundle: Path, num_classes: int) -> tuple[np.ndarray | None, float]:
+    """번들의 live_debias.npy → (bias, 적용 α). 부재·형상 불일치면 (None, 0.0) 항등.
+
+    캘리브레이션 로드와 같은 패턴 — 보조 파일 문제로 서빙 전체를 죽이지 않는다
+    (503 대신 개입만 끄고 **경고 로그**로 크게 남긴다. 항등 폴백은 안전하다 —
+    개선 폭만 잃고 잘못된 보정이 적용될 일은 없다)."""
+    path = bundle / DEBIAS_FILENAME
+    if not path.is_file():
+        logger.warning(
+            "%s 가 없다 — 로짓 편향 제거를 α=0(항등)으로 서빙한다. "
+            "라이브 정확도 개입이 빠진 상태다 (config.debias_alpha 주석 참조): %s",
+            DEBIAS_FILENAME,
+            path,
+        )
+        return None, 0.0
+    bias = np.load(path)
+    if bias.shape != (num_classes,):
+        logger.warning(
+            "%s 형상 불일치 (%s != (%d,)) — 편향 제거를 α=0(항등)으로 폴백한다: %s",
+            DEBIAS_FILENAME,
+            bias.shape,
+            num_classes,
+            path,
+        )
+        return None, 0.0
+    return bias.astype(np.float64), float(settings.debias_alpha)
+
+
 def _load_state() -> ModelState:
     bundle = resolve_bundle_dir()
     release_path = bundle / "release.json"
@@ -147,6 +204,8 @@ def _load_state() -> ModelState:
             )
             reject_threshold = FALLBACK_REJECT_THRESHOLD
 
+        debias_bias, debias_alpha = _load_debias(bundle, int(release["num_classes"]))
+
         state = ModelState(
             loaded=True,
             model=model,
@@ -156,15 +215,19 @@ def _load_state() -> ModelState:
             class_entries=CLASS_INDEX_TO_ENTRY,
             temperature=temperature,
             reject_threshold=reject_threshold,
+            debias_bias=debias_bias,
+            debias_alpha=debias_alpha,
         )
         logger.info(
             "model loaded: %s (%s, feature_version=%s, temperature=%.4f, "
-            "reject_threshold=%.2f) from %s",
+            "reject_threshold=%.2f, debias_alpha=%.2f%s) from %s",
             state.model_name,
             state.model_version,
             release["feature_version"],
             state.temperature,
             state.reject_threshold,
+            state.debias_alpha,
+            "" if state.debias_bias is not None else " (bias 파일 없음)",
             bundle,
         )
         return state
