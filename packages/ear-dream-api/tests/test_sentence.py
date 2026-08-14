@@ -1,7 +1,10 @@
-"""/compose-sentence 검증 — 템플릿 적중 / word_list fallback / 422.
+"""/compose-sentence 규칙 경로 검증 — 템플릿 적중 / word_list fallback / 422.
 
 300단어 전환으로 템플릿 커버리지가 부분이 됐다 (sentence_rules 모듈 주석) —
 겹치는 18단어는 템플릿 적중, 미등록 단어는 word_list fallback 으로 동작을 보장한다.
+
+여기서는 문장 변환 LLM 이 꺼져 있다 (conftest 의 client 픽스처). LLM 경로와 폴백은
+test_sentence_llm.py 가 검증한다.
 """
 
 from app.ml.sentence_rules import _SINGLE
@@ -31,6 +34,9 @@ def test_single_word_template(client):
         "text": "밥이요",
         "word_ids": ["w_1534"],
         "source": "template",
+        # 감정·말투는 LLM 2단계 분류의 산출물이라 규칙 경로에는 없다 (schemas/sentence.py)
+        "emotion": None,
+        "style": None,
     }
     assert data["ruleset_version"]
 

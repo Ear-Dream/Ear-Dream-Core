@@ -37,13 +37,14 @@
 
 ## 서비스 흐름 (2026-08 방향 전환 — 확정·구현 완료)
 
-**단어 단위 인식 → 클라이언트 pill 큐 누적 → 서버 규칙 기반 문장 변환.**
+**단어 단위 인식 → 클라이언트 pill 큐 누적 → 서버 문장 변환.**
 
 - 수어 동작 하나(단어)를 **버튼을 누르는 동안** 캡처해 `POST /recognize`로 보낸다.
   릴리즈 즉시 큐 끝에 대기 pill이 붙고, 응답이 오면 **top-1로 자동 확정**된다 —
   단어마다 후보 화면으로 전환하는 흐름은 pill 큐 UX 확정(2026-08-10)으로 제거됐다.
   오확정 정정은 pill 탭 → 하단 시트(top-k 교체/삭제), 전송 실패 pill은 탭으로 재전송한다
-- 누적된 단어 ID 열을 `POST /compose-sentence`가 규칙 기반으로 자연스러운 문장으로 바꾼다
+- 누적된 단어 ID 열을 `POST /compose-sentence`가 자연스러운 문장으로 바꾼다 —
+  Qwen3-4B(vLLM) 우선, 실패 시 규칙 폴백 (「단어열 → 문장 변환 LLM」 절)
 - 정규화 기준은 **어깨(포즈 랜드마크)**다 — 프론트가 PoseLandmarker를 함께 돌린다
 
 **MVP 이후 (팀 확정, 미구현)**
@@ -175,7 +176,7 @@ tasks-vision의 **x·y 검출 특성 차이**다 — 미달 시 xy 원근 왜곡
 | --- | --- |
 | `GET /health` | `status` + `model_loaded` + `vocab_size` |
 | `POST /api/v1/recognize` | 랜드마크 세그먼트 → 단어 후보 top-k (`recognized`/`rejected`/`low_quality`) |
-| `POST /api/v1/compose-sentence` | 단어 ID 열 → 규칙 기반 문장 |
+| `POST /api/v1/compose-sentence` | 단어 ID 열 → 문장 (LLM → 규칙 폴백 — 아래 절) |
 | `GET /api/v1/vocabulary` | 어휘 30단어 카탈로그 |
 | `GET /api/v1/model` | 모델·전처리·계약 정보 (min/max_frames 등 — 클라이언트가 계약을 내려받는 곳) |
 | `GET /api/v1/phrases` | 스켈레톤 — 빈 배열 (상황 문장 미착수) |
@@ -189,6 +190,57 @@ tasks-vision의 **x·y 검출 특성 차이**다 — 미달 시 xy 원근 왜곡
   → `var/diagnostics/`)은 같은 규칙에 `_{status}[_{top1라벨}]` 접미를 더해 ls만으로 훑을 수
   있다. 두 파일은 `{seq:03d}_{req8}` 접두로 조인되며, 터미널 로그의 마지막 필드
   (`archive=`/`diag=`)에 절대경로가 찍힌다
+
+## 단어열 → 문장 변환 LLM (Gloss2Sentence 이식)
+
+`/compose-sentence` 는 **LLM 우선 → 규칙 폴백** 2경로다.
+
+1. `app/services/sentence_llm/` — Qwen3-4B / vLLM 2단계 (문장 생성 → 감정·말투 분류).
+   별도 레포 **`Ear-Dream-Gloss2Sentence`** 의 `app/sentence_generation/` 이식본이다
+2. `app/ml/sentence_rules.py` — 기존 규칙 (`template` → `word_list`)
+
+**폴백은 500 을 내지 않는다.** LLM 서버는 이 레포 밖에서 도는 외부 의존이고, 그것 하나로
+화면이 멈추면 안 된다 — **LLM 없이도 맥북 단독으로 전 구간이 돈다**. 실패 시 규칙으로
+내려가되 사유를 로그에 `llm_failed=<예외종류>` 로 남긴다 — 폴백이 조용하면 vLLM 이
+죽은 걸 아무도 모른다. 원본 레포는 502/503/504 로 실패를 노출했지만 그쪽은 문장 변환
+**전용** 서비스라 폴백할 곳이 없었다는 차이다.
+
+- **프롬프트는 원본과 한 벌이다** (`sentence_llm/prompt.py`). Qwen3-4B 위에서 시나리오·
+  2단계 표적 평가를 거쳐 고정된 문구라 한 줄만 바꿔도 출력 분포가 달라진다. 고칠 때는
+  원본 레포와 **동시에** 바꾸고 `SENTENCE_LLM_PROMPT_VERSION` 을 올린다 — 전처리 정본
+  규칙(설계 결정 1)과 같은 취지다
+- **백엔드는 기계마다 갈린다** — vLLM 이 CUDA 전용이라 맥에서 안 돈다. Windows/WSL 은
+  vLLM(`:8001`, `Qwen/Qwen3-4B` BF16), macOS 는 Ollama(`:11434`, `qwen3:4b` Q4).
+  둘 다 OpenAI 호환 `/chat/completions` 라 클라이언트는 하나고, 갈리는 건 설정뿐이다
+  (README 「개발 기계별 LLM 백엔드」·`.env.example`)
+- **맥 프로필은 스위치 2종이 한 세트다** (2026-08-14 실측 — 하나라도 빠지면 매 요청 폴백):
+  `sentence_llm_reasoning_effort="none"` 이 없으면 thinking 이 `max_tokens` 를 다 먹어
+  응답이 빈 문자열로 잘리고 46초가 걸린다 (Ollama 는 vLLM 이 쓰는
+  `chat_template_kwargs.enable_thinking` 을 **조용히 무시**한다).
+  `sentence_llm_structured_output=true` 가 없으면 thinking 을 끈 4B 가 출력 형식을
+  못 지킨다 — 1단계가 `step1`/`step2` 를 필드로 뱉거나 **2단계가 분류 대신 입력을
+  되돌려준다**. 이 스위치는 `response_format` 을 `json_schema` 로 바꿔 출력 계약을
+  디코딩에서 강제하며, **스키마는 `GeneratedSentence`/`GeneratedTags` 에서 파생되므로
+  프롬프트는 손대지 않는다** (프롬프트 한 벌 규칙을 지키면서 형식만 조이는 방법).
+  둘 다 기본값 꺼짐이라 vLLM 프로필 페이로드는 원본 그대로다
+- 켠 상태 실측: 1·2단계 4/4, 폴백 0건, 웜 1.2초. 태그는 원본 표적 예시 6/6 일치
+  (`기쁘지 않아요.` → neutral/polite 부정 함정 포함)
+- **모델 ID 는 설정으로 열려 있지만 기본값은 검증 모델(`Qwen/Qwen3-4B`)이다.** 원본 레포는
+  상수로 못 박아 뒀고 그 취지("모델이 **조용히** 갈리면 프롬프트·평가와 서빙이 어긋난다")는
+  유효하다 — 위 분기 때문에 열되, 실제 호출한 모델을 응답 `llm_model` 과 로그 `llm=` 에
+  항상 싣는 것으로 그 취지를 지킨다. 다른 모델을 넣으면 원본 평가 수치는 적용되지 않는다
+- LLM 입력은 어휘 ID 가 아니라 **라벨(gloss)** 이다 — 프롬프트가 한국어 라벨 열로 평가됐다.
+  라우트가 `ID_TO_ENTRY` 로 변환해 넘긴다. 어휘 검증(422)은 LLM 호출보다 먼저다
+- 설정은 `EAR_DREAM_SENTENCE_LLM_*` (`app/core/config.py`). `..._ENABLED` 기본 true,
+  `..._BASE_URL` 기본 `http://localhost:8001/v1`, `..._TAGS_ENABLED` 로 2단계 태그 분류를
+  끄면 요청당 추론이 절반이 된다(태그는 기본값이 됨). timeout 10s 는 임시값 — 프론트
+  상한 15s(`RECOGNIZE_TIMEOUT_MS`)보다 먼저 끊어져 폴백이 돌게 잡은 값이고, 2단계 실측
+  latency 는 이 레포에 아직 없다
+- 감정·말투(`emotion`/`style`)는 `source="model"` 일 때만 채워지고 규칙 경로는 null 이다.
+  **현재 앱은 문장 텍스트만 쓴다** — 태그는 응답에 실려만 있고 TTS 에 반영하지 않는다
+  (음성 파라미터 매핑은 근거 없는 값이라 임의로 넣지 않았다)
+- 테스트는 `tests/test_sentence_llm.py` (httpx MockTransport + 가짜 생성기). conftest 의
+  `client` 픽스처는 LLM 을 **꺼서** 규칙 테스트가 외부 서버에 의존하지 않게 한다
 
 ## 손 · 얼굴 · 포즈 랜드마크 추출
 
@@ -279,6 +331,7 @@ CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않
 | 손·얼굴·포즈 랜드마크 추출 | 완료 (웹) |
 | 서버 — 스키마 재설계·ML 모듈(`app/ml/`)·엔드포인트 5종·아카이빙·진단 | 완료, pytest 57건 통과 |
 | 모델 서빙 (30단어, small v2 z-off + 캘리브레이션) | 완료 — 체크포인트는 형제 레포 경로 참조 |
+| 문장 변환 LLM (Qwen3-4B / vLLM 이식) | 코드 완료 — vLLM 서버는 레포 밖, 미가동 시 규칙 폴백. **실기기 지연 미측정** |
 | 프론트 — 세그먼트 캡처·API 연동·SignFlow pill 큐(top-1 자동 확정)·하단 시트 정정·결과 화면(TTS) | 완료 (웹) |
 | 카메라 프리뷰 (T-02) | **부분** — 프레이밍 가이드 박스·감지 안내·녹화 타이머는 반영, 실기기 세로 구도 확인 필요 |
 | 청인 트랙 (STT → 수어 영상) | mock — 화면 흐름만 |

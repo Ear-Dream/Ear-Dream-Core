@@ -82,6 +82,51 @@ class Settings(BaseSettings):
     # 478점을 보낸다 — 468은 합성 테스트 페이로드뿐이었다.)
     face_point_counts: list[int] = [478]
 
+    # ---- 문장 변환 LLM (Ear-Dream-Gloss2Sentence 이식 — app/services/sentence_llm)
+    # 단어열 → 문장 변환을 규칙 템플릿 대신 Qwen3-4B(vLLM)로 한다. vLLM 서버는 이 레포
+    # 밖에서 돌고(원본 README: WSL2 + RTX 4090), **없어도 서비스는 동작한다** —
+    # 실패하면 라우트가 기존 규칙(template → word_list)으로 폴백한다.
+    #
+    # **개발 기계에 따라 백엔드가 갈린다** (README 「단어열 → 문장 변환」):
+    #   - Windows/WSL + NVIDIA GPU: vLLM (`:8001/v1`, `Qwen/Qwen3-4B` BF16) — 검증 환경
+    #   - macOS: Ollama (`:11434/v1`, `qwen3:4b`) — vLLM 이 CUDA 전용이라 맥에서 안 돈다
+    # 둘 다 OpenAI 호환 `/chat/completions` 라 클라이언트는 하나로 충분하고, 갈리는 건
+    # base_url 과 모델 ID 두 개뿐이다.
+    #
+    # ⚠️ 모델 ID 를 설정으로 연 것은 이 분기 때문이다. 원본 레포는 상수로 못 박아 뒀고
+    # 그 취지(프롬프트·평가 수치가 Qwen3-4B BF16 위에서 나온 값이라 **조용히** 갈리면
+    # 안 된다)는 유효하다 — 그래서 기본값을 검증 모델로 두고, 실제 사용한 모델을 응답
+    # `llm_model` 과 서버 로그에 항상 싣는다. 다른 모델을 넣는 순간 원본의 평가 수치
+    # (2단계 표적 10/10 등)는 그 설정에 적용되지 않는다.
+    sentence_llm_enabled: bool = True
+    sentence_llm_model: str = "Qwen/Qwen3-4B"
+    sentence_llm_base_url: str = "http://localhost:8001/v1"
+    sentence_llm_api_key: str = "dummy"  # vLLM 은 검사하지 않지만 헤더 형식상 필요
+    # ⚠️ 임시값 — 2단계(문장+태그) 실측 latency 가 아직 이 레포에 없다. 프론트 상한이
+    # 15s(RECOGNIZE_TIMEOUT_MS)라 그보다 먼저 끊어져 폴백이 돌게 잡았다.
+    sentence_llm_timeout_seconds: float = 10.0
+    sentence_llm_temperature: float = 0.0  # 원본 고정값 — 문장은 결정적이어야 한다
+    sentence_llm_max_tokens: int = 256  # 원본 고정값
+    # OpenAI 표준 `reasoning_effort`. 값이 있을 때만 요청에 실린다 (기본 None = 미전송).
+    # **Ollama + qwen3 계열에서는 "none" 이 필수다.** qwen3 는 thinking 모델이고 Ollama 의
+    # OpenAI 호환 경로는 vLLM 이 쓰는 `chat_template_kwargs.enable_thinking` 를 조용히
+    # 무시한다 — 실측(2026-08-14): 끄지 못하면 추론이 max_tokens 를 다 먹어 응답이 빈
+    # 문자열로 잘리고(finish_reason=length) 46초까지 걸린다. "none" 을 주면 0.5초에
+    # 정상 JSON 이 나온다. vLLM 쪽은 기본 None 이라 페이로드가 그대로다.
+    sentence_llm_reasoning_effort: str | None = None
+    # 출력 형식 강제. false = `response_format: json_object` (원본 방식 — 스키마는
+    # 프롬프트 문장으로만 지시), true = `json_schema` 로 출력 계약 자체를 제약한다.
+    # 스키마는 GeneratedSentence/GeneratedTags 에서 파생되므로 프롬프트는 손대지 않는다.
+    #
+    # **thinking 을 끈 qwen3:4b 에서는 true 가 필수다** (2026-08-14 실측). 끄면 모델이
+    # 프롬프트의 번호 규칙을 출력 필드로 흉내내거나(1단계 `step1`/`step2`), 2단계에서
+    # 분류 대신 입력을 그대로 되돌려준다 — json_object 로는 못 막고 매 요청 폴백한다.
+    # true 로 두면 1·2단계 4/4 통과, 원본 표적 예시 6/6 일치(부정 함정 포함).
+    # 기본 false: 원본 평가가 json_object 위에서 이뤄졌으므로 vLLM 프로필은 그대로 둔다.
+    sentence_llm_structured_output: bool = False
+    # 감정·말투 2단계 분류. 끄면 요청당 추론이 1회로 줄지만 emotion/style 이 기본값이 된다.
+    sentence_llm_tags_enabled: bool = True
+
     # ---- /recognize 요청 아카이빙 (데이터셋 수집용)
     archive_enabled: bool = True
     archive_dir: str = "var/archive"  # api 패키지 루트 기준

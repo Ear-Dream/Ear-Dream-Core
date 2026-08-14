@@ -15,6 +15,9 @@ def client(tmp_path, monkeypatch) -> TestClient:
     # 테스트 중 아카이브·진단 기록이 실제 var/ 를 오염시키지 않게 임시 경로로 돌린다
     monkeypatch.setattr(settings, "archive_dir", str(tmp_path / "archive"))
     monkeypatch.setattr(settings, "diagnostics_dir", str(tmp_path / "diagnostics"))
+    # 문장 변환 LLM 은 기본으로 끈다 — 외부 vLLM 서버에 붙는 순간 테스트가 환경에
+    # 의존한다. LLM 경로는 test_sentence_llm.py 가 MockTransport 로 따로 검증한다.
+    monkeypatch.setattr(settings, "sentence_llm_enabled", False)
     return TestClient(app)
 
 

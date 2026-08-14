@@ -22,6 +22,9 @@ export type ComposeSentenceRequest = Schemas["ComposeSentenceRequest"];
 export type SentenceResult = Schemas["SentenceResult"];
 export type SentenceCandidate = Schemas["SentenceCandidate"];
 export type SentenceSource = Schemas["SentenceSource"];
+// 감정·말투 태그 — 문장 변환 LLM(source="model")의 2단계 분류 산출물. 규칙 경로는 null.
+export type SentenceEmotion = Schemas["SentenceEmotion"];
+export type SentenceStyle = Schemas["SentenceStyle"];
 
 // ---- /vocabulary, /model, /health
 export type VocabularyCatalog = Schemas["VocabularyCatalog"];

@@ -412,6 +412,11 @@ def eval_clip(
     smooth: int = 0,
     resample_interp: bool = False,
     tta: str | None = None,
+    coral: dict | None = None,
+    hand_prior: tuple[np.ndarray, float, float] | None = None,
+    trim_margin: int | None = None,
+    proto: tuple[np.ndarray, np.ndarray, int, float] | None = None,
+    prior: np.ndarray | None = None,
 ) -> dict[str, Any]:
     """클립 하나 평가. y_scale 은 preprocess_spoter 로 그대로 전달된다 (서빙과 동일
     경로 — 이중 적용 없음). 편향 제거는 state.debias_* 가 predict_probs 안에서 처리한다
@@ -441,6 +446,17 @@ def eval_clip(
         # 손 슬롯 배정(assembly) 이후에 적용하므로 배정 로직에는 영향이 없다.
         frames, kp = apply_fill(frames, kp, fill, fill_parts)
 
+    if trim_margin is not None:
+        # 손 없는 리드/테일 트리밍 (배치 3) — 어떤 손도 검출 안 된 선행·후행 구간을
+        # 첫/마지막 손 검출 ±margin 프레임까지로 자른다. B4(±100ms, live_eval 영상)와
+        # 다른 조작: 여기는 프레임 마진이고 phone_sessions 의 긴 리드(40~50%)가 표적이다.
+        det = ~(np.isnan(kp[:, LEFT_HAND[0], 0]) & np.isnan(kp[:, RIGHT_HAND[0], 0]))
+        idx = np.flatnonzero(det)
+        if len(idx):
+            lo = max(int(idx[0]) - trim_margin, 0)
+            hi = min(int(idx[-1]) + trim_margin, len(frames) - 1)
+            frames, kp = frames[lo : hi + 1], kp[lo : hi + 1]
+
     # ---- 변형 파이프라인 (배치 2) — 전부 손 슬롯 배정 이후, 전처리 이전에 합성
     # (y 보정은 여기가 아니라 preprocess_spoter 안이다 — 서빙 채택 후 이동)
     bundle = None
@@ -451,7 +467,7 @@ def eval_clip(
         if resample_interp:
             bundle = resample_interp_bundle(bundle)
 
-    def run_once(fr, kpv, aspect) -> tuple[np.ndarray, Any]:
+    def run_once(fr, kpv, aspect) -> tuple[np.ndarray, np.ndarray | None, Any]:
         pp = preprocess_spoter(fr, kpv, aspect, y_scale=y_scale)
         x = pp.x
         if ablate:
@@ -459,20 +475,76 @@ def eval_clip(
             x = x.copy()
             for part in ablate:
                 x[:, PART_SLICES[part]] = 0.0
-        return state.predict_probs(x), pp
+        if coral is not None:
+            # 대각 CORAL (배치 3) — 부위별 검출 프레임(part_mask=1)의 피처를 라이브
+            # 분포 → 스튜디오 분포로 정렬. mode=mean 은 평행이동만 (σ 정렬이 판별
+            # 분산을 죽일 위험 회피 변형). ⚠️ 16:9 입력에도 항등이 아니다.
+            x = x.copy()
+            part_index = {p: i for i, p in enumerate(("pose", "right_hand", "left_hand", "face"))}
+            for part in coral["parts"]:
+                lo, hi = PART_SLICES[part].start, PART_SLICES[part].stop
+                sel = pp.part_mask[:, part_index[part]] == 1
+                if not sel.any():
+                    continue
+                mu_l, sd_l = coral["mu_live"][lo:hi], coral["sd_live"][lo:hi]
+                mu_s, sd_s = coral["mu_st"][lo:hi], coral["sd_st"][lo:hi]
+                if coral["mode"] == "mean":
+                    x[np.ix_(sel, range(lo, hi))] += (mu_s - mu_l).astype(np.float32)
+                else:
+                    z = (x[np.ix_(sel, range(lo, hi))] - mu_l) / np.maximum(sd_l, 1e-3)
+                    x[np.ix_(sel, range(lo, hi))] = (z * sd_s + mu_s).astype(np.float32)
+        lg = None
+        if proto is not None:
+            import torch
+
+            feats = torch.from_numpy(x.astype(np.float32)).unsqueeze(0)
+            mask = torch.zeros(1, x.shape[0], dtype=torch.bool)
+            with torch.no_grad():
+                lg = state.model(feats, mask).squeeze(0).numpy()
+        return state.predict_probs(x), lg, pp
 
     if bundle is None:
-        probs, pp = run_once(frames, kp, source_aspect)
+        probs, logits, pp = run_once(frames, kp, source_aspect)
     else:
-        probs_list = []
+        probs_list, logits_list = [], []
         pp = None
         for vb, ar_mult in tta_variants(bundle, tta):
             fr, kpv = frames_from_bundle(vb)
-            p, pp_v = run_once(fr, kpv, source_aspect * ar_mult)
+            p, lg, pp_v = run_once(fr, kpv, source_aspect * ar_mult)
             probs_list.append(p)
+            if lg is not None:
+                logits_list.append(lg)
             if pp is None:
                 pp = pp_v  # 첫 변형(항등)의 전처리 정보를 진단에 사용
         probs = np.mean(probs_list, axis=0)
+        logits = np.mean(logits_list, axis=0) if logits_list else None
+
+    # ---- 후처리 (배치 3) — 보정(prior) → 조건부 사전확률(hand) → 프로토타입 재랭킹
+    if prior is not None:
+        # EM 라벨 시프트 보정: p'(y|x) ∝ p(y|x)/π̂(y) (균등 목표 사전확률로 사영).
+        # 현행 debias(평균 log-softmax 제거)와는 --debias-alpha 0 으로 A/B 한다.
+        p = probs / np.maximum(prior, 1e-8)
+        probs = p / p.sum()
+    if hand_prior is not None:
+        two_hand_mask, delta, thresh = hand_prior
+        left_fill = float(pp.part_mask[:, 2].mean())  # PARTS 순서: pose, rh, lh, face
+        if left_fill >= thresh:
+            # 왼손 슬롯이 충분히 관측된 세그먼트 → two_hand 단어 log-prob 가산.
+            # 왼손 미관측이면 중립 (비대칭 — 한손 재조음 케이스 보호)
+            lp = np.log(np.maximum(probs, 1e-12))
+            lp[two_hand_mask] += delta
+            e = np.exp(lp - lp.max())
+            probs = e / e.sum()
+    if proto is not None and logits is not None:
+        bank_logits, bank_labels, k, beta = proto
+        sim = bank_logits @ logits / (
+            np.linalg.norm(bank_logits, axis=1) * np.linalg.norm(logits) + 1e-9
+        )
+        nn = np.argsort(sim)[::-1][:k]
+        vote = np.zeros_like(probs)
+        for i in nn:
+            vote[bank_labels[i]] += 1.0 / k
+        probs = (1.0 - beta) * probs + beta * vote
 
     top_idx = np.argsort(probs)[::-1][:TOP_K]
     candidates = [
@@ -582,6 +654,43 @@ def main() -> None:
         default=None,
         help="편향 제거 강도 α 오버라이드 (기본: 서빙 settings.debias_alpha. 0=끔)",
     )
+    # ---- 배치 3 옵션
+    ap.add_argument(
+        "--coral", type=Path, default=None,
+        help="대각 CORAL 통계 .npz (live_stats.npz — mu/sd 라이브는 y_scale 값으로 자동 선택)",
+    )
+    ap.add_argument(
+        "--coral-parts", choices=["pose", "pose_face", "all"], default="pose",
+        help="CORAL 적용 부위",
+    )
+    ap.add_argument(
+        "--coral-mode", choices=["full", "mean"], default="full",
+        help="full=μσ 정렬, mean=μ 평행이동만 (판별 분산 보존 변형)",
+    )
+    ap.add_argument(
+        "--coral-studio", type=Path, default=None,
+        help="스튜디오 통계 .npz (real09_gate_bank.npz — mu_st/sd_st)",
+    )
+    ap.add_argument(
+        "--hand-prior", type=Path, default=None,
+        help="vocab300_handedness.json — 왼손 관측 조건부 two_hand 사전확률 가산",
+    )
+    ap.add_argument("--hand-prior-delta", type=float, default=0.7, help="log-prob 가산량 δ")
+    ap.add_argument("--hand-prior-thresh", type=float, default=0.3, help="왼손 슬롯 채움율 임계")
+    ap.add_argument(
+        "--trim-lead-tail", type=int, default=None,
+        help="손 없는 리드/테일 트리밍 마진(프레임). 예: 5",
+    )
+    ap.add_argument(
+        "--proto", type=Path, default=None,
+        help="REAL09 로짓 뱅크 .npz (real09_gate_bank.npz) — cosine kNN 재랭킹",
+    )
+    ap.add_argument("--proto-k", type=int, default=15, help="kNN 이웃 수")
+    ap.add_argument("--proto-beta", type=float, default=0.5, help="투표 혼합 비율 β (1.0=투표만)")
+    ap.add_argument(
+        "--prior", type=Path, default=None,
+        help="EM 라벨 시프트 π̂ .npy — p/π̂ 균등 사영 (현행 debias 와는 --debias-alpha 0 로 A/B)",
+    )
     args = ap.parse_args()
     ablate = tuple(p for p in args.ablate.split(",") if p)
     for p in ablate:
@@ -602,6 +711,42 @@ def main() -> None:
     if args.debias_alpha is not None:
         state.debias_alpha = float(args.debias_alpha)
     debias_active = state.debias_bias is not None and state.debias_alpha != 0.0
+
+    # ---- 배치 3 리소스 적재
+    coral = None
+    if args.coral is not None:
+        live = np.load(args.coral)
+        studio = np.load(args.coral_studio) if args.coral_studio else live
+        suffix = "l205" if abs(y_scale - 1.205) < 1e-6 else "l100"
+        if abs(y_scale - 1.205) >= 1e-6 and y_scale != 1.0:
+            sys.exit(f"--coral 라이브 통계는 y_scale 1.205/1.0 만 준비돼 있다 (현재 {y_scale})")
+        parts_map = {
+            "pose": ["pose"],
+            "pose_face": ["pose", "face"],
+            "all": ["pose", "right_hand", "left_hand", "face"],
+        }
+        coral = {
+            "mu_live": live[f"mu_{suffix}"], "sd_live": live[f"sd_{suffix}"],
+            "mu_st": studio["mu_st"], "sd_st": studio["sd_st"],
+            "parts": parts_map[args.coral_parts], "mode": args.coral_mode,
+        }
+    hand_prior = None
+    if args.hand_prior is not None:
+        hd = json.loads(args.hand_prior.read_text(encoding="utf-8"))["words"]
+        two_hand = np.array(
+            [hd.get(e.label, {}).get("articulation") == "two_hand" for e in state.class_entries]
+        )
+        hand_prior = (two_hand, args.hand_prior_delta, args.hand_prior_thresh)
+    proto = None
+    if args.proto is not None:
+        bank = np.load(args.proto)
+        proto = (
+            bank["logits"].astype(np.float64),
+            bank["labels"].astype(np.int64),
+            args.proto_k,
+            args.proto_beta,
+        )
+    prior_vec = np.load(args.prior) if args.prior is not None else None
 
     labels = load_labels(args.eval_dir)
     cache_dir = args.frames_dir or (args.eval_dir / "frames_tasks")
@@ -630,6 +775,11 @@ def main() -> None:
             smooth=args.smooth,
             resample_interp=args.resample_interp,
             tta=args.tta,
+            coral=coral,
+            hand_prior=hand_prior,
+            trim_margin=args.trim_lead_tail,
+            proto=proto,
+            prior=prior_vec,
         )
         row["signer_id"] = info["signer_id"]
         rows.append(row)
@@ -676,6 +826,16 @@ def main() -> None:
         condition += " + 리샘플보간"
     if debias_active:
         condition += f" + 편향제거[α={state.debias_alpha}]"
+    if coral is not None:
+        condition += f" + CORAL[{args.coral_parts}/{args.coral_mode}]"
+    if hand_prior is not None:
+        condition += f" + 손사전확률[δ={args.hand_prior_delta}/th={args.hand_prior_thresh}]"
+    if args.trim_lead_tail is not None:
+        condition += f" + 리드테일트림[±{args.trim_lead_tail}f]"
+    if proto is not None:
+        condition += f" + 프로토kNN[k={args.proto_k}/β={args.proto_beta}]"
+    if prior_vec is not None:
+        condition += " + EM사전확률보정"
     print(f"\n=== {condition} | 클립 {n}개 / 단어 {len(per_word)}종 ===")
     print(f"top-1: {top1}/{n} = {top1 / n:.1%}   top-{TOP_K}: {topk}/{n} = {topk / n:.1%}")
     print(

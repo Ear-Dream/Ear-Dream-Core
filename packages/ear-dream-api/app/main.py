@@ -1,3 +1,6 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.exception_handlers import request_validation_exception_handler
 from fastapi.exceptions import RequestValidationError
@@ -10,14 +13,27 @@ from app.core.logging import configure_logging, get_logger
 from app.ml.model import get_model_state
 from app.ml.vocab import VOCAB_SIZE
 from app.schemas.system import HealthResponse
+from app.services.sentence_llm import aclose_sentence_generator
 
 configure_logging()
 logger = get_logger("http")
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    yield
+    # 문장 변환 LLM 의 공유 httpx 클라이언트 정리 (없으면 no-op).
+    await aclose_sentence_generator()
+
+
 # syntaxHighlight=False: /docs 의 실클립 요청 예시(수백 KB)를 구문 강조하면 Swagger UI 가
 # 메인 스레드를 수십 초 점유하며 멈춘다 (실측 — 155KB 예시에서 렌더러 프리즈). 예시는
 # 일반 텍스트로 표시해도 Try it out 에는 지장이 없다.
-app = FastAPI(title=settings.app_name, swagger_ui_parameters={"syntaxHighlight": False})
+app = FastAPI(
+    title=settings.app_name,
+    swagger_ui_parameters={"syntaxHighlight": False},
+    lifespan=lifespan,
+)
 
 app.add_middleware(
     CORSMiddleware,

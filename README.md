@@ -86,6 +86,10 @@ pnpm dev:web    # 브라우저에서 앱 실행
   결과 화면. 어휘는 현재 300단어다.
 - 청인 트랙(구어로 시작하기)은 음성 인식이 아직 mock이라 서버 없이도 흐름을 볼 수 있다.
 
+**터미널 두 개가 전부다.** 수어 인식 모델은 API 서버에 in-process로 로드되므로 별도
+프로세스가 없고, 문장 변환 LLM은 켜지면 문장을 더 다듬어 주는 선택 단계다 — 안 띄우면
+규칙 경로로 내려갈 뿐 흐름은 그대로 돈다 (「단어열 → 문장 변환」 참고).
+
 API 문서는 서버 실행 후 http://localhost:8000/docs 에서 볼 수 있다.
 
 ### UI만 보기 (서버 없이)
@@ -244,13 +248,96 @@ raw 아카이빙 → 손 좌우 배정(포즈 손목 기하 매칭) → 30fps �
   x·y 투영에 신호가 거의 남지 않는다 — 손 크기(bbox scale) 피처 추가가 후속 후보
 - 위 정확도 관련 수치는 소규모 진단 실측이므로 목표치·기대치로 인용하지 않는다
 
+## 단어열 → 문장 변환
+
+`POST /api/v1/compose-sentence`는 누적된 단어(gloss) 열을 한국어 문장 하나로 바꾼다.
+경로가 둘이고, 앞의 것이 실패하면 뒤로 내려간다.
+
+| 순서 | 경로 | `source` | 산출물 |
+| --- | --- | --- | --- |
+| 1 | **LLM** — Qwen3-4B / vLLM 2단계 (문장 생성 → 감정·말투 분류) | `model` | 문장 + `emotion` + `style` |
+| 2 | 규칙 템플릿 (`app/ml/sentence_rules.py`) | `template` | 문장 |
+| 3 | 라벨 공백 연결 | `word_list` | 단어 나열 |
+
+LLM 구현은 별도 레포 `Ear-Dream-Gloss2Sentence`에서 이식했다
+(`app/services/sentence_llm/`). **LLM 서버는 이 레포 밖에서 돌고, 없어도 된다** —
+연결에 실패하면 규칙 경로로 폴백하고 사유를 서버 로그에 `llm_failed=...`로 남긴다.
+`/compose-sentence`는 어떤 경우에도 200을 유지한다. 문장 다듬기 하나 때문에 화면이
+멈추면 안 되고, 규칙 경로는 문장을 지어내지 않는 안전한 최소 동작이기 때문이다.
+
+### 개발 기계별 LLM 백엔드
+
+vLLM은 CUDA 전용이라 맥에서 돌지 않는다. 대신 **OpenAI 호환
+`/chat/completions`를 내는 백엔드면 같은 코드로 붙으므로**, 기계에 따라 환경변수
+두 줄만 갈아 끼운다. `packages/ear-dream-api/.env.example`을 `.env`로 복사해서 쓴다.
+
+| 기계 | 백엔드 | 설정 |
+| --- | --- | --- |
+| Windows / WSL + NVIDIA GPU | vLLM (원본 검증 환경) | `BASE_URL=http://localhost:8001/v1`<br>`MODEL=Qwen/Qwen3-4B` |
+| macOS | Ollama | `BASE_URL=http://localhost:11434/v1`<br>`MODEL=qwen3:4b` (+ 아래 스위치 2종) |
+| 다른 기계의 GPU를 LAN으로 | vLLM (`--host 0.0.0.0`) | `BASE_URL=http://<GPU PC IP>:8001/v1` |
+| LLM 없이 | — | `ENABLED=false` (또는 그냥 안 띄움 → 규칙 폴백) |
+
+접두는 전부 `EAR_DREAM_SENTENCE_LLM_`이다.
+
+```bash
+# macOS
+ollama pull qwen3:4b
+```
+
+```
+EAR_DREAM_SENTENCE_LLM_ENABLED=true
+EAR_DREAM_SENTENCE_LLM_BASE_URL=http://localhost:11434/v1
+EAR_DREAM_SENTENCE_LLM_MODEL=qwen3:4b
+EAR_DREAM_SENTENCE_LLM_REASONING_EFFORT=none
+EAR_DREAM_SENTENCE_LLM_STRUCTURED_OUTPUT=true
+```
+
+**맥 프로필의 뒤 두 줄은 한 세트다.** 하나라도 빠지면 매 요청 폴백한다.
+
+| 설정 | 없으면 |
+| --- | --- |
+| `REASONING_EFFORT=none` | qwen3는 thinking 모델이라 추론이 `max_tokens`를 다 먹고 응답이 빈 문자열로 잘린다(`finish_reason=length`, 요청당 **46초**). Ollama는 vLLM이 쓰는 `chat_template_kwargs.enable_thinking`을 **조용히 무시**하므로 이 OpenAI 표준 필드로만 꺼진다 |
+| `STRUCTURED_OUTPUT=true` | thinking을 끈 4B는 프롬프트만으로 출력 형식을 못 지킨다 — 1단계가 `step1`/`step2` 같은 사고 과정을 JSON 필드로 뱉거나, **2단계가 분류 대신 입력을 그대로 되돌려준다**(`{"glosses":[...],"sentence":"..."}`) |
+
+`STRUCTURED_OUTPUT`은 `response_format`을 `json_object` → `json_schema`로 바꿔 출력
+계약을 디코딩 단계에서 강제한다. 스키마는 `GeneratedSentence`/`GeneratedTags`에서
+파생되므로 **프롬프트는 손대지 않는다** — 프롬프트가 원본과 한 벌이라는 규칙을 지키면서
+형식만 조이는 방법이다. 두 스위치 모두 기본값은 꺼짐이라 vLLM 프로필의 요청 페이로드는
+원본 그대로다.
+
+실측(M3 Pro, 2026-08-14): 두 스위치를 켠 `qwen3:4b`는 1·2단계 4/4 통과, 폴백 0건.
+태그 분류는 원본 레포의 표적 예시 6/6 일치(`기쁘지 않아요.` → `neutral`/`polite`
+부정 함정 포함).
+
+**모델을 바꾸면 원본 레포의 평가 수치는 그 설정에 적용되지 않는다.** 프롬프트와
+태그 분류 정확도(2단계 표적 10/10 등)는 전부 `Qwen/Qwen3-4B` **BF16 + vLLM** 위에서
+나온 값이고, Ollama의 `qwen3:4b`는 같은 모델의 Q4 양자화판이다. 맥 프로필은
+개발·확인용이고 시연·보고 수치는 vLLM 쪽에서 낸다. 어느 쪽을 썼는지는 응답의
+`llm_model`과 서버 로그(`llm=...`)에 항상 남는다 — 설정으로 열어 두되 조용히 갈리지는
+않게 한 장치다.
+
+프롬프트는 원본 레포에서 평가를 거쳐 고정된 값이라 **한쪽만 고치지 않는다**
+(`app/services/sentence_llm/prompt.py` — 고칠 때는 원본과 동시에 바꾸고
+`SENTENCE_LLM_PROMPT_VERSION`을 올린다).
+
+### 지연
+
+요청당 LLM 추론이 2회(문장 생성 + 태그 분류)다. 지연이 문제가 되면
+`EAR_DREAM_SENTENCE_LLM_TAGS_ENABLED=false`로 태그 분류를 끄면 1회로 줄고, 그때
+`emotion`/`style`은 기본값이 된다. 현재 앱은 문장 텍스트만 쓰고 태그는 응답에 실려만 있다.
+
+macOS + Ollama 실측(M3 Pro, `qwen3:4b` thinking off + 스키마 강제): 웜 상태에서
+요청당 **약 1.2초**(생성 ~0.59s + 분류 ~0.63s), 모델이 메모리에 없는 첫 요청은 3초대.
+vLLM(4090) 쪽 실측치는 아직 이 레포에 없다.
+
 ## 현재 상태
 
 | 엔드포인트 | 상태 |
 | --- | --- |
 | `GET /health` | 동작 — `status`, `model_loaded`, `vocab_size` |
 | `POST /api/v1/recognize` | 동작 — 랜드마크 세그먼트 → 단어 후보 top-k |
-| `POST /api/v1/compose-sentence` | 동작 — 단어 열 → 규칙 기반 문장 |
+| `POST /api/v1/compose-sentence` | 동작 — 단어 열 → 문장 (LLM, 실패 시 규칙 폴백) |
 | `GET /api/v1/vocabulary` | 동작 — 어휘 300단어 카탈로그 |
 | `GET /api/v1/model` | 동작 — 모델·전처리·계약 정보 |
 | `GET /api/v1/phrases` | 스키마만 확정, 빈 배열 반환 |
