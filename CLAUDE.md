@@ -377,8 +377,12 @@ CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않
 - 실기기 프레이밍 — 왼손 그립·서서·팔 피로도. **얼굴과 양어깨가 프레임에 들어오는지** 포함.
   어깨는 정규화 기준이라 안 잡히면 서버가 `low_quality`(`shoulders_not_visible`)로 거절한다
 - 그립손 엄지 도달성 — 단어당 "누르는 동안 캡처" 버튼을 한 손 그립으로 조작할 수 있는지
-- https 서빙 — 실기기 브라우저는 localhost 밖에서 `getUserMedia`에 https가 필요하다.
-  실기기 웹 시연 전에 서빙 방법을 정해야 한다
+- ~~https 서빙~~ — **해결됨**. `pnpm build:web-mobile` + `pnpm serve:mobile` 로 웹과 API 를
+  **한 오리진**에 묶어 서빙한다 (`scripts/serve-mobile.mjs` — dist 정적 + `/api` 프록시).
+  한 오리진이라 인증서가 하나로 끝나고 mixed content·CORS 가 사라진다. 인증서는
+  `pnpm setup:https-cert`(mkcert, LAN) 또는 터널. 절차는 README 「실기기 모바일 웹」.
+  ⚠️ `mkcert -install` 은 시스템 트러스트 스토어 변경이라 **사람이 직접 실행**해야 한다
+  (npm 에 동명의 다른 패키지가 있으니 `mkcert -CAROOT` 로 진짜인지 확인)
 - 라벨된 실사용 평가셋 확보 — 아카이브에 정답 라벨이 없어 v2의 실사용 정답률이 미지다.
   feedback 엔드포인트(T-26) 채택 또는 아카이브 수동 라벨링으로 확보한다. reject 임계(0.45)
   재조정과 라운드3(tasks-vision 재추출) 착수 여부를 판정하는 기준 데이터다
