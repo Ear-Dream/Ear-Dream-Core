@@ -127,6 +127,26 @@ class Settings(BaseSettings):
     # 감정·말투 2단계 분류. 끄면 요청당 추론이 1회로 줄지만 emotion/style 이 기본값이 된다.
     sentence_llm_tags_enabled: bool = True
 
+    # ---- 문장 → 음성 TTS (Ear-Dream-TTS 이식 — app/services/speech_tts)
+    # Qwen3-TTS VoiceDesign 을 vLLM-Omni 로 서빙한다. 문장 LLM 과 같은 구조지만
+    # **폴백 위치가 다르다**: 서버에는 대체 음성 수단이 없어 503 을 내고, 앱이 브라우저
+    # 음성 합성으로 내려간다. 그래서 이게 꺼져 있어도 소리는 계속 나온다.
+    # vLLM-Omni 는 CUDA 전용이라 맥에서 안 돈다 — 맥 개발 기본값은 꺼짐이다.
+    # ⚠️ 기본 false 인 이유: 켜 두면 재생마다 연결 실패를 기다렸다가 폴백하므로 첫
+    # 소리가 그만큼 늦어진다. 문장 LLM(폴백이 서버 안에서 즉시 끝남)과 다른 점이다.
+    tts_enabled: bool = False
+    tts_base_url: str = "http://localhost:8091"  # vLLM-Omni 직접 (원본의 중간 FastAPI 흡수)
+    # 원본 확정 프로필. speech_tts.profile.MODEL 과 같은 값이어야 하며(순환 import 를
+    # 피하려고 리터럴로 둔다) 어긋나면 test_speech.py 가 잡는다.
+    tts_model: str = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+    tts_voice: str = "sohee"  # CustomVoice 호환용. VoiceDesign 은 preset voice 를 안 쓴다
+    # ⚠️ 원본 기본값은 300s 다(모델 로딩 포함 상정). 여기서는 사용자가 재생 버튼을 누르고
+    # 기다리는 시간이라 짧게 잡았다 — 초과하면 앱이 브라우저 음성으로 폴백한다.
+    # 원본 README 실측 예시가 6.1s 라 그 2배 남짓. 실기기 실측 후 확정한다.
+    tts_timeout_seconds: float = 15.0
+    # instruction 요청이 실패하면 텍스트만으로 재시도한다(감정은 빠지고 소리는 나온다).
+    tts_text_only_fallback: bool = True
+
     # ---- /recognize 요청 아카이빙 (데이터셋 수집용)
     archive_enabled: bool = True
     archive_dir: str = "var/archive"  # api 패키지 루트 기준

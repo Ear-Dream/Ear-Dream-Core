@@ -331,6 +331,46 @@ macOS + Ollama 실측(M3 Pro, `qwen3:4b` thinking off + 스키마 강제): 웜 �
 요청당 **약 1.2초**(생성 ~0.59s + 분류 ~0.63s), 모델이 메모리에 없는 첫 요청은 3초대.
 vLLM(4090) 쪽 실측치는 아직 이 레포에 없다.
 
+## 문장 → 음성 (TTS)
+
+`POST /api/v1/speech`는 문장과 감정·말투 태그를 받아 **WAV 바이트**를 돌려준다.
+`/compose-sentence` 응답의 `text`·`emotion`·`style`을 그대로 넘기면 그 감정으로 읽는다.
+
+구현은 별도 레포 `Ear-Dream-TTS`(Qwen3-TTS 1.7B VoiceDesign / vLLM-Omni)에서
+이식했다(`app/services/speech_tts/`). 원본의 중간 FastAPI는 흡수해 Core가 vLLM-Omni에
+직접 붙으므로 띄울 서버는 늘지 않는다 — 문장 LLM 이식과 같은 방침이다.
+
+### 폴백 위치가 문장 변환과 다르다
+
+| | 실패하면 |
+| --- | --- |
+| 문장 변환 LLM | **서버 안에서** 규칙 경로로 폴백 → 200 |
+| TTS | **503** → 앱이 브라우저 음성 합성(SpeechSynthesis)으로 폴백 |
+
+서버에는 대체 음성을 만들 수단이 없고 브라우저에는 있기 때문이다. 그래서 `/speech`의
+503은 고장이 아니라 **"이 서버로는 못 읽는다"는 신호**이며, 앱은 이걸 에러로 표시하지
+않는다. 어느 쪽으로 소리가 났는지는 훅의 `engine`(`server` | `browser`)에 남는다.
+
+### 설정
+
+```
+EAR_DREAM_TTS_ENABLED=true
+EAR_DREAM_TTS_BASE_URL=http://localhost:8091
+```
+
+**vLLM-Omni는 CUDA 전용이라 맥에서 못 켠다.** 문장 LLM에는 Ollama라는 맥 대체재가
+있었지만 TTS에는 없다 — 맥에서는 항상 브라우저 음성으로 읽고, Qwen3-TTS 음성은 GPU
+기계에서만 확인할 수 있다. 그래서 기본값이 꺼짐이다(켜 두면 재생마다 연결 실패를
+기다렸다 폴백해 첫 소리가 늦어진다).
+
+감정 6종은 문장 LLM과 정확히 같고, 말투는 TTS가 7종·문장 LLM이 4종으로 우리 쪽이
+부분집합이라 변환 없이 그대로 흐른다. TTS에만 있는 3종(`excited`/`calm`/`serious`)은
+instruction 표에 남겨 뒀다 — 태그 분류를 넓힐 때 쓰려고.
+
+⚠️ 지연은 원본 README 실측 예시가 요청당 **6.1초**다. 이 레포에서 잰 값은 아직 없다.
+서버 상한 15s, 앱 상한 20s는 임시값이며 앱 상한이 더 길어야 서버의 503 폴백 신호가
+전달된다.
+
 ## 현재 상태
 
 | 엔드포인트 | 상태 |
@@ -338,6 +378,7 @@ vLLM(4090) 쪽 실측치는 아직 이 레포에 없다.
 | `GET /health` | 동작 — `status`, `model_loaded`, `vocab_size` |
 | `POST /api/v1/recognize` | 동작 — 랜드마크 세그먼트 → 단어 후보 top-k |
 | `POST /api/v1/compose-sentence` | 동작 — 단어 열 → 문장 (LLM, 실패 시 규칙 폴백) |
+| `POST /api/v1/speech` | 동작 — 문장+태그 → WAV. 서버 미가동 시 503(앱이 브라우저 음성으로 폴백) |
 | `GET /api/v1/vocabulary` | 동작 — 어휘 300단어 카탈로그 |
 | `GET /api/v1/model` | 동작 — 모델·전처리·계약 정보 |
 | `GET /api/v1/phrases` | 스키마만 확정, 빈 배열 반환 |

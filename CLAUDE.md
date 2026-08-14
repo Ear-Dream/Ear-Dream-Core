@@ -177,6 +177,7 @@ tasks-vision의 **x·y 검출 특성 차이**다 — 미달 시 xy 원근 왜곡
 | `GET /health` | `status` + `model_loaded` + `vocab_size` |
 | `POST /api/v1/recognize` | 랜드마크 세그먼트 → 단어 후보 top-k (`recognized`/`rejected`/`low_quality`) |
 | `POST /api/v1/compose-sentence` | 단어 ID 열 → 문장 (LLM → 규칙 폴백 — 아래 절) |
+| `POST /api/v1/speech` | 문장+감정·말투 → WAV 바이트 (아래 절) |
 | `GET /api/v1/vocabulary` | 어휘 30단어 카탈로그 |
 | `GET /api/v1/model` | 모델·전처리·계약 정보 (min/max_frames 등 — 클라이언트가 계약을 내려받는 곳) |
 | `GET /api/v1/phrases` | 스켈레톤 — 빈 배열 (상황 문장 미착수) |
@@ -241,6 +242,33 @@ tasks-vision의 **x·y 검출 특성 차이**다 — 미달 시 xy 원근 왜곡
   (음성 파라미터 매핑은 근거 없는 값이라 임의로 넣지 않았다)
 - 테스트는 `tests/test_sentence_llm.py` (httpx MockTransport + 가짜 생성기). conftest 의
   `client` 픽스처는 LLM 을 **꺼서** 규칙 테스트가 외부 서버에 의존하지 않게 한다
+
+## 문장 → 음성 TTS (Ear-Dream-TTS 이식)
+
+`/speech` 는 `app/services/speech_tts/` — 별도 레포 **`Ear-Dream-TTS`** 의 `app/tts/`
+이식본이다. Qwen3-TTS 1.7B VoiceDesign 을 vLLM-Omni 로 서빙한다. 원본의 중간
+FastAPI(`:8002`)는 흡수해 Core 가 vLLM-Omni(`:8091`)에 직접 붙는다. 원본의
+`/v1/gloss-to-speech` 는 이식하지 않았다 — `/compose-sentence` → `/speech` 조합이 같다.
+
+- **폴백 위치가 문장 LLM 과 다르다.** 서버에는 대체 음성 수단이 없어 **503 을 내고
+  앱이 브라우저 SpeechSynthesis 로 내려간다**. 그래서 `/speech` 의 503 은 고장이 아니라
+  "이 서버로는 못 읽는다" 는 신호다 — 앱이 이걸 에러로 표시하면 안 된다
+- **응답이 파일 경로가 아니라 오디오 바이트다.** 원본은 WAV 를 `OUTPUT_DIR` 에 저장하고
+  경로를 응답했지만 앱은 소리를 **재생**해야 하므로 `audio/wav` 로 흘려보낸다 — 정적
+  파일 서빙도 생성물 디렉토리 관리도 필요 없어졌다
+- **instruction 문구는 원본과 한 벌이다** (`speech_tts/instructions.py`). 고칠 때는 원본과
+  동시에 바꾸고 `TTS_INSTRUCTION_VERSION` 을 올린다 — 프롬프트 규칙과 같은 취지
+- 태그 궁합: 감정 6종은 문장 LLM 과 정확히 같고, 말투는 TTS 7종 ⊃ `SentenceStyle` 4종이라
+  변환 없이 흐른다. `/speech` 요청 스키마는 **4종만** 받는다 (클라이언트가 만들 수 없는
+  값을 계약에 넣지 않는다). instruction 표의 나머지 3종은 확장 대비로 원본대로 남겼다
+- **vLLM-Omni 는 CUDA 전용 — 맥 대체재가 없다.** 문장 LLM 은 Ollama 로 맥에서도 돌지만
+  TTS 는 안 된다. `tts_enabled` 기본값이 **false** 인 이유: 켜 두면 재생마다 연결 실패를
+  기다렸다 폴백해 첫 소리가 늦는다 (문장 LLM 은 폴백이 서버 안에서 즉시 끝난다)
+- ⚠️ 지연 미측정 — 원본 README 예시 6.1초는 이 레포에서 잰 값이 아니다. 서버 상한 15s /
+  앱 상한 20s 는 임시값이고, **앱 상한이 더 길어야** 서버의 503 신호가 전달된다
+- 앱 훅은 `features/transcript/speech/` — 서버 우선, 실패 시 브라우저 폴백 2경로.
+  `status` 에 `'loading'`(서버 합성 대기), `engine` 에 `'server'|'browser'` 가 있다.
+  테스트는 `tests/test_speech.py` (MockTransport + 가짜 공급자)
 
 ## 손 · 얼굴 · 포즈 랜드마크 추출
 
@@ -332,6 +360,7 @@ CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않
 | 서버 — 스키마 재설계·ML 모듈(`app/ml/`)·엔드포인트 5종·아카이빙·진단 | 완료, pytest 57건 통과 |
 | 모델 서빙 (30단어, small v2 z-off + 캘리브레이션) | 완료 — 체크포인트는 형제 레포 경로 참조 |
 | 문장 변환 LLM (Qwen3-4B / vLLM 이식) | 코드 완료 — vLLM 서버는 레포 밖, 미가동 시 규칙 폴백. **실기기 지연 미측정** |
+| 문장 → 음성 TTS (Qwen3-TTS / vLLM-Omni 이식) | 코드 완료 — **맥에서 실제 음성 검증 불가**(CUDA 전용). 미가동 시 브라우저 음성 폴백 |
 | 프론트 — 세그먼트 캡처·API 연동·SignFlow pill 큐(top-1 자동 확정)·하단 시트 정정·결과 화면(TTS) | 완료 (웹) |
 | 카메라 프리뷰 (T-02) | **부분** — 프레이밍 가이드 박스·감지 안내·녹화 타이머는 반영, 실기기 세로 구도 확인 필요 |
 | 청인 트랙 (STT → 수어 영상) | mock — 화면 흐름만 |

@@ -13,6 +13,17 @@ export interface SignFlowProps {
   catalog: ServerCatalog;
   /** 세션 종료 — 첫 화면으로. 언마운트되며 큐·세션이 비워진다(다음 진입은 새 세션). */
   onExit: () => void;
+  /**
+   * "답장하기" — 청인 트랙(음성 입력)으로. onExit 과 마찬가지로 이 컨테이너가 언마운트되어
+   * 큐·session_id 가 비워진다.
+   *
+   * 세션을 유지하지 않는 이유: 답장은 대화 턴이 상대에게 넘어가는 지점이고, 그 시점에
+   * 이번 문장은 이미 음성으로 전달을 마쳤다. 큐를 들고 넘어가면 다음에 농인이 다시 수어를
+   * 시작할 때 이전 문장의 단어 뒤에 이어붙어, 사용자가 만들 생각이 없던 문장이 된다.
+   * 게다가 음성 입력 화면의 뒤로가기는 첫 화면으로 가므로 이 큐로 돌아올 경로 자체가 없다 —
+   * 유지해 봐야 아무도 볼 수 없는 상태만 남는다. 그래서 답장 뒤의 수어 입력은 새 세션이다.
+   */
+  onReply: () => void;
 }
 
 type Stage = 'input' | 'result';
@@ -28,7 +39,7 @@ type Stage = 'input' | 'result';
  * 화면 전환(input ↔ result)이 있어도 큐가 유지되어야 하기 때문이다.
  * 상태 관리 라이브러리는 쓰지 않는다 — useState 기반 훅으로 충분한 규모다(스킬 문서 방침).
  */
-export function SignFlow({ catalog, onExit }: SignFlowProps) {
+export function SignFlow({ catalog, onExit, onReply }: SignFlowProps) {
   // 문장 세션 단위로 유지되는 식별자. onExit 로 언마운트될 때까지 같은 값을 쓴다.
   const [sessionId] = useState(createRequestId);
   const [stage, setStage] = useState<Stage>('input');
@@ -83,6 +94,7 @@ export function SignFlow({ catalog, onExit }: SignFlowProps) {
         words={confirmedWords}
         phase={composer.phase}
         onRetry={composer.retry}
+        onReply={onReply}
         onGoHome={onExit}
         onBack={handleBackFromResult}
       />

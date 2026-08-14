@@ -14,6 +14,7 @@ from app.ml.model import get_model_state
 from app.ml.vocab import VOCAB_SIZE
 from app.schemas.system import HealthResponse
 from app.services.sentence_llm import aclose_sentence_generator
+from app.services.speech_tts import aclose_tts_provider
 
 configure_logging()
 logger = get_logger("http")
@@ -22,8 +23,9 @@ logger = get_logger("http")
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
-    # 문장 변환 LLM 의 공유 httpx 클라이언트 정리 (없으면 no-op).
+    # 외부 서비스(문장 LLM · TTS)의 공유 httpx 클라이언트 정리 (없으면 no-op).
     await aclose_sentence_generator()
+    await aclose_tts_provider()
 
 
 # syntaxHighlight=False: /docs 의 실클립 요청 예시(수백 KB)를 구문 강조하면 Swagger UI 가

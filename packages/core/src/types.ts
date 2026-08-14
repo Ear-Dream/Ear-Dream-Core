@@ -26,6 +26,9 @@ export type SentenceSource = Schemas["SentenceSource"];
 export type SentenceEmotion = Schemas["SentenceEmotion"];
 export type SentenceStyle = Schemas["SentenceStyle"];
 
+// ---- /speech (문장 + 감정·말투 → WAV. 응답은 오디오 바이트라 타입이 없다)
+export type SpeechRequest = Schemas["SpeechRequest"];
+
 // ---- /vocabulary, /model, /health
 export type VocabularyCatalog = Schemas["VocabularyCatalog"];
 export type VocabularyEntry = Schemas["VocabularyEntry"];
