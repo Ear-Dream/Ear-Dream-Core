@@ -1,12 +1,10 @@
-import { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import { CircleIconButton } from '../../components/CircleIconButton';
 import { Ripple } from '../../components/Ripple';
-import { USE_NATIVE_DRIVER } from '../../constants/motion';
+import { SpinnerRing } from '../../components/SpinnerRing';
 import { strings } from '../../constants/strings';
 import { colors, radius } from '../../constants/theme';
-import { useReducedMotion } from '../../hooks/useReducedMotion';
 
 /**
  * useSpeech 의 status 계약을 화면 쪽에서 받는 표현용 union.
@@ -49,40 +47,22 @@ export interface SpeakerButtonProps {
  * 정지 사각형 · 물결 · 원형 버튼은 음성 입력 화면(VoiceInputScreen)의 마이크와 같은 관용구다.
  */
 export function SpeakerButton({ status, onPress, played, testID }: SpeakerButtonProps) {
-  const reduceMotion = useReducedMotion();
-
   const loading = status === 'loading';
   const speaking = status === 'speaking';
   // loading 은 중복 요청(= 또 몇 초)을 막고, unsupported 는 눌러도 소리가 날 수 없다.
   const disabled = loading || status === 'unsupported';
 
-  const spin = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    // 「동작 줄이기」면 링을 돌리지 않는다. 링 자체는 그대로 그려서 "준비 중"이라는
-    // 사실은 남는다 — 움직임을 뺀 대가로 상태 표시까지 사라지면 안 된다.
-    if (!loading || reduceMotion) return;
-    spin.setValue(0);
-    const loop = Animated.loop(
-      Animated.timing(spin, {
-        toValue: 1,
-        duration: SPIN_PERIOD_MS,
-        easing: Easing.linear,
-        useNativeDriver: USE_NATIVE_DRIVER,
-      }),
-    );
-    loop.start();
-    return () => loop.stop();
-  }, [loading, reduceMotion, spin]);
-
-  const rotate = spin.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '360deg'] });
-
   return (
     <View style={styles.stage}>
-      {/* 준비 중 링은 버튼 뒤(아래)에 깔린다 — 버튼 위를 지나가지 않는다. */}
+      {/*
+        준비 중 링은 버튼 뒤(아래)에 깔린다 — 버튼 위를 지나가지 않는다.
+        회전·「동작 줄이기」 처리는 SpinnerRing 이 갖는다(문장 변환 대기 화면과 한 벌).
+      */}
       {loading ? (
-        <Animated.View
-          style={[styles.loadingRing, { transform: [{ rotate }] }]}
-          pointerEvents="none"
+        <SpinnerRing
+          size={LOADING_RING_SIZE}
+          thickness={LOADING_RING_THICKNESS}
+          style={styles.loadingRing}
           testID="result-speaker-loading"
         />
       ) : null}
@@ -130,7 +110,7 @@ const SPEAKER_SIZE = 88;
 const SPEAKER_RIPPLE_SIZE = 176;
 /** 준비 중 링 — 버튼을 살짝 감싸는 크기. 퍼지는 물결과 달리 자리에서 돈다. */
 const LOADING_RING_SIZE = 108;
-const SPIN_PERIOD_MS = 1200;
+const LOADING_RING_THICKNESS = 4;
 
 const styles = StyleSheet.create({
   stage: {
@@ -142,15 +122,9 @@ const styles = StyleSheet.create({
   speakerCircle: {
     backgroundColor: colors.brand.primary,
   },
+  // 크기·색은 SpinnerRing 이 갖는다. 여기서는 버튼 뒤에 겹쳐 놓는 배치만 준다.
   loadingRing: {
     position: 'absolute',
-    width: LOADING_RING_SIZE,
-    height: LOADING_RING_SIZE,
-    borderRadius: LOADING_RING_SIZE / 2,
-    borderWidth: 4,
-    // 한쪽만 칠한 호라서 회전이 눈에 보인다(전체를 칠하면 돌아도 가만히 있는 것과 같다).
-    borderColor: colors.brand.subtle,
-    borderTopColor: colors.brand.primary,
   },
   speakerShape: {
     flexDirection: 'row',

@@ -5,6 +5,7 @@ import type { SentenceCandidate } from '@ear-dream/core';
 
 import { Button } from '../../components/Button';
 import { ScreenFrame } from '../../components/ScreenFrame';
+import { SpinnerRing } from '../../components/SpinnerRing';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing } from '../../constants/theme';
 import type { ComposerPhase } from '../recognition/api/useSentenceComposer';
@@ -114,7 +115,17 @@ export function ResultScreen({
     >
       {phase.name === 'pending' ? (
         <View style={styles.centerCard} testID="result-composing">
-          <View style={styles.spinner} />
+          {/*
+            문장 변환은 수 초가 걸린다 — 도는 링이 없으면 "멈췄다"로 읽힌다.
+            「동작 줄이기」면 SpinnerRing 이 회전만 멈추고 링은 남긴다. 이 화면에는 아래
+            문구가 함께 있지만, 안내를 텍스트에만 기대지 않는다는 원칙대로 도형도 남겨
+            글을 읽지 않는 사용자에게도 대기 중이라는 사실이 보이게 한다.
+          */}
+          <SpinnerRing
+            size={COMPOSING_SPINNER_SIZE}
+            thickness={COMPOSING_SPINNER_THICKNESS}
+            testID="result-composing-spinner"
+          />
           <Text style={styles.centerTitle}>{strings.result.composing}</Text>
         </View>
       ) : phase.name === 'failed' ? (
@@ -199,6 +210,10 @@ export function ResultScreen({
     </ScreenFrame>
   );
 }
+
+/** 문장 만드는 중 링 — 빈 카드 한가운데 놓이는 대기 표시. */
+const COMPOSING_SPINNER_SIZE = 56;
+const COMPOSING_SPINNER_THICKNESS = 6;
 
 const styles = StyleSheet.create({
   card: {
@@ -290,14 +305,6 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     borderRadius: radius.lg,
     backgroundColor: colors.bg.surface,
-  },
-  spinner: {
-    width: 56,
-    height: 56,
-    borderRadius: radius.pill,
-    borderWidth: 6,
-    borderColor: colors.brand.subtle,
-    borderTopColor: colors.brand.primary,
   },
   centerTitle: {
     fontFamily: fonts.bold,
