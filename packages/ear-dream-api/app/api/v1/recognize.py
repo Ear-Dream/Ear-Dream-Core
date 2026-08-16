@@ -49,7 +49,12 @@ class ArchivingRoute(APIRoute):
         original = super().get_route_handler()
 
         async def handler(request: Request) -> Response:
-            request.state.archive_info = archive_recognize_body(await request.body())
+            # 클라이언트가 gzip 으로 보냈다면 그 원본을 그대로 저장한다 (재압축 회피).
+            # 미들웨어가 넣어 준다 — app/core/compression.py 참조.
+            compressed = getattr(request.state, "compressed_body", None)
+            request.state.archive_info = archive_recognize_body(
+                await request.body(), compressed_body=compressed
+            )
             return await original(request)
 
         return handler

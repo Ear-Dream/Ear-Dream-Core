@@ -99,8 +99,14 @@ class ArchiveInfo:
     seq: int | None = None  # 진단 기록이 같은 순번을 쓰도록 전달 (아카이브와 조인 키)
 
 
-def archive_recognize_body(raw_body: bytes) -> ArchiveInfo:
-    """raw 요청 본문을 저장한다. 어떤 예외도 밖으로 던지지 않는다."""
+def archive_recognize_body(raw_body: bytes, compressed_body: bytes | None = None) -> ArchiveInfo:
+    """raw 요청 본문을 저장한다. 어떤 예외도 밖으로 던지지 않는다.
+
+    `compressed_body` 는 클라이언트가 gzip 으로 보낸 **원본 바이트**다
+    (app/core/compression.py 가 request.state 로 넘긴다). 저장 형식이 어차피 gzip 이라
+    해제본을 다시 압축하지 않고 그대로 쓴다 — 요청당 수 MB 재압축이 사라진다.
+    내용은 동일하다(같은 바이트를 gzip 한 것).
+    """
     session_id, request_id = "unknown", uuid.uuid4().hex
     try:
         payload = json.loads(raw_body)
@@ -121,8 +127,11 @@ def archive_recognize_body(raw_body: bytes) -> ArchiveInfo:
         seq = next_seq(session_dir, "*.json.gz")
         req8 = short_id(request_id, uuid.uuid4().hex[:8])
         target = session_dir / f"{seq:03d}_{req8}.json.gz"
-        with gzip.open(target, "wb") as f:
-            f.write(raw_body)
+        if compressed_body is not None:
+            target.write_bytes(compressed_body)
+        else:
+            with gzip.open(target, "wb") as f:
+                f.write(raw_body)
         return ArchiveInfo(session_id, request_id, target, session_dir.name, seq)
     except Exception:
         logger.exception("recognize archive failed")

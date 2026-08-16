@@ -1,7 +1,9 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "lib": ["ES2022"],
+    // DOM: 이 패키지의 API 클라이언트가 fetch/Request/CompressionStream 을 직접 쓴다
+    // (src/client.ts 의 요청 gzip 압축). 타입 계약(src/types.ts)에는 영향이 없다.
+    "lib": ["ES2022", "DOM"],
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
