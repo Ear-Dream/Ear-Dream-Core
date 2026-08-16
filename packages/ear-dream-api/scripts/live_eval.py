@@ -537,8 +537,10 @@ def eval_clip(
             probs = e / e.sum()
     if proto is not None and logits is not None:
         bank_logits, bank_labels, k, beta = proto
-        sim = bank_logits @ logits / (
-            np.linalg.norm(bank_logits, axis=1) * np.linalg.norm(logits) + 1e-9
+        sim = (
+            bank_logits
+            @ logits
+            / (np.linalg.norm(bank_logits, axis=1) * np.linalg.norm(logits) + 1e-9)
         )
         nn = np.argsort(sim)[::-1][:k]
         vote = np.zeros_like(probs)
@@ -656,39 +658,55 @@ def main() -> None:
     )
     # ---- 배치 3 옵션
     ap.add_argument(
-        "--coral", type=Path, default=None,
+        "--coral",
+        type=Path,
+        default=None,
         help="대각 CORAL 통계 .npz (live_stats.npz — mu/sd 라이브는 y_scale 값으로 자동 선택)",
     )
     ap.add_argument(
-        "--coral-parts", choices=["pose", "pose_face", "all"], default="pose",
+        "--coral-parts",
+        choices=["pose", "pose_face", "all"],
+        default="pose",
         help="CORAL 적용 부위",
     )
     ap.add_argument(
-        "--coral-mode", choices=["full", "mean"], default="full",
+        "--coral-mode",
+        choices=["full", "mean"],
+        default="full",
         help="full=μσ 정렬, mean=μ 평행이동만 (판별 분산 보존 변형)",
     )
     ap.add_argument(
-        "--coral-studio", type=Path, default=None,
+        "--coral-studio",
+        type=Path,
+        default=None,
         help="스튜디오 통계 .npz (real09_gate_bank.npz — mu_st/sd_st)",
     )
     ap.add_argument(
-        "--hand-prior", type=Path, default=None,
+        "--hand-prior",
+        type=Path,
+        default=None,
         help="vocab300_handedness.json — 왼손 관측 조건부 two_hand 사전확률 가산",
     )
     ap.add_argument("--hand-prior-delta", type=float, default=0.7, help="log-prob 가산량 δ")
     ap.add_argument("--hand-prior-thresh", type=float, default=0.3, help="왼손 슬롯 채움율 임계")
     ap.add_argument(
-        "--trim-lead-tail", type=int, default=None,
+        "--trim-lead-tail",
+        type=int,
+        default=None,
         help="손 없는 리드/테일 트리밍 마진(프레임). 예: 5",
     )
     ap.add_argument(
-        "--proto", type=Path, default=None,
+        "--proto",
+        type=Path,
+        default=None,
         help="REAL09 로짓 뱅크 .npz (real09_gate_bank.npz) — cosine kNN 재랭킹",
     )
     ap.add_argument("--proto-k", type=int, default=15, help="kNN 이웃 수")
     ap.add_argument("--proto-beta", type=float, default=0.5, help="투표 혼합 비율 β (1.0=투표만)")
     ap.add_argument(
-        "--prior", type=Path, default=None,
+        "--prior",
+        type=Path,
+        default=None,
         help="EM 라벨 시프트 π̂ .npy — p/π̂ 균등 사영 (현행 debias 와는 --debias-alpha 0 로 A/B)",
     )
     args = ap.parse_args()
@@ -726,9 +744,12 @@ def main() -> None:
             "all": ["pose", "right_hand", "left_hand", "face"],
         }
         coral = {
-            "mu_live": live[f"mu_{suffix}"], "sd_live": live[f"sd_{suffix}"],
-            "mu_st": studio["mu_st"], "sd_st": studio["sd_st"],
-            "parts": parts_map[args.coral_parts], "mode": args.coral_mode,
+            "mu_live": live[f"mu_{suffix}"],
+            "sd_live": live[f"sd_{suffix}"],
+            "mu_st": studio["mu_st"],
+            "sd_st": studio["sd_st"],
+            "parts": parts_map[args.coral_parts],
+            "mode": args.coral_mode,
         }
     hand_prior = None
     if args.hand_prior is not None:
