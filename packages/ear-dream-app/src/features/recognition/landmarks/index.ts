@@ -32,6 +32,5 @@ export {
   HANDEDNESS_VERIFIED,
   PREVIEW_MIRRORED,
   SIGNING_HAND_LABEL,
-  isSigningHand,
 } from './handedness';
 export type { MediaPipeHandednessLabel } from './handedness';
