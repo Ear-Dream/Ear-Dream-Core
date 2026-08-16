@@ -24,17 +24,22 @@ import { VoiceInputScreen } from '../features/voice/VoiceInputScreen';
  *     — 농인 트랙 내부 전환(입력/후보/결과)은 SignFlow 가 소유한다. 누적 칩과 세션이
  *       화면 전환을 넘어 유지되어야 해서다. 마스터의 signInput/result 라우트(mock 흐름)는
  *       SignFlow 가 대체한다.
- *   청인→농인: home → voiceInput(듣는 중 또는 키보드) → recognizing(mock) → signVideo
+ *   청인→농인: home → voiceInput(음성 인식 또는 키보드) → recognizing → signVideo
+ *     — 입력한 문장은 두 화면을 **실제로 타고 흐른다**(state 에 실린다). 수어 영상 생성만
+ *       아직 미구현이라 signVideo 는 문장을 자막으로만 보여준다.
  */
 export type WireScreen =
   | { name: 'home' }
   /** 농인 트랙 전체 (수어 입력 → 단어 확인 → 문장). */
   | { name: 'signFlow' }
-  /** 청인 트랙 전용 "음성 인식 중" (STT 미구현 — mock 타이머). */
-  | { name: 'recognizing' }
+  /**
+   * 청인 트랙 "인식 중". 음성 인식은 이 화면에 오기 전에 이미 끝나 있고, 이 체류 시간이
+   * 덮는 것은 뒤따르는 수어 영상 생성(미구현)이다 — mock 타이머다(constants/mock.ts).
+   */
+  | { name: 'recognizing'; text: string }
   | { name: 'voiceInput' }
-  | { name: 'signVideo' }
-  /** __DEV__ 전용: T-03 랜드마크 확인 화면. */
+  | { name: 'signVideo'; text: string }
+  /** 개발용: T-03 랜드마크 확인 화면 (노출 조건은 constants/devFlags.ts). */
   | { name: 'landmarkDev' };
 
 export function AppNavigator() {
@@ -68,21 +73,21 @@ export function AppNavigator() {
       return (
         <RecognizingScreen
           context="voice"
-          onDone={() => setScreen({ name: 'signVideo' })}
+          // 문장을 그대로 다음 화면으로 넘긴다 — 이 화면은 텍스트를 바꾸지 않는다.
+          onDone={() => setScreen({ name: 'signVideo', text: screen.text })}
           onCancel={goVoiceInput}
         />
       );
     case 'voiceInput':
+      // 음성 인식 결과와 키보드 입력이 같은 콜백으로 온다 — 다음 화면 입장에서 차이가 없다.
       return (
         <VoiceInputScreen
-          onStopListening={() => setScreen({ name: 'recognizing' })}
-          // 입력 텍스트는 STT 미구현이라 다음 화면에서 아직 소비하지 않는다(mock).
-          onTextSubmit={() => setScreen({ name: 'recognizing' })}
+          onSubmit={(text) => setScreen({ name: 'recognizing', text })}
           onBack={goHome}
         />
       );
     case 'signVideo':
-      return <SignVideoScreen onBack={goVoiceInput} />;
+      return <SignVideoScreen sentence={screen.text} onBack={goVoiceInput} />;
     case 'landmarkDev':
       return <LandmarkDevWrapper onBack={goHome} />;
   }

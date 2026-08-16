@@ -4,11 +4,15 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { ScreenFrame } from '../../components/ScreenFrame';
-import { MOCK_RECOGNIZED_SPEECH } from '../../constants/mock';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
 
 export interface SignVideoScreenProps {
+  /**
+   * 청인이 말한 문장 — 음성 인식(STT) 결과 또는 키보드 입력. 자막과 소스 영역에 그대로 쓴다.
+   * 이 문장을 **수어 영상으로 바꾸는 부분은 아직 미구현**이다(아바타 자리는 placeholder).
+   */
+  sentence: string;
   /** AppBar 뒤로가기 — 음성 입력 화면으로 복귀(다시 말하기는 이 경로로 해결, V2 시안 방침). */
   onBack: () => void;
 }
@@ -23,10 +27,10 @@ const PLAYBACK_SPEEDS = ['0.5배', '1.0배', '1.5배'] as const;
  * 수어로 보기 화면 (V2 시안 "수어로 보기"): 다크 비디오 카드(재생 중 배지 + 아바타 자리 +
  * 자막) + 소스 영역 + 재생 속도 세그먼트 + "다시 보기".
  *
- * 수어 영상 · STT 는 미구현이다. 문장은 목업(mock.ts)이고 "다시 보기"는 표시만 하는
- * placeholder 다(재생할 영상이 없다).
+ * 문장은 이제 실제 입력(음성 인식 또는 키보드)이 흘러온 값이다. **수어 영상은 여전히
+ * 미구현**이라 아바타는 placeholder 이고 "다시 보기"는 표시만 한다(재생할 영상이 없다).
  */
-export function SignVideoScreen({ onBack }: SignVideoScreenProps) {
+export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
   const [speedIndex, setSpeedIndex] = useState(1); // 기본 1.0배 (시안 선택 상태)
 
   return (
@@ -57,14 +61,14 @@ export function SignVideoScreen({ onBack }: SignVideoScreenProps) {
         {/* 자막 — 농인이 읽는 텍스트이므로 크게 · 고대비(반투명 배경)로 렌더링한다. */}
         <View style={styles.subtitleStrip}>
           <Text style={styles.subtitleText} testID="sign-video-subtitle">
-            {MOCK_RECOGNIZED_SPEECH}
+            {sentence}
           </Text>
         </View>
       </View>
 
       <View style={styles.sourceArea}>
         <Text style={styles.sourceLabel}>{strings.signVideo.sourceLabel}</Text>
-        <Text style={styles.sourceSentence}>{MOCK_RECOGNIZED_SPEECH}</Text>
+        <Text style={styles.sourceSentence}>{sentence}</Text>
       </View>
 
       <View style={styles.speedArea}>

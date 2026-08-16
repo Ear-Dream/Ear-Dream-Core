@@ -188,7 +188,7 @@ export const strings = {
     appBarTitle: '음성 입력',
     title: '말씀해 주세요',
     subtitle: '수어 영상으로 바꿔서 보여드릴게요',
-    micAlt: '음성 입력 시작 (파형만 실제 마이크 입력, 음성 인식은 미구현)',
+    micAlt: '음성 입력 시작',
     stopAlt: '듣기 정지',
     listeningBadge: '듣고 있어요',
     noiseCaption: '주변 소음이 크다면 키보드로 입력해주세요.',
@@ -197,16 +197,41 @@ export const strings = {
      * 파형이 계속 일자로만 있는 이유를 알려주고 키보드 폴백으로 유도한다.
      */
     micUnavailableCaption: '마이크를 쓸 수 없습니다. 키보드로 입력해주세요.',
+    /** 인식된 말이 아직 없을 때 자리를 지키는 안내 — 시안 외 임시 카피. */
+    transcriptHint: '말씀하신 내용이 여기에 보여요',
     keyboardFallback: '키보드로 입력하기',
     textPlaceholder: '전달할 내용을 입력하세요',
     textConfirm: '확인',
     /**
-     * 10초(임시값, mock.ts) 안에 인식하지 못했을 때의 알림 — 시안 주석
+     * 한 마디도 알아듣지 못한 채 세션이 끝났을 때의 알림 — 시안 주석
      * ("인식하지 못하면 다시 해달라는 알림창")을 옮긴 것으로, 문구 자체는 시안 외 임시 카피.
+     * 대기 시간은 features/voice/stt/config.ts 의 STT_NO_SPEECH_TIMEOUT_MS(임시값).
      */
     timeoutTitle: '음성을 인식하지 못했어요',
     timeoutBody: '다시 한 번 말씀해 주세요',
     timeoutConfirm: '확인',
+    /**
+     * 음성 인식(STT) 상태 안내 — 전부 시안 외 임시 카피.
+     *
+     * 공통 원칙: **막다른 길을 만들지 않는다.** 음성이 안 되는 이유가 무엇이든 마지막 문장은
+     * 항상 "키보드로 입력해주세요"다 — 키보드가 유일하게 남는 경로이기 때문이다.
+     */
+    stt: {
+      /** 이 브라우저에 음성 인식 엔진이 없다(iOS 계열 등). 고장이 아니라 정상 경로다. */
+      unsupported: '이 기기에서는 음성 인식을 쓸 수 없어요. 키보드로 입력해주세요.',
+      /** 네이티브(Expo Go) — 웹에서만 동작한다는 사실을 그대로 알린다. */
+      unsupportedNative: '음성 인식은 현재 웹에서만 동작해요. 키보드로 입력해주세요.',
+      /**
+       * http 로 열었을 때. 카메라(useLandmarker.web.ts)와 같은 제약·같은 해법이라 안내도
+       * 같은 형태로 맞췄다 — 폰 사용자에게 "localhost 로 접속하라"만 말하면 할 수 있는 일이 없다.
+       */
+      insecureContext:
+        '음성 인식은 보안 컨텍스트(https)에서만 열려요. 폰에서 보고 있다면 `pnpm serve:mobile` 이 띄운 https 주소로, PC 라면 localhost 주소로 여세요.',
+      denied: '마이크 권한이 거부됐어요. 브라우저 권한을 허용하거나 키보드로 입력해주세요.',
+      noMicrophone: '사용할 수 있는 마이크를 찾지 못했어요. 키보드로 입력해주세요.',
+      network: '음성 인식 서비스에 연결하지 못했어요. 키보드로 입력해주세요.',
+      failed: '음성 인식에 문제가 생겼어요. 키보드로 입력해주세요.',
+    },
   },
 
   signVideo: {

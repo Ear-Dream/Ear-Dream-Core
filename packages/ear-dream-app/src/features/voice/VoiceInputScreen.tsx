@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Badge } from '../../components/Badge';
@@ -7,16 +7,17 @@ import { CircleIconButton } from '../../components/CircleIconButton';
 import { Ripple } from '../../components/Ripple';
 import { ScreenFrame } from '../../components/ScreenFrame';
 import { Waveform, WAVEFORM_BAR_COUNT } from '../../components/Waveform';
-import { VOICE_LISTEN_TIMEOUT_MS } from '../../constants/mock';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
 import { useMicLevels } from './audio';
+import { useSpeechToText } from './stt';
 
 export interface VoiceInputScreenProps {
-  /** 듣는 중 상태에서 정지 탭 — 실제 녹음/STT 는 미구현이고 인식 중 화면으로 흐름만 진행한다(mock). */
-  onStopListening: () => void;
-  /** 키보드 폴백 제출. 입력 텍스트는 STT 미구현이라 다음 화면에서 아직 소비하지 않는다(mock). */
-  onTextSubmit: (text: string) => void;
+  /**
+   * 전달할 문장이 확정됐다 — **음성 인식 결과 또는 키보드 입력**. 두 경로를 하나로 받는 이유는
+   * 다음 화면 입장에서 차이가 없기 때문이다(어느 쪽이든 "청인이 말한 내용"이다).
+   */
+  onSubmit: (text: string) => void;
   onBack: () => void;
 }
 
@@ -24,32 +25,70 @@ export interface VoiceInputScreenProps {
  * 음성 입력 화면 (V2 시안 "음성 입력"): 동심원 + 마이크 버튼 + 파형 + 키보드 폴백.
  *
  * - idle ↔ 듣는 중: 마이크 탭으로 전환. 듣는 중에는 버튼이 빨간 정지 사각형으로 바뀌고
- *   "● 듣고 있어요" 배지가 붙고 물결이 퍼진다. 듣는 중에서 정지 탭 → 인식 중 → 수어로 보기.
- * - 타임아웃: 시안 주석 "음성 인식 시간(10초 이내)로 인식하지 못하면 다시 해달라는 알림창
- *   → 프론트에서 처리". 듣는 중이 10초(임시값, mock.ts) 지속되면 알림을 띄우고 idle 로
- *   복귀하는 mock 이다. RN 의 Alert.alert 는 웹에서 동작하지 않아 인앱 Modal 로 구현했다.
- * - 파형: 듣는 중일 때만 실제 마이크 레벨을 그린다. 마이크는 레벨 표시에만 쓰고 녹음·전송은
- *   하지 않는다(STT 미구현). idle 에서 마이크를 잡지 않으므로 권한 요청도 마이크를 누른
- *   시점에 처음 뜬다.
+ *   "● 듣고 있어요" 배지가 붙고 물결이 퍼진다. 정지 탭 → 인식된 문장을 다음 화면으로 넘긴다.
+ * - 인식 텍스트: 듣는 동안 확정 텍스트 + 중간 텍스트(흐린 색)를 함께 보여준다. 폰을 든 사람은
+ *   농인이라 상대의 말소리를 듣지 못하므로, 글자가 쌓이는 것이 "잘 잡히고 있다"의 유일한
+ *   신호다(파형은 소리가 났다는 것까지만 알려준다).
+ * - 못 알아들었을 때: 훅이 빈 결과를 돌려주면 알림을 띄우고 idle 로 돌아간다. 시안 주석
+ *   ("음성 인식 시간(10초 이내)로 인식하지 못하면 다시 해달라는 알림창 → 프론트에서 처리")이
+ *   여기에 해당하고, 대기 시간은 이제 화면 타이머가 아니라 STT 훅의 무음 안전장치가 센다
+ *   (stt/config.ts). RN 의 Alert.alert 는 웹에서 동작하지 않아 인앱 Modal 로 구현했다.
+ * - 음성을 못 쓰는 환경(네이티브 · iOS 계열 브라우저 · 권한 거부 · http): 마이크 버튼을 끄고
+ *   이유를 캡션으로 알리며 **키보드 입력을 자동으로 펼친다**. 남은 유일한 경로라서다.
  */
-export function VoiceInputScreen({ onStopListening, onTextSubmit, onBack }: VoiceInputScreenProps) {
-  const [listening, setListening] = useState(false);
+export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
   const [timeoutVisible, setTimeoutVisible] = useState(false);
   const [textMode, setTextMode] = useState(false);
   const [text, setText] = useState('');
 
+  // 콜백 신원이 바뀌어도 훅 세션이 흔들리지 않게 ref 로 들고 최신 것을 부른다.
+  const onSubmitRef = useRef(onSubmit);
+  onSubmitRef.current = onSubmit;
+
+  const handleResult = useCallback((recognized: string) => {
+    // 빈 문자열 = 한 마디도 알아듣지 못했다. 다음 화면으로 넘기면 빈 자막이 되므로 여기서 멈춘다.
+    if (recognized.length === 0) {
+      setTimeoutVisible(true);
+      return;
+    }
+    onSubmitRef.current(recognized);
+  }, []);
+
+  const stt = useSpeechToText({ onResult: handleResult });
+  // 'processing'(결과 확정 대기)까지 듣는 중으로 묶는다 — 사용자가 정지를 누른 직후 버튼이
+  // 마이크로 되돌아갔다가 다시 정지로 바뀌는 깜빡임을 막는다.
+  const listening =
+    stt.status === 'starting' || stt.status === 'listening' || stt.status === 'processing';
+  const sttUnavailable =
+    stt.status === 'unsupported' || stt.status === 'denied' || stt.status === 'error';
+
+  /*
+    ⚠️ 마이크를 여는 주체가 둘이다. `useMicLevels` 는 파형을 그리려고 getUserMedia 로 스트림을
+    잡고, 음성 인식 엔진은 자기 마이크를 따로 연다. 같은 `listening` 하나로 둘이 동시에 켜진다.
+
+    데스크톱 Chrome 에서 둘이 부딪히는 것은 관측하지 못했지만 **실기기에서 확인되지 않았다** —
+    부딪히면 STT 가 'audio-capture'(= 마이크 없음)로 실패하거나 파형이 멈춘다. 둘 중 무엇이
+    죽든 사용자에게는 "고장"으로 보인다.
+
+    부딪히는 것이 확인되면 잘라낼 곳은 여기다: 파형은 장식이고 인식이 기능이므로,
+    `useMicLevels` 의 active 인자를 false 로 두어 **파형을 포기하고 인식을 살린다**.
+    (반대로 하지 말 것 — 파형만 남으면 아무것도 못 한다.) 확인 전에 미리 자르지는 않는다.
+  */
   const { amplitudes, status: micStatus } = useMicLevels(listening, WAVEFORM_BAR_COUNT);
   const micUnavailable =
     micStatus === 'denied' || micStatus === 'unsupported' || micStatus === 'error';
 
+  // 음성이 막힌 환경에서는 키보드가 유일한 경로다. 사용자가 "키보드로 입력하기"를 찾아
+  // 누르기를 기다리지 않고 미리 펼쳐 둔다.
   useEffect(() => {
-    if (!listening) return;
-    const timer = setTimeout(() => {
-      setListening(false);
-      setTimeoutVisible(true);
-    }, VOICE_LISTEN_TIMEOUT_MS);
-    return () => clearTimeout(timer);
-  }, [listening]);
+    if (sttUnavailable) setTextMode(true);
+  }, [sttUnavailable]);
+
+  const caption =
+    stt.error ??
+    (micUnavailable
+      ? strings.voiceInput.micUnavailableCaption
+      : strings.voiceInput.noiseCaption);
 
   return (
     <ScreenFrame
@@ -57,10 +96,8 @@ export function VoiceInputScreen({ onStopListening, onTextSubmit, onBack }: Voic
       onBack={onBack}
       footer={
         <>
-          <Text style={styles.noiseCaption}>
-            {micUnavailable
-              ? strings.voiceInput.micUnavailableCaption
-              : strings.voiceInput.noiseCaption}
+          <Text style={styles.noiseCaption} testID="voice-caption">
+            {caption}
           </Text>
           {textMode ? (
             <View style={styles.textRow}>
@@ -76,7 +113,11 @@ export function VoiceInputScreen({ onStopListening, onTextSubmit, onBack }: Voic
                 label={strings.voiceInput.textConfirm}
                 variant="outline"
                 disabled={text.trim().length === 0}
-                onPress={() => onTextSubmit(text.trim())}
+                onPress={() => {
+                  // 키보드로 넘어간 순간 마이크는 놓는다 — 두 입력이 동시에 살아 있을 이유가 없다.
+                  stt.cancel();
+                  onSubmitRef.current(text.trim());
+                }}
                 testID="voice-text-confirm"
               />
             </View>
@@ -104,9 +145,12 @@ export function VoiceInputScreen({ onStopListening, onTextSubmit, onBack }: Voic
         <View style={styles.micStage}>
           <View style={[styles.pond, listening && styles.pondListening]}>
             <CircleIconButton
-              onPress={listening ? onStopListening : () => setListening(true)}
+              onPress={listening ? stt.stop : stt.start}
               accessibilityLabel={listening ? strings.voiceInput.stopAlt : strings.voiceInput.micAlt}
               size={MIC_BUTTON_SIZE}
+              // 음성을 못 쓰는 환경에서는 누를 수 없게 한다. 이유는 하단 캡션이 말해준다
+              // (CircleIconButton 주석의 "왜 못 누르는지는 버튼 밖에서" 규칙).
+              disabled={sttUnavailable}
               style={[styles.micButton, listening && styles.micButtonListening]}
               testID="voice-mic"
             >
@@ -134,7 +178,7 @@ export function VoiceInputScreen({ onStopListening, onTextSubmit, onBack }: Voic
           />
         </View>
 
-        {listening ? (
+        {stt.status === 'listening' ? (
           <Badge
             label={strings.voiceInput.listeningBadge}
             variant="listening"
@@ -142,10 +186,33 @@ export function VoiceInputScreen({ onStopListening, onTextSubmit, onBack }: Voic
           />
         ) : null}
 
+        {/*
+          인식 텍스트. 듣는 동안에만 자리를 차지한다(idle 에서 빈 칸이 남지 않게).
+          중간 텍스트는 흐린 색이다 — 아직 바뀔 수 있는 값이라 확정 텍스트와 같은 무게로
+          보여주면 안 된다. 최종 결과로도 확정 텍스트를 우선한다(stt 훅 finish 참고).
+        */}
+        {listening ? (
+          <Text style={styles.transcript} numberOfLines={3} testID="voice-transcript">
+            {stt.transcript.length === 0 && stt.interimTranscript.length === 0 ? (
+              <Text style={styles.transcriptHint}>{strings.voiceInput.transcriptHint}</Text>
+            ) : (
+              <>
+                {stt.transcript}
+                {stt.interimTranscript.length > 0 ? (
+                  <Text style={styles.transcriptInterim}>
+                    {stt.transcript.length > 0 ? ' ' : ''}
+                    {stt.interimTranscript}
+                  </Text>
+                ) : null}
+              </>
+            )}
+          </Text>
+        ) : null}
+
         <Waveform amplitudes={amplitudes} testID="voice-waveform" />
       </View>
 
-      {/* 타임아웃 알림 — 웹에서 Alert.alert 가 no-op 이라 인앱 Modal 을 쓴다. */}
+      {/* 못 알아들었을 때의 알림 — 웹에서 Alert.alert 가 no-op 이라 인앱 Modal 을 쓴다. */}
       <Modal visible={timeoutVisible} transparent animationType="fade">
         <View style={styles.modalScrim}>
           <View style={styles.modalCard} testID="voice-timeout-modal">
@@ -188,6 +255,23 @@ const styles = StyleSheet.create({
     color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
+  },
+  transcript: {
+    fontFamily: fonts.medium,
+    fontSize: 18,
+    lineHeight: 26,
+    color: colors.text.primary,
+    textAlign: 'center',
+    paddingHorizontal: spacing.lg,
+  },
+  transcriptHint: {
+    fontFamily: fonts.regular,
+    fontSize: 15,
+    color: colors.text.secondary,
+  },
+  /** 아직 확정되지 않은 구간 — 흐리게. */
+  transcriptInterim: {
+    color: colors.text.secondary,
   },
   micStage: {
     width: RIPPLE_SIZE,
