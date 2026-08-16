@@ -18,6 +18,7 @@
 | 에이전트 | 담당 |
 | --- | --- |
 | `architect` | 설계 판단, 문서·코드 정합성, 새 의존성 도입 |
+| `architecture-reviewer` | 이미 쓰인 코드의 **구조** 리뷰(모듈 경계·의존 방향·중복·복잡도). 코드를 고치지 않고 리뷰 문서를 낸다 — 설계 **결정**은 `architect` 몫 |
 | `pm` | Tasks DB와 코드 상태 대조, 다음 작업 결정 |
 | `prd-writer` | PRD 작성. 산출물은 Notion으로 간다 |
 | `api-architect` | 엔드포인트·요청/응답 설계 |
@@ -28,7 +29,9 @@
 | `api-integrator` | 생성 타입 소비, 호출 시점·취소·에러 상태 |
 
 `.claude/skills/` — `frontend-dev`(앱 개발 규칙), `api-designer`(API 설계 파이프라인),
-`rest-api-conventions`·`api-error-design`(api-architect 확장). 해당 파트를 건드리기 전에 읽는다.
+`rest-api-conventions`·`api-error-design`(api-architect 확장),
+`refactoring-catalog`(architecture-reviewer 확장 — 코드 스멜·복잡도 기준).
+해당 파트를 건드리기 전에 읽는다.
 
 `api-*` 계열 에이전트와 스킬은 다른 프로젝트에서 가져온 것이라 각 문서 앞부분에
 **「이 프로젝트에서」/「이 프로젝트 적용」 절**이 붙어 있다. 그 절이 문서의 일반 원칙보다 우선한다.

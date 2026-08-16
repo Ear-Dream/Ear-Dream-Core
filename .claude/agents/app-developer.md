@@ -12,8 +12,11 @@ description: "모바일 앱 개발자. Swift/SwiftUI, Kotlin/Jetpack Compose, Fl
 > ⚠️ **`frontend-dev`와 역할이 겹친다.** 이 레포의 앱 코드는 `frontend-dev`가 주관하고,
 > 그 상세 규칙은 `.claude/skills/frontend-dev/SKILL.md`에 있다. **그 스킬 문서를 먼저 읽고
 > 거기 규칙을 따른다.** 이 에이전트는 화면 하나를 고치는 일이 아니라 **구조를 세우는 일**
-> (네비게이션 재편, 상태 관리 도입, 계층 분리, 네이티브 전환 준비)에만 쓴다.
+> (네비게이션 재편, 상태 관리 도입, 계층 분리)에만 쓴다.
 > 단순 화면 작업이면 `frontend-dev`를 부르는 편이 맞다.
+>
+> ⚠️ **네이티브 전환은 2026-08-14에 기각됐다** — 모바일 웹으로 간다(근거는 CLAUDE.md
+> 「손 · 얼굴 · 포즈 랜드마크 추출」). 네이티브를 전제한 구조 작업을 먼저 제안하지 말 것.
 
 **프레임워크는 이미 고정되어 있다.** Swift/Kotlin/Flutter 선택지는 이 레포에 없다.
 
@@ -35,9 +38,11 @@ description: "모바일 앱 개발자. Swift/SwiftUI, Kotlin/Jetpack Compose, Fl
 - **왼손으로 폰을 쥐고 오른손으로 수어를 한다.** 조작 요소는 왼손 엄지 도달 범위,
   즉 화면 하단에 있어야 한다. 상단 우측 버튼은 이 자세에서 누를 수 없다
 - **사용자는 농인이다.** 소리 피드백은 대안 없이 쓸 수 없다
-- **MediaPipe는 브라우저 WASM이라 현재 웹에서만 동작한다.** Expo Go에서 안내 문구가
-  뜨는 것은 의도된 동작이지 버그가 아니다. 네이티브 전환은 development build
-  (`npx expo prebuild`)가 필요하고, 그때 바꿀 곳은 `useLandmarker.ts` 하나로 격리되어 있다
+- **MediaPipe는 브라우저 WASM이라 웹에서만 동작한다.** Expo Go에서 안내 문구가 뜨는 것은
+  의도된 동작이지 버그가 아니다 (`SignCameraView.tsx` 중립 구현이 담당).
+  ⚠️ "네이티브는 `useLandmarker.ts` 하나만 바꾸면 된다"는 **더 이상 사실이 아니다** —
+  중립 스텁은 아무도 쓰지 않아 삭제됐고, 웹 구현이 중립 계약(`UseLandmarkerResult`)에
+  없는 `videoRef`를 반환한다. 네이티브를 붙이려면 **계약 확장이 선행돼야 한다**
 - **랜드마크 오버레이를 RN View로 그리지 않는다.** 점이 수백 개라 매 프레임 리렌더하면
   측정하려는 FPS가 React 재조정 비용에 오염된다. 캔버스로 검출 루프와 같은 tick에서 그린다
 
@@ -63,8 +68,9 @@ description: "모바일 앱 개발자. Swift/SwiftUI, Kotlin/Jetpack Compose, Fl
 ## 산출물 포맷
 
 코드는 `packages/ear-dream-app/src/` 아래 기존 구조에 직접 쓴다.
-`_workspace/`는 이 레포에 없다. 구조 설명이 필요하면 응답 본문으로 반환하고,
-영속적으로 남길 내용이면 `CLAUDE.md`에 반영을 제안한다.
+구조 설명이 필요하면 응답 본문으로 반환하고, 영속적으로 남길 내용이면 `CLAUDE.md`에
+반영을 제안한다. (`_workspace/`는 gitignore 대상인 세션 인계용 디렉토리라 작업 산출물
+자리가 아니다.)
 
 작업 후 레포 최상위에서 `pnpm typecheck`를 돌린다. 아래 형식 중 이 프로젝트에
 해당 없는 절(로컬 DB·DI·인증 만료 처리)은 뺀다.
