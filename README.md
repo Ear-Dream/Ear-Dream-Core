@@ -271,8 +271,13 @@ EXPO_PUBLIC_LANDMARK_DEV=1 pnpm build:web-mobile
 | iOS 시뮬레이터 | 터미널에서 `i` | Xcode (macOS 전용) |
 
 현재는 웹이 기본 시연 대상이다. 카메라·랜드마크 추출(손·얼굴·포즈)이 브라우저 WASM 기반이라
-웹에서만 동작하고, 실기기(Expo Go)에서는 해당 화면에 안내 문구가 표시된다. 실기기는 웹 이외
-화면의 레이아웃 확인과 추후 네이티브 전환 검증에 쓴다.
+웹에서만 동작하고, Expo Go에서는 해당 화면에 안내 문구가 표시된다(의도된 동작이다).
+Expo Go는 카메라 이외 화면의 레이아웃 확인용으로만 쓴다.
+
+**폰에서 카메라까지 써 보려면 Expo Go가 아니라 「실기기(모바일 웹)」로 간다.** 모바일도
+네이티브가 아닌 웹으로 간다 — 라이브 보정 상수가 브라우저 추출기(tasks-vision)로 찍은
+데이터에 피팅돼 있어, 추출기를 바꾸면 모델은 그대로여도 그 근거가 무효가 된다
+(자세한 근거는 `CLAUDE.md`).
 
 iOS 시뮬레이터는 macOS에서만 사용할 수 있다. Xcode 설치 후 아래를 한 번 실행한다.
 Command Line Tools만으로는 동작하지 않는다.
@@ -285,13 +290,17 @@ Windows에서는 iOS 확인이 필요할 때 실제 기기의 Expo Go를 사용�
 
 ### API 주소 설정
 
-앱은 `EXPO_PUBLIC_API_URL`로 API 서버를 찾는다. 실행 대상에 따라 주소가 다르다.
+앱은 `EXPO_PUBLIC_API_URL`로 API 서버를 찾는다.
+
+> **「실기기(모바일 웹)」 경로에서는 이 설정이 필요 없다.** `pnpm build:web-mobile`이
+> `EXPO_PUBLIC_API_URL`을 빈 값으로 빌드해 상대 경로를 쓰고, `pnpm serve:mobile`이 웹과
+> API를 한 오리진으로 묶는다. 아래는 **Expo Go·에뮬레이터**로 앱을 띄울 때의 이야기다.
 
 | 실행 대상 | 주소 |
 | --- | --- |
 | 웹 브라우저, iOS 시뮬레이터 | 기본값 (`http://localhost:8000`) |
 | Android 에뮬레이터 | `http://10.0.2.2:8000` |
-| 실제 기기 | `http://<PC의 LAN IP>:8000` |
+| Expo Go (실제 기기) | `http://<PC의 LAN IP>:8000` |
 
 기본값이 아닌 경우 `packages/ear-dream-app/.env`에 설정한다. `.env.example` 참고.
 
@@ -299,7 +308,7 @@ Windows에서는 iOS 확인이 필요할 때 실제 기기의 Expo Go를 사용�
 EXPO_PUBLIC_API_URL=http://192.168.0.10:8000
 ```
 
-실제 기기에서는 API 서버도 외부 접속을 허용해야 한다.
+LAN IP로 붙을 때는 API 서버도 외부 접속을 허용해야 한다.
 
 ```bash
 cd packages/ear-dream-api
