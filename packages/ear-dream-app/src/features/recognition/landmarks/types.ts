@@ -202,6 +202,15 @@ export interface UseLandmarkerResult {
    * 요청값과 다를 수 있다(GPU 실패 시 CPU 폴백). FPS 를 기록할 때 반드시 함께 적는다.
    */
   delegate: LandmarkerDelegate | null;
+  /**
+   * GPU 를 **명시 캔버스로 되살렸는지** (iOS WebView 워크어라운드가 실제로 발동했는지).
+   *
+   * delegate 는 이 경우에도 'GPU' 다 — 추론 백엔드가 같아서 수치가 달라지지 않기 때문이고,
+   * 서버로 나가는 CaptureMeta.delegate 값도 그래서 바뀌지 않는다. 다만 "그냥 GPU 가 됐다" 와
+   * "워크어라운드가 있어야 GPU 가 됐다" 는 실기기 진단에서 전혀 다른 정보라 따로 노출한다.
+   * 근거는 useLandmarker.web.ts 의 3단 폴백 주석 참고.
+   */
+  gpuCanvasFallback: boolean;
   /** 입력 영상 해상도. 아직 모르면 0. */
   sourceWidth: number;
   sourceHeight: number;

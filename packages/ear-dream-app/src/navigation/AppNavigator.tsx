@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 
 import { Button } from '../components/Button';
+import { LANDMARK_DEV_ENABLED } from '../constants/devFlags';
 import { spacing } from '../constants/theme';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { useVocabulary } from '../features/recognition/api/useVocabulary';
@@ -52,7 +53,11 @@ export function AppNavigator() {
         <HomeScreen
           onStartSign={goSignFlow}
           onStartVoice={goVoiceInput}
-          onOpenLandmarkDev={__DEV__ ? () => setScreen({ name: 'landmarkDev' }) : undefined}
+          // 프로덕션 웹 빌드(실기기 모바일)에서도 열 수 있다 — 실기기 FPS 실측 때문이다.
+          // 근거는 constants/devFlags.ts 참고.
+          onOpenLandmarkDev={
+            LANDMARK_DEV_ENABLED ? () => setScreen({ name: 'landmarkDev' }) : undefined
+          }
         />
       );
     case 'signFlow':

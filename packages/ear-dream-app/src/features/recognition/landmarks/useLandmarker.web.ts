@@ -48,6 +48,7 @@ import type {
 } from './types';
 import type { VisionRuntime } from './visionRuntime.web';
 import { loadVisionRuntime } from './visionRuntime.web';
+import { keepScreenAwake } from './wakeLock.web';
 
 /** 웹 구현은 붙일 <video> 엘리먼트가 필요하다. 이 ref 를 <video> 에 그대로 넘긴다. */
 export interface WebLandmarkerResult extends UseLandmarkerResult {
@@ -79,17 +80,35 @@ const EMPTY_DISPLAY: DisplayState = {
 };
 
 /**
+ * WebGL 컨텍스트를 붙일 캔버스를 새로 만든다(DOM 에 붙이지 않는다).
+ *
+ * tasks-vision 의 `VisionTaskOptions.canvas` 는 문서화된 공식 옵션이며, 지정하지 않으면
+ * 라이브러리가 내부에서 캔버스를 만든다. **평상시에는 지정하지 않는다** — 아래 3단 폴백에서
+ * GPU 생성이 실패했을 때만 쓴다(이유는 createLandmarkerTrio 호출부 주석 참고).
+ *
+ * 모델마다 따로 만든다. 한 캔버스를 셋이 공유하면 두 번째 태스크가 이미 초기화된 컨텍스트를
+ * 만나게 되고, 그 조합은 검증한 적이 없다.
+ */
+function createWebglCanvas(): HTMLCanvasElement {
+  return document.createElement('canvas');
+}
+
+/**
  * 손·얼굴·포즈 landmarker 를 같은 백엔드로 함께 만든다.
  * 일부만 성공하면 성공한 쪽을 닫는다 — 안 닫으면 WASM 힙에 그대로 남는다.
+ *
+ * `bindCanvas` 가 true 면 모델마다 빈 <canvas> 를 만들어 넘긴다(iOS WebView 워크어라운드).
  */
 async function createLandmarkerTrio(
   vision: VisionRuntime,
   fileset: Awaited<ReturnType<typeof vision.FilesetResolver.forVisionTasks>>,
   delegate: LandmarkerDelegate,
+  bindCanvas = false,
 ): Promise<[HandLandmarker, FaceLandmarker, PoseLandmarker]> {
   const [hand, face, pose] = await Promise.allSettled([
     vision.HandLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: HAND_LANDMARKER_MODEL_PATH, delegate },
+      ...(bindCanvas ? { canvas: createWebglCanvas() } : null),
       // 양손 모두 검출한다. 어느 손을 쓸지 고르는 로직은 T-04.
       numHands: MAX_HANDS,
       runningMode: 'VIDEO',
@@ -97,12 +116,14 @@ async function createLandmarkerTrio(
     }),
     vision.FaceLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_PATH, delegate },
+      ...(bindCanvas ? { canvas: createWebglCanvas() } : null),
       numFaces: MAX_FACES,
       runningMode: 'VIDEO',
       // outputFaceBlendshapes 는 켜지 않는다. 표정 축약은 서버 전처리 소관이다. config.ts 참고.
     }),
     vision.PoseLandmarker.createFromOptions(fileset, {
       baseOptions: { modelAssetPath: POSE_LANDMARKER_MODEL_PATH, delegate },
+      ...(bindCanvas ? { canvas: createWebglCanvas() } : null),
       numPoses: MAX_POSES,
       runningMode: 'VIDEO',
       // outputSegmentationMasks 는 켜지 않는다. 좌표만 필요하고 마스크는 추가 비용이다.
@@ -173,12 +194,15 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
   const [display, setDisplay] = useState<DisplayState>(EMPTY_DISPLAY);
   // 요청값이 아니라 실제로 적용된 백엔드. 폴백이 일어나면 요청값과 달라진다.
   const [activeDelegate, setActiveDelegate] = useState<LandmarkerDelegate | null>(null);
+  // GPU 를 명시 캔버스로 되살렸는지. 개발 화면 HUD 표시용 — start() 안의 3단 폴백 주석 참고.
+  const [gpuCanvasFallback, setGpuCanvasFallback] = useState(false);
 
   useEffect(() => {
     if (!enabled) {
       setStatus('idle');
       setDisplay(EMPTY_DISPLAY);
       setActiveDelegate(null);
+      setGpuCanvasFallback(false);
       return;
     }
 
@@ -186,7 +210,9 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       setStatus('unsupported');
       setError(
         window.isSecureContext === false
-          ? '카메라는 보안 컨텍스트(https 또는 localhost)에서만 쓸 수 있습니다. localhost 주소로 접속하세요.'
+          ? // 실기기(폰)는 localhost 가 아니므로 https 가 유일한 길이다. 그래서 "localhost 로
+            // 접속하라"만 안내하면 폰 사용자는 할 수 있는 일이 없다 — https 서빙 경로를 먼저 안내한다.
+            '카메라는 보안 컨텍스트에서만 열립니다. 폰에서 보고 있다면 `pnpm serve:mobile` 이 띄운 https 주소로 접속하세요(README 「실기기 모바일 웹」). PC 라면 localhost 주소로 여세요.'
           : '이 브라우저에서는 카메라를 사용할 수 없습니다.',
       );
       return;
@@ -195,6 +221,9 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     let cancelled = false;
     let rafId = 0;
     let stream: MediaStream | null = null;
+    // 카메라가 도는 동안 화면이 잠들지 않게 한다. 지원하지 않는 환경에서는 no-op 다(wakeLock.web.ts).
+    // 카메라 화면을 벗어나면 아래 cleanup 에서, 탭이 백그라운드로 가면 컨트롤러 내부에서 해제된다.
+    const wakeLock = keepScreenAwake();
     let handLandmarker: HandLandmarker | null = null;
     let faceLandmarker: FaceLandmarker | null = null;
     let poseLandmarker: PoseLandmarker | null = null;
@@ -263,7 +292,21 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
 
       // 세 모델은 항상 함께 만든다. faceEnabled 는 "이번 프레임에 부를지" 만 정한다 —
       // 토글할 때마다 모델을 만들고 닫으면 그 비용이 측정하려는 FPS 에 섞여 들어간다.
+      //
+      // 생성은 3단이다: GPU → GPU + 명시 캔버스 → CPU.
+      //
+      // 가운데 단계가 iOS WKWebView 워크어라운드다. 그쪽에서 MediaPipe 가
+      // `emscripten_webgl_create_context() returned error 0` 으로 GPU 컨텍스트를 못 만드는
+      // 사례가 보고돼 있고(google-ai-edge/mediapipe#4499), 빈 <canvas> 를 만들어
+      // `createFromOptions` 에 넘기면 넘어간다는 워크어라운드가 함께 보고돼 있다.
+      // `canvas` 는 tasks-vision 이 문서화한 공식 옵션(VisionTaskOptions)이다.
+      //
+      // ⚠️ 이 워크어라운드는 **실기기 iOS 에서 검증되지 않았다**(이 레포에 iOS 실측 수단이 없다).
+      // 그래서 평상시 경로에 끼워 넣지 않고 **GPU 가 실패했을 때만** 시도한다 — GPU 가 되는
+      // 환경(데스크톱 Chrome 등)의 동작은 이 변경 전과 완전히 동일하다. 안 되는 환경에서는
+      // 어차피 다음 단계가 CPU 였고, 폰 CPU 로 3모델은 실용성이 의심스러우니 시도할 값이 있다.
       let delegate: LandmarkerDelegate = requestedDelegate;
+      let canvasFallback = false;
       try {
         [handLandmarker, faceLandmarker, poseLandmarker] = await createLandmarkerTrio(
           vision,
@@ -273,13 +316,24 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       } catch (cause) {
         // WebGL 을 못 쓰는 환경이 있을 수 있다. 백엔드 때문에 전체가 죽는 것보다 느려도 도는 게 낫다.
         if (delegate === 'CPU') throw cause;
-        console.warn('GPU delegate 생성 실패, CPU 로 폴백합니다.', cause);
-        delegate = 'CPU';
-        [handLandmarker, faceLandmarker, poseLandmarker] = await createLandmarkerTrio(
-          vision,
-          fileset,
-          delegate,
-        );
+        console.warn('GPU delegate 생성 실패, 명시 캔버스로 재시도합니다.', cause);
+        try {
+          [handLandmarker, faceLandmarker, poseLandmarker] = await createLandmarkerTrio(
+            vision,
+            fileset,
+            delegate,
+            true,
+          );
+          canvasFallback = true;
+        } catch (canvasCause) {
+          console.warn('명시 캔버스로도 GPU 생성 실패, CPU 로 폴백합니다.', canvasCause);
+          delegate = 'CPU';
+          [handLandmarker, faceLandmarker, poseLandmarker] = await createLandmarkerTrio(
+            vision,
+            fileset,
+            delegate,
+          );
+        }
       }
       if (cancelled) {
         handLandmarker.close();
@@ -290,6 +344,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
 
       appliedDelegate = delegate;
       setActiveDelegate(delegate);
+      setGpuCanvasFallback(canvasFallback);
       setStatus('running');
       rafId = requestAnimationFrame(tick);
     }
@@ -386,6 +441,13 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
         fps: measureFps(timestampMs),
         timings: { handDetectMs, faceDetectMs, poseDetectMs },
         timestampMs,
+        // 매 프레임 <video> 에서 실측한다 — 캐시하지 않는다.
+        //
+        // 이 값은 서버 전처리의 **입력값**이다(x_scale = (W/H) / (16/9)). 폰을 돌리면
+        // videoWidth/Height 가 뒤바뀌는 브라우저가 있고, 그때 캐시된 값을 계속 실으면 좌표계가
+        // 통째로 어긋난다. 그래서 방향 전환을 여기서 "처리" 하지 않고, 그냥 그 프레임의 실측값을
+        // 그대로 싣는다. 세그먼트 안에서 이 값이 바뀌는 경우(= 프레임마다 좌표계가 다른 경우)는
+        // useSegmentRecorder 가 감지해 그 세그먼트를 폐기한다.
         sourceWidth: video.videoWidth,
         sourceHeight: video.videoHeight,
         delegate: appliedDelegate,
@@ -410,6 +472,9 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     }
 
     start().catch((cause: unknown) => {
+      // 카메라가 안 열렸는데 화면만 계속 켜 두면 배터리만 먹는다. 재시도(enabled 토글) 시
+      // 이 effect 가 다시 돌면서 새로 취득한다.
+      wakeLock.release();
       if (cancelled) return;
       setStatus('error');
       setError(describeStartupError(cause));
@@ -417,6 +482,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
 
     return () => {
       cancelled = true;
+      wakeLock.release();
       cancelAnimationFrame(rafId);
       handLandmarker?.close();
       faceLandmarker?.close();
@@ -438,6 +504,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     fps: display.fps,
     timings: display.timings,
     delegate: activeDelegate,
+    gpuCanvasFallback,
     sourceWidth: display.sourceWidth,
     sourceHeight: display.sourceHeight,
     videoRef,

@@ -24,6 +24,7 @@ export function useLandmarker(_options: UseLandmarkerOptions = {}): UseLandmarke
     fps: 0,
     timings: { handDetectMs: 0, faceDetectMs: 0, poseDetectMs: 0 },
     delegate: null,
+    gpuCanvasFallback: false,
     sourceWidth: 0,
     sourceHeight: 0,
   };

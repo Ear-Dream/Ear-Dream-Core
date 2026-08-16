@@ -66,6 +66,7 @@ export function CameraLandmarkView() {
     fps,
     timings,
     delegate: activeDelegate,
+    gpuCanvasFallback,
     sourceWidth,
     sourceHeight,
     videoRef,
@@ -159,6 +160,14 @@ export function CameraLandmarkView() {
             {activeDelegate && activeDelegate !== delegate ? ` (${delegate} 실패 → 폴백)` : ''}
           </span>
         </div>
+        {/* GPU 가 그냥 됐는지, 워크어라운드가 있어야 됐는지는 실기기 진단에서 다른 정보다.
+            발동한 경우에만 보여준다 — 데스크톱에서는 이 줄이 뜨지 않는 게 정상이다. */}
+        {gpuCanvasFallback ? (
+          <div style={styles.hudRow}>
+            <strong>GPU 캔버스 워크어라운드</strong>
+            <span>적용됨 (기본 GPU 생성 실패)</span>
+          </div>
+        ) : null}
         <div style={styles.hudRow}>
           <strong>손 검출 시간</strong>
           <span>{timings.handDetectMs > 0 ? `${timings.handDetectMs.toFixed(1)}ms` : '—'}</span>

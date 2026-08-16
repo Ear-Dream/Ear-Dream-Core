@@ -115,6 +115,17 @@ https 인증서는 `pnpm setup:https-cert`로 만든다(mkcert 필요, 폰에 �
 node scripts/serve-mobile.mjs --port 8080
 ```
 
+#### 실기기 개발 화면
+
+FPS·단계별 처리 시간·실제 delegate는 홈의 "개발용: 랜드마크 확인 화면"에서 볼 수 있다.
+프로덕션 번들에서는 숨으므로 아래로 연다.
+
+```bash
+EXPO_PUBLIC_LANDMARK_DEV=1 pnpm build:web-mobile
+```
+
+이미 만든 빌드는 `?dev=1`을 붙여 열어도 된다.
+
 ### UI만 보기 (서버 없이)
 
 `pnpm dev:web` 하나로도 앱은 뜬다. 서버가 없으면 수어 인식 요청이 실패했다고 안내되고,

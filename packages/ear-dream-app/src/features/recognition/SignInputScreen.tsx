@@ -9,6 +9,7 @@ import { ScreenFrame } from '../../components/ScreenFrame';
 import { DETECTION_GUIDE_DELAY_MS, RESULT_NOTICE_AUTO_DISMISS_MS } from '../../constants/mock';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
+import { useHandheldLandscape } from '../../hooks/useHandheldLandscape';
 import type {
   QueueNotice,
   RecognitionEntry,
@@ -69,6 +70,8 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
   // 교체(chosenCandidateIndex 변경)가 시트에 즉시 반영되고, 삭제되면 자동으로 닫힌다.
   const [sheetLocalId, setSheetLocalId] = useState<string | null>(null);
   const recorder = useSegmentRecorder();
+  // 모바일 웹에서 폰이 가로로 돌아갔는지. 데스크톱 브라우저는 항상 false 다(훅 주석 참고).
+  const landscape = useHandheldLandscape();
   const guide = useDebouncedGuide(detection);
   const recordSeconds = useRecordSeconds(recorder.recording);
 
@@ -87,8 +90,24 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
 
   // 캡처는 검출 상태(손·어깨)로도, 진행 중 인식으로도 게이팅하지 않는다 — 병렬 요청이
   // 허용되므로 "읽는 중" 에도 다음 단어를 바로 찍는 것이 이 UX 의 핵심이다.
-  // 카메라 구동 여부만 본다.
-  const canCapture = detection.status === 'running';
+  // 카메라 구동 여부와 **화면 방향**만 본다.
+  //
+  // ## 가로에서는 캡처를 막는다 (판단과 근거)
+  //
+  // 선택지는 둘이었다 — (a) 가로에서도 sourceWidth/Height 를 갱신해 계속 동작시키기,
+  // (b) 세로 고정을 전제하고 가로에서는 안내하기. (b)를 골랐다.
+  //
+  //   · 세로가 학습·서빙 계약 쪽에 서 있다. 카메라 요청이 9:16 이고, 서버 AR 보정은
+  //     x_scale = (W/H)/(16/9) 로 x 축 전체를 건드린다. 가로 프레임이 이 경로를 제대로 통과하는지
+  //     **측정된 적이 없다** — 여기서 "아마 될 것" 으로 열어주면 조용히 틀린 데이터가 쌓인다.
+  //   · 서비스 자세 자체가 세로다. 왼손 그립 · 프레이밍 가이드 박스 · 어깨 기준 정규화가 전부
+  //     세로 구도를 전제하고, 어깨가 안 잡히면 서버가 low_quality(shoulders_not_visible)를 단다.
+  //   · (a)를 완전히 버린 것은 아니다. sourceWidth/Height 는 프레임마다 실측값으로 계속 갱신되고
+  //     (useLandmarker.web.ts), 세그먼트 중간에 좌표계가 바뀌면 useSegmentRecorder 가 폐기한다.
+  //     즉 이 안내는 **첫 번째 방어선**이고, 뚫려도 틀린 좌표가 서버로 나가지는 않는다.
+  //
+  // 되돌리는 방법: 가로 검증이 끝나면 아래 `&& !landscape` 와 landscapeNotice 를 걷어내면 된다.
+  const canCapture = detection.status === 'running' && !landscape;
   // ## 계약: 활성 녹화의 종료 트리거는 "사용자가 손가락을 뗌" 단 하나다.
   // 검출 상태 변화, 리렌더, pill/배너 등장, disabled 전환, 제스처 경합 — 그 무엇도
   // 녹화를 끝내면 안 된다. 그래서 녹화 중에는 disabled 값을 동결한다: recording 인 동안
@@ -105,21 +124,31 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
   }, [notice, dismissNotice]);
 
   const handleHoldStart = useCallback(() => {
-    if (detection.status !== 'running') return;
+    if (detection.status !== 'running' || landscape) return;
     setLocalError(null);
     if (notice) dismissNotice();
     captureStartFeedback();
     recorder.start();
-  }, [detection.status, recorder, notice, dismissNotice]);
+  }, [detection.status, landscape, recorder, notice, dismissNotice]);
 
   // 뗌과 시스템 취소(HoldToRecordButton 이 구분 없이 전달)의 공통 종료 지점.
   // 취소라도 그때까지 모인 프레임은 사용자의 실제 동작이므로 버리지 않고 정상 제출한다.
   const handleHoldEnd = useCallback(() => {
     if (!recorder.recording) return;
     captureStopFeedback();
-    void recorder.stop().then((segment) => {
-      if (segment) queue.submitSegment(segment);
-      else setLocalError(strings.signInput.emptySegment);
+    void recorder.stop().then((result) => {
+      switch (result.kind) {
+        case 'segment':
+          queue.submitSegment(result.segment);
+          return;
+        // 기록 도중 좌표계가 바뀐 세그먼트는 보내지 않는다(useSegmentRecorder 주석).
+        // pill 을 만들지 않는 이유: 재전송할 대상 자체가 없다. 다시 동작하는 수밖에 없다.
+        case 'geometry-changed':
+          setLocalError(strings.signInput.geometryChanged);
+          return;
+        case 'empty':
+          setLocalError(strings.signInput.emptySegment);
+      }
     });
   }, [recorder, queue]);
 
@@ -276,7 +305,7 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
           ) : null}
           {/* 프레이밍 가이드 박스(V2 시안) — 얼굴·양어깨·손이 들어올 자리를 시각화한다. */}
           <View style={styles.guideBox} />
-          {detection.status === 'running' ? (
+          {detection.status === 'running' && !landscape ? (
             <Text
               style={[styles.guideText, guide.kind !== 'ok' && styles.guideTextWarn]}
               testID="sign-input-guide"
@@ -285,6 +314,20 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
             </Text>
           ) : null}
         </View>
+
+        {/* 가로 안내 — 프리뷰를 덮는다. 캡처 버튼도 함께 비활성이라 "왜 안 눌리는지"가 여기 보인다.
+            글자에만 의존하지 않게 아이콘을 함께 둔다(접근성 규칙). */}
+        {landscape ? (
+          <View style={styles.landscapeNotice} pointerEvents="none" accessibilityRole="alert">
+            <Text style={styles.landscapeGlyph}>📱</Text>
+            <View style={styles.landscapeTexts}>
+              <Text style={styles.landscapeTitle} testID="sign-input-landscape">
+                {strings.signInput.landscapeTitle}
+              </Text>
+              <Text style={styles.landscapeBody}>{strings.signInput.landscapeBody}</Text>
+            </View>
+          </View>
+        ) : null}
       </View>
 
       <WordCandidateSheet
@@ -439,6 +482,44 @@ const styles = StyleSheet.create({
   guideTextWarn: {
     fontSize: 17,
     lineHeight: 24,
+    color: colors.text.onVideo,
+  },
+  // 가로 안내 — 프리뷰 위 전면 스크림. 시안에 없는 화면이라 배색·치수는 임시값이다.
+  // ⚠️ 이 안내가 뜨는 상황은 정의상 **가로**라 카드 높이가 매우 낮다(실측: 375x812 기준
+  // 가로 전환 시 90px 남짓). 여백을 크게 잡으면 문구가 잘려서, 정작 읽혀야 할 때 안 읽힌다.
+  landscapeNotice: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.md,
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(0, 0, 0, 0.78)',
+  },
+  landscapeTexts: {
+    flexShrink: 1,
+    gap: spacing.xs,
+  },
+  landscapeGlyph: {
+    fontSize: 32,
+    // 세로로 되돌리라는 뜻이 도형으로도 읽히게 눕혀 둔다(색·글자에만 의존하지 않기).
+    transform: [{ rotate: '90deg' }],
+  },
+  landscapeTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 18,
+    lineHeight: 24,
+    color: colors.text.onVideo,
+  },
+  landscapeBody: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+    lineHeight: 18,
     color: colors.text.onVideo,
   },
   // 하단 단어 스트립 — V2 시안 SelectedWordStrip 배치를 pill 큐로 채운 것.
