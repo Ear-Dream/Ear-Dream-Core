@@ -2,6 +2,7 @@
 
 from fastapi import APIRouter
 
+from app.ml.sign_sequences import SEQUENCES
 from app.ml.vocab import ENTRIES, VOCAB_VERSION
 from app.schemas.vocabulary import GlossRef, VocabularyCatalog, VocabularyEntry
 
@@ -10,6 +11,8 @@ router = APIRouter(tags=["vocabulary"])
 
 @router.get("/vocabulary", response_model=VocabularyCatalog)
 def get_vocabulary() -> VocabularyCatalog:
+    # 아바타 보유 여부의 정본은 sign_sequences 매니페스트 하나다 — /sign-sequence 가
+    # no_sequence 를 판정하는 것과 같은 출처라 두 엔드포인트가 어긋나지 않는다.
     return VocabularyCatalog(
         vocab_version=VOCAB_VERSION,
         entries=[
@@ -24,8 +27,8 @@ def get_vocabulary() -> VocabularyCatalog:
                         url=None,
                     )
                 ],
-                has_avatar=False,  # 수어 아바타 미리보기는 MVP 이후
-                avatar_asset_id=None,
+                has_avatar=e.id in SEQUENCES,
+                avatar_asset_id=(seq.sequence_key if (seq := SEQUENCES.get(e.id)) else None),
             )
             for e in ENTRIES
         ],

@@ -1,6 +1,7 @@
 """/vocabulary, /model, /health 형태 검증 (SPOTER-208 300단어)."""
 
 from app.core.config import settings
+from app.ml.sign_sequences import SEQUENCE_COUNT, SEQUENCES
 
 
 def test_vocabulary(client):
@@ -13,10 +14,26 @@ def test_vocabulary(client):
     entry = next(e for e in data["entries"] if e["id"] == "w_1157")
     assert entry["label"] == "나"
     assert entry["gloss_refs"][0]["gloss_id"] == "NIA_SL_WORD1157"
-    assert entry["has_avatar"] is False
     # 4자리 미만 번호는 zero-pad — WORD0003
     entry = next(e for e in data["entries"] if e["id"] == "w_0003")
     assert entry["gloss_refs"][0]["gloss_id"] == "NIA_SL_WORD0003"
+
+
+def test_vocabulary_avatar_fields_match_sequence_manifest(client):
+    """has_avatar 의 정본은 sign_sequences 매니페스트다 — /sign-sequence 와 같은 출처.
+
+    두 엔드포인트가 갈라지면 앱이 "재생 가능"으로 표시해 놓고 재생에 실패한다.
+    """
+    data = client.get("/api/v1/vocabulary").json()
+    with_avatar = [e for e in data["entries"] if e["has_avatar"]]
+    assert len(with_avatar) == SEQUENCE_COUNT
+    assert {e["id"] for e in with_avatar} == set(SEQUENCES)
+
+    # 보유 항목은 자산 키를 싣고, 미보유 항목은 null 이다 (클라이언트가 word_id 로
+    # 파일명을 조립하지 않도록 키를 명시적으로 내려준다)
+    for e in with_avatar:
+        assert e["avatar_asset_id"] == SEQUENCES[e["id"]].sequence_key
+    assert all(e["avatar_asset_id"] is None for e in data["entries"] if not e["has_avatar"])
 
 
 def test_vocabulary_ids_unique_and_labels_unique(client):

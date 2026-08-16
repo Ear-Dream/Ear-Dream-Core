@@ -14,8 +14,15 @@ class VocabularyEntry(BaseModel):
     label: str = Field(description='대표 표기, 예: "꿈"')
     korean_aliases: list[str] = Field(default_factory=list)
     gloss_refs: list[GlossRef] = Field(default_factory=list)
-    has_avatar: bool = Field(description="수어 아바타 미리보기 영상 보유 여부 (MVP 이후)")
-    avatar_asset_id: str | None = None
+    has_avatar: bool = Field(
+        description="아바타 재생 시퀀스 보유 여부. 어휘에 있어도 시퀀스가 없을 수 있다 "
+        "(현재 300단어 중 41단어만 보유)"
+    )
+    avatar_asset_id: str | None = Field(
+        default=None,
+        description="클라이언트 빌트인 자산 키 (= sign_sequences 의 sequence_key). "
+        "word_id 로 파일명을 조립하지 말고 이 값을 쓴다. has_avatar=false 면 null",
+    )
 
 
 class VocabularyCatalog(BaseModel):
