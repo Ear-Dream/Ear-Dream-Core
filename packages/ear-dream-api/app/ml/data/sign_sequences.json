@@ -1,0 +1,419 @@
+{
+ "bundle_version": "sign-seq-v1-2026-08-16",
+ "vocab_version": "aihub300-pilot-v1-2026-08-11",
+ "source_fps": 30.0,
+ "asset_path": "sign-sequences",
+ "selection": "단어별 대표 1클립. 정렬 키: 미검출비율(0.1%p 반올림) → n_frames 중앙값과의 거리 → clip_id. 근거는 scripts/build_sign_sequences.py choose_representative",
+ "sequences": [
+  {
+   "word_id": "w_1189",
+   "label": "아기",
+   "sequence_key": "w_1189",
+   "frame_count": 126,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2005_REAL02_F",
+   "source_signer_id": "REAL02",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1314",
+   "label": "귀엽다",
+   "sequence_key": "w_1314",
+   "frame_count": 137,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2059_REAL02_F",
+   "source_signer_id": "REAL02",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1377",
+   "label": "자다",
+   "sequence_key": "w_1377",
+   "frame_count": 106,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1544_REAL16_F",
+   "source_signer_id": "REAL16",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1384",
+   "label": "없다",
+   "sequence_key": "w_1384",
+   "frame_count": 111,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1637_REAL09_F",
+   "source_signer_id": "REAL09",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1501",
+   "label": "운전면허",
+   "sequence_key": "w_1501",
+   "frame_count": 139,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1501_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1516",
+   "label": "누나",
+   "sequence_key": "w_1516",
+   "frame_count": 120,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1516_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1518",
+   "label": "여동생",
+   "sequence_key": "w_1518",
+   "frame_count": 95,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1518_REAL02_F",
+   "source_signer_id": "REAL02",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1519",
+   "label": "상처",
+   "sequence_key": "w_1519",
+   "frame_count": 127,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1519_REAL08_F",
+   "source_signer_id": "REAL08",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1522",
+   "label": "딸",
+   "sequence_key": "w_1522",
+   "frame_count": 99,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1522_REAL03_F",
+   "source_signer_id": "REAL03",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1524",
+   "label": "아내",
+   "sequence_key": "w_1524",
+   "frame_count": 125,
+   "missing_rate": 0.00129,
+   "source_clip_id": "NIA_SL_WORD1524_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1528",
+   "label": "엄마",
+   "sequence_key": "w_1528",
+   "frame_count": 108,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1528_REAL12_F",
+   "source_signer_id": "REAL12",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1530",
+   "label": "바쁘다",
+   "sequence_key": "w_1530",
+   "frame_count": 113,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1530_REAL05_F",
+   "source_signer_id": "REAL05",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1531",
+   "label": "남편",
+   "sequence_key": "w_1531",
+   "frame_count": 113,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1531_REAL09_F",
+   "source_signer_id": "REAL09",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1533",
+   "label": "병",
+   "sequence_key": "w_1533",
+   "frame_count": 108,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1533_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1534",
+   "label": "밥",
+   "sequence_key": "w_1534",
+   "frame_count": 108,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1534_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1535",
+   "label": "부부",
+   "sequence_key": "w_1535",
+   "frame_count": 100,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1535_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1540",
+   "label": "생활",
+   "sequence_key": "w_1540",
+   "frame_count": 123,
+   "missing_rate": 0.00263,
+   "source_clip_id": "NIA_SL_WORD1540_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1556",
+   "label": "오빠",
+   "sequence_key": "w_1556",
+   "frame_count": 116,
+   "missing_rate": 0.00279,
+   "source_clip_id": "NIA_SL_WORD1556_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1557",
+   "label": "출장",
+   "sequence_key": "w_1557",
+   "frame_count": 111,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1557_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1558",
+   "label": "이사",
+   "sequence_key": "w_1558",
+   "frame_count": 122,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1558_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1565",
+   "label": "할머니",
+   "sequence_key": "w_1565",
+   "frame_count": 106,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1565_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1566",
+   "label": "할아버지",
+   "sequence_key": "w_1566",
+   "frame_count": 103,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1566_REAL03_F",
+   "source_signer_id": "REAL03",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1568",
+   "label": "조카",
+   "sequence_key": "w_1568",
+   "frame_count": 117,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1568_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1574",
+   "label": "형",
+   "sequence_key": "w_1574",
+   "frame_count": 114,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1574_REAL09_F",
+   "source_signer_id": "REAL09",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1576",
+   "label": "환자",
+   "sequence_key": "w_1576",
+   "frame_count": 118,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1576_REAL15_F",
+   "source_signer_id": "REAL15",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1577",
+   "label": "시작",
+   "sequence_key": "w_1577",
+   "frame_count": 106,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1577_REAL13_F",
+   "source_signer_id": "REAL13",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1578",
+   "label": "밖",
+   "sequence_key": "w_1578",
+   "frame_count": 105,
+   "missing_rate": 0.00615,
+   "source_clip_id": "NIA_SL_WORD1578_REAL02_F",
+   "source_signer_id": "REAL02",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_1581",
+   "label": "시험",
+   "sequence_key": "w_1581",
+   "frame_count": 116,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1581_REAL08_F",
+   "source_signer_id": "REAL08",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1589",
+   "label": "부탁",
+   "sequence_key": "w_1589",
+   "frame_count": 109,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1589_REAL05_F",
+   "source_signer_id": "REAL05",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1592",
+   "label": "회사",
+   "sequence_key": "w_1592",
+   "frame_count": 111,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1592_REAL12_F",
+   "source_signer_id": "REAL12",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1593",
+   "label": "기차",
+   "sequence_key": "w_1593",
+   "frame_count": 114,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1593_REAL02_F",
+   "source_signer_id": "REAL02",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_1597",
+   "label": "상담",
+   "sequence_key": "w_1597",
+   "frame_count": 114,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD1597_REAL03_F",
+   "source_signer_id": "REAL03",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_2023",
+   "label": "청년",
+   "sequence_key": "w_2023",
+   "frame_count": 126,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2023_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_2024",
+   "label": "청소년",
+   "sequence_key": "w_2024",
+   "frame_count": 127,
+   "missing_rate": 0.00981,
+   "source_clip_id": "NIA_SL_WORD2024_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_2032",
+   "label": "노인",
+   "sequence_key": "w_2032",
+   "frame_count": 122,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2032_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_2039",
+   "label": "몸무게",
+   "sequence_key": "w_2039",
+   "frame_count": 133,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2039_REAL02_F",
+   "source_signer_id": "REAL02",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_2050",
+   "label": "계획",
+   "sequence_key": "w_2050",
+   "frame_count": 127,
+   "missing_rate": 0.00127,
+   "source_clip_id": "NIA_SL_WORD2050_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_2053",
+   "label": "동의",
+   "sequence_key": "w_2053",
+   "frame_count": 137,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2053_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_2057",
+   "label": "관광",
+   "sequence_key": "w_2057",
+   "frame_count": 153,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2057_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 2
+  },
+  {
+   "word_id": "w_2108",
+   "label": "가루약",
+   "sequence_key": "w_2108",
+   "frame_count": 133,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2108_REAL15_F",
+   "source_signer_id": "REAL15",
+   "candidate_count": 16
+  },
+  {
+   "word_id": "w_2131",
+   "label": "물약",
+   "sequence_key": "w_2131",
+   "frame_count": 128,
+   "missing_rate": 0.0,
+   "source_clip_id": "NIA_SL_WORD2131_REAL01_F",
+   "source_signer_id": "REAL01",
+   "candidate_count": 16
+  }
+ ]
+}

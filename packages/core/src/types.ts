@@ -26,6 +26,17 @@ export type SentenceSource = Schemas["SentenceSource"];
 export type SentenceEmotion = Schemas["SentenceEmotion"];
 export type SentenceStyle = Schemas["SentenceStyle"];
 
+// ---- /sign-sequence (청인 문장 → 아바타가 재생할 단어 시퀀스. /compose-sentence 의 역방향)
+// 좌표는 응답에 없다 — 클라이언트가 빌트인 자산(public/sign-sequences/)으로 갖고 있고,
+// 응답은 재생 순서와 자산 조회 키(sequence_key)만 싣는다.
+export type SignSequenceRequest = Schemas["SignSequenceRequest"];
+export type SignSequenceResult = Schemas["SignSequenceResult"];
+export type SignSequenceItem = Schemas["SignSequenceItem"];
+export type SignSequenceSource = Schemas["SignSequenceSource"];
+// 재생 불가 사유. unknown_word(어휘에 없음)와 no_sequence(어휘엔 있으나 자산 없음)는
+// 대응이 다르므로 화면에서도 구분해서 다룰 것 — 서버 schemas/sign_sequence.py 주석 참조.
+export type SignSequenceIssue = Schemas["SignSequenceIssue"];
+
 // ---- /speech (문장 + 감정·말투 → WAV. 응답은 오디오 바이트라 타입이 없다)
 export type SpeechRequest = Schemas["SpeechRequest"];
 
