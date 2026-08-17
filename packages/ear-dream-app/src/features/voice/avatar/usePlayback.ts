@@ -1,7 +1,8 @@
 /**
- * 수어 스켈레톤 재생기.
+ * 시퀀스 재생 타임라인 — "몇 번째 프레임의 어느 좌표인가"만 담당한다.
  *
- * 단어 시퀀스를 순서대로 이어 재생한다. 좌표는 빌트인 자산(sequenceAssets)에서 온다.
+ * 렌더러(`AvatarPlayer`)와 분리해 둔 이유는 **전환 보간이 두 벌이 되는 것**을 막기
+ * 위해서다 — 보간 규칙이 갈리면 같은 문장이 그리는 방식마다 다르게 움직인다.
  *
  * ## 단어 사이 전환 보간
  *
@@ -14,26 +15,35 @@
  * 맞춰 스케일하는 것과 같은 층위의 표시 처리다. **원본 시퀀스는 건드리지 않고**
  * 재생 시점에만 중간 자세를 계산한다.
  *
- * ## 프레임마다 React 를 다시 그리지 않는다
- *
- * 130점을 선/점 요소로 하나씩 만들면 프레임당 130여 개 엘리먼트가 갱신된다. 대신
- * **그룹당 Path 하나**로 합쳐 프레임당 갱신 대상을 4개(포즈·왼손·오른손·얼굴)로 줄였다.
- *
  * ## 좌표계
  *
  * 자산은 **16:9 기준 정규화 좌표**(0~1)다. 세로 화면에 그대로 늘리면 사람이 옆으로
- * 퍼지므로, 컨테이너 안에 16:9 상자를 넣고(레터박스) 그 안에 매핑한다.
+ * 퍼지므로, 담을 범위(`crop`)의 실제 종횡비를 지키는 상자를 만들어 그 안에 매핑한다.
+ * 그래서 `at()` 이 돌려주는 픽셀 좌표는 **가로세로 비율이 실제와 같다** — 길이·각도를
+ * 계산해도 왜곡되지 않는다(아바타 렌더러가 이 성질에 기댄다).
  */
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
-import Svg, { Path, Rect } from 'react-native-svg';
+import type { LayoutChangeEvent } from 'react-native';
 
-import { colors, radius } from '../../../constants/theme';
-import { FACE_POINT_RANGE, LEFT_HAND_EDGES, POSE_EDGES, RIGHT_HAND_EDGES } from './connections';
 import type { SignSequence } from './sequenceAssets';
 
-/** 자산의 좌표 종횡비. 세로 화면에 맞출 때 이 비율의 상자를 만든다. */
-const SOURCE_ASPECT = 16 / 9;
+/** 자산 좌표계의 종횡비 — 정규화 좌표 1×1 이 실제로는 16:9 다. */
+export const SOURCE_ASPECT = 16 / 9;
+
+/**
+ * 무대에 담을 좌표 범위 (정규화 좌표). 기본은 원본 화각 전체다.
+ *
+ * 인물이 화면 가로의 30% 남짓만 차지해서, 전체를 담으면 양옆이 거의 빈 채로 인물만
+ * 작아진다. 호출자가 인물 범위를 계산해 넘기면 그만큼 크게 그려진다.
+ */
+export interface Crop {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+const FULL_FRAME: Crop = { x0: 0, y0: 0, x1: 1, y1: 1 };
 
 /**
  * 단어 사이 전환에 쓰는 프레임 수.
@@ -44,34 +54,42 @@ const SOURCE_ASPECT = 16 / 9;
  */
 export const DEFAULT_TRANSITION_FRAMES = 6;
 
-export interface SkeletonPlayerProps {
-  /** 이어 재생할 시퀀스. 순서가 곧 문장 어순이다. */
-  sequences: readonly SignSequence[];
-  fps: number;
-  playing: boolean;
-  /**
-   * 값이 바뀌면 처음부터 다시 재생한다.
-   *
-   * `playing` 을 껐다 켜는 방식으로는 안 된다 — 같은 핸들러 안의 setState 두 번은
-   * 배치되어 최종값 하나로 합쳐지므로, **재생 중에 누르면 상태가 안 바뀌어 아무 일도
-   * 일어나지 않는다.** "다시" 는 값이 아니라 신호라서 토큰으로 표현한다.
-   */
-  restartToken?: number;
-  /** 단어 사이 전환 프레임 수. 0 이면 전환 없이 바로 붙는다. */
-  transitionFrames?: number;
-  /** 마지막 프레임까지 그린 뒤 한 번 호출된다. */
-  onFinished?: () => void;
-  /** 지금 몇 번째 단어를 그리고 있는지. 전환 중에는 들어가는 쪽 단어를 알린다. */
-  onWordChange?: (index: number) => void;
-  testID?: string;
-}
-
 /** 재생 타임라인의 한 구간. 단어 재생과 전환이 번갈아 놓인다. */
 type Segment =
   | { kind: 'word'; index: number; length: number }
   | { kind: 'transition'; from: number; to: number; length: number };
 
-export function SkeletonPlayer({
+export interface Stage {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface PlaybackOptions {
+  sequences: readonly SignSequence[];
+  fps: number;
+  playing: boolean;
+  restartToken?: number;
+  transitionFrames?: number;
+  onFinished?: () => void;
+  onWordChange?: (index: number) => void;
+  /** 담을 좌표 범위. 생략하면 원본 화각 전체. */
+  crop?: Crop;
+}
+
+export interface PlaybackState {
+  /** 컨테이너 크기. `<Svg width height>` 에 그대로 쓴다. */
+  box: { width: number; height: number };
+  /** 컨테이너의 onLayout 에 그대로 연결한다. */
+  onLayout: (event: LayoutChangeEvent) => void;
+  /** 컨테이너 안에 들어간 무대. 크기를 모르면 null. */
+  stage: Stage | null;
+  /** 현재 프레임의 키포인트 → 화면 픽셀. 무대가 없거나 재생할 게 없으면 null. */
+  at: ((keypoint: number) => readonly [number, number]) | null;
+}
+
+export function useSequencePlayback({
   sequences,
   fps,
   playing,
@@ -79,10 +97,10 @@ export function SkeletonPlayer({
   transitionFrames = DEFAULT_TRANSITION_FRAMES,
   onFinished,
   onWordChange,
-  testID,
-}: SkeletonPlayerProps) {
+  crop = FULL_FRAME,
+}: PlaybackOptions): PlaybackState {
   const [box, setBox] = useState({ width: 0, height: 0 });
-  // 타임라인 전체에서의 프레임 번호. 갱신되는 SVG 요소는 4개뿐이다.
+  // 타임라인 전체에서의 프레임 번호.
   const [frame, setFrame] = useState(0);
 
   const onFinishedRef = useRef(onFinished);
@@ -137,13 +155,18 @@ export function SkeletonPlayer({
     // restartToken 이 바뀌면 이 effect 가 다시 돌아 startedAt 이 초기화된다.
   }, [playing, timeline, fps, restartToken]);
 
-  // 컨테이너 안에 들어가는 16:9 상자 (contain). 늘이지 않고 남는 쪽을 비운다.
+  // 컨테이너 안에 들어가는 상자 (contain). 늘이지 않고 남는 쪽을 비운다 —
+  // 잘라낸 범위의 **실제** 종횡비를 지켜야 사람이 옆으로 퍼지지 않는다.
   const stage = useMemo(() => {
     if (box.width === 0 || box.height === 0) return null;
-    const width = Math.min(box.width, box.height * SOURCE_ASPECT);
-    const height = width / SOURCE_ASPECT;
+    const spanX = crop.x1 - crop.x0;
+    const spanY = crop.y1 - crop.y0;
+    if (spanX <= 0 || spanY <= 0) return null;
+    const aspect = (spanX * SOURCE_ASPECT) / spanY;
+    const width = Math.min(box.width, box.height * aspect);
+    const height = width / aspect;
     return { x: (box.width - width) / 2, y: (box.height - height) / 2, width, height };
-  }, [box]);
+  }, [box, crop.x0, crop.y0, crop.x1, crop.y1]);
 
   /** 현재 프레임의 좌표 조회기 + 지금 그리고 있는 단어. */
   const resolved = useMemo(
@@ -155,81 +178,28 @@ export function SkeletonPlayer({
     if (resolved) onWordChangeRef.current?.(resolved.wordIndex);
   }, [resolved?.wordIndex]);
 
-  const paths = useMemo(() => {
+  const at = useMemo(() => {
     if (!resolved || !stage) return null;
-    const at = (kp: number): [number, number] => {
-      const [x, y] = resolved.sample(kp);
-      return [stage.x + x * stage.width, stage.y + y * stage.height];
+    const spanX = crop.x1 - crop.x0;
+    const spanY = crop.y1 - crop.y0;
+    return (keypoint: number): readonly [number, number] => {
+      const [x, y] = resolved.sample(keypoint);
+      return [
+        stage.x + ((x - crop.x0) / spanX) * stage.width,
+        stage.y + ((y - crop.y0) / spanY) * stage.height,
+      ];
     };
-    return {
-      pose: edgePath(POSE_EDGES, at),
-      leftHand: edgePath(LEFT_HAND_EDGES, at),
-      rightHand: edgePath(RIGHT_HAND_EDGES, at),
-      face: dotPath(FACE_POINT_RANGE[0], FACE_POINT_RANGE[1], at),
-    };
-  }, [resolved, stage]);
+  }, [resolved, stage, crop.x0, crop.y0, crop.x1, crop.y1]);
 
-  return (
-    <View
-      style={styles.root}
-      testID={testID}
-      onLayout={(event) => {
-        const { width, height } = event.nativeEvent.layout;
-        setBox((prev) =>
-          prev.width === width && prev.height === height ? prev : { width, height },
-        );
-      }}
-    >
-      {stage ? (
-        <Svg width={box.width} height={box.height}>
-          {/* 16:9 무대 — 어디까지가 카메라 화각이었는지 보이게 한다. */}
-          <Rect
-            x={stage.x}
-            y={stage.y}
-            width={stage.width}
-            height={stage.height}
-            rx={radius.md}
-            fill={colors.bg.surface}
-          />
-          {paths ? (
-            <>
-              <Path
-                d={paths.face}
-                stroke={colors.text.secondary}
-                strokeWidth={3}
-                strokeLinecap="round"
-                fill="none"
-              />
-              <Path
-                d={paths.pose}
-                stroke={colors.text.primary}
-                strokeWidth={4}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-              <Path
-                d={paths.leftHand}
-                stroke={colors.brand.primary}
-                strokeWidth={3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-              <Path
-                d={paths.rightHand}
-                stroke={colors.brand.primary}
-                strokeWidth={3}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                fill="none"
-              />
-            </>
-          ) : null}
-        </Svg>
-      ) : null}
-    </View>
-  );
+  return {
+    box,
+    stage,
+    at,
+    onLayout: (event: LayoutChangeEvent) => {
+      const { width, height } = event.nativeEvent.layout;
+      setBox((prev) => (prev.width === width && prev.height === height ? prev : { width, height }));
+    },
+  };
 }
 
 /**
@@ -289,47 +259,7 @@ function readFrame(sequence: SignSequence, frame: number, kp: number): [number, 
   return [sequence.xy[base], sequence.xy[base + 1]];
 }
 
-/** 0→1 을 부드럽게 가속·감속. */
 function smoothstep(t: number): number {
   const clamped = Math.min(1, Math.max(0, t));
   return clamped * clamped * (3 - 2 * clamped);
 }
-
-/** 연결선들을 Path 하나로. 양 끝 중 하나라도 미검출(NaN)이면 그 선은 건너뛴다. */
-function edgePath(
-  edges: readonly (readonly [number, number])[],
-  at: (kp: number) => [number, number],
-): string {
-  let d = '';
-  for (const [from, to] of edges) {
-    const [x1, y1] = at(from);
-    const [x2, y2] = at(to);
-    if (!Number.isFinite(x1) || !Number.isFinite(y1)) continue;
-    if (!Number.isFinite(x2) || !Number.isFinite(y2)) continue;
-    d += `M${x1.toFixed(1)} ${y1.toFixed(1)}L${x2.toFixed(1)} ${y2.toFixed(1)}`;
-  }
-  return d;
-}
-
-/**
- * 점들을 Path 하나로. 길이 0에 가까운 선분 + round cap 이 곧 점이다
- * (Circle 을 78개 만들면 프레임마다 78개 엘리먼트가 갱신된다).
- */
-function dotPath(start: number, end: number, at: (kp: number) => [number, number]): string {
-  let d = '';
-  for (let kp = start; kp < end; kp += 1) {
-    const [x, y] = at(kp);
-    if (!Number.isFinite(x) || !Number.isFinite(y)) continue;
-    d += `M${x.toFixed(1)} ${y.toFixed(1)}l0.1 0`;
-  }
-  return d;
-}
-
-const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});

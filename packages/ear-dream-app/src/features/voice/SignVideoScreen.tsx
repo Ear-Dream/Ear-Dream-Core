@@ -9,13 +9,13 @@ import { ScreenFrame } from '../../components/ScreenFrame';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
 import { createRequestId } from '../recognition/api/createRequestId';
-import { SkeletonPlayer, useSignSequence } from './avatar';
+import { AvatarPlayer, useSignSequence } from './avatar';
 
 export interface SignVideoScreenProps {
   /**
    * 청인이 말한 문장 — 음성 인식(STT) 결과 또는 키보드 입력. 자막과 소스 영역에 그대로 쓴다.
    * 이 문장을 `POST /api/v1/sign-sequence` 로 보내 단어 열로 쪼개고, 각 단어의 좌표
-   * 시퀀스(빌트인 자산)를 스켈레톤으로 재생한다.
+   * 시퀀스(빌트인 자산)를 아바타로 재생한다.
    */
   sentence: string;
   /** AppBar 뒤로가기 — 음성 입력 화면으로 복귀(다시 말하기는 이 경로로 해결, V2 시안 방침). */
@@ -23,27 +23,35 @@ export interface SignVideoScreenProps {
 }
 
 /**
- * 재생 속도 선택지. 확정값이 아니라 V2 시안의 세그먼트 표기 그대로다.
- * 영상 재생이 미구현이라 선택 상태만 저장한다.
+ * 재생 속도 — **누를 때마다 순환**한다(1 → 1.5 → 0.5 → 1).
+ *
+ * V2 시안은 세 칸짜리 세그먼트였지만 화면 아래를 한 줄 통째로 먹었다. 아바타 위에
+ * 얹은 작은 버튼 하나로 같은 일을 하고 그만큼 인물을 크게 볼 수 있다.
+ * 순환 순서는 기본값(1배)에서 시작해 **빠르게 → 느리게** 다.
  */
 const PLAYBACK_SPEEDS = [
-  { label: '0.5배', rate: 0.5 },
   { label: '1.0배', rate: 1 },
   { label: '1.5배', rate: 1.5 },
+  { label: '0.5배', rate: 0.5 },
 ] as const;
 
 /**
- * 수어로 보기 화면 (V2 시안 "수어로 보기"): 다크 비디오 카드(재생 중 배지 + 아바타 자리 +
- * 자막) + 소스 영역 + 재생 속도 세그먼트 + "다시 보기".
+ * 수어로 보기 화면 (V2 시안 "수어로 보기"): 아바타 카드(재생 중 배지 + 속도 버튼) +
+ * 소스 영역 + "다시 보기".
  *
- * 아바타는 3D 사람 형상이 아니라 **랜드마크 스켈레톤**이다(손·상체 골격 + 얼굴 점).
- * 좌표 자산이 그것뿐이고, 시연에는 손 모양이 보이는 것으로 충분하다는 판단이다.
+ * 시안의 **자막 스트립과 속도 세그먼트는 뺐다.** 자막은 바로 아래 "상대방이 말한 내용"
+ * 과 같은 문장이라 두 번 보여줄 이유가 없고, 세그먼트는 한 줄을 통째로 먹었다.
+ * 둘을 없앤 만큼 아바타가 커진다 — 이 화면에서 정보를 나르는 건 인물이다.
+ *
+ * 표시는 **임시 아바타**(`AvatarPlayer`)다 — 같은 좌표에 살을 붙이고 얼굴 78점으로
+ * 표정까지 그린다. ⚠️ 자산이 xy 2D 라 실제 3D 리깅이 아니라 명암으로 입체감을 흉내 낸
+ * 것이고, **손바닥 방향은 표현할 수 없다**(2D 로는 전완 롤이 정해지지 않는다).
  *
  * 재생 불가 사유를 **두 종류로 나눠 보여준다** — 어휘에 없는 단어(unknown_word)와
  * 어휘엔 있으나 동작 자산이 없는 단어(no_sequence)는 사용자가 할 수 있는 일이 다르다.
  */
 export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
-  const [speedIndex, setSpeedIndex] = useState(1); // 기본 1.0배 (시안 선택 상태)
+  const [speedIndex, setSpeedIndex] = useState(0); // 기본 1.0배
   const [playing, setPlaying] = useState(true);
   // "다시 보기" 신호. 값 자체엔 의미가 없고 **바뀌었다는 사실**이 재시작을 뜻한다.
   const [restartToken, setRestartToken] = useState(0);
@@ -100,9 +108,6 @@ export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
       }
     >
       <View style={styles.card} testID="sign-video-card">
-        <View style={styles.cardTop}>
-          <Badge label={strings.signVideo.playingBadge} variant="playing" />
-        </View>
         <View style={styles.cardCenter}>
           {phase.name === 'pending' ? (
             <Text style={styles.caption} testID="sign-video-preparing">
@@ -113,13 +118,13 @@ export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
               {strings.signVideo.requestFailed}
             </Text>
           ) : sequences.length > 0 ? (
-            <SkeletonPlayer
+            <AvatarPlayer
               sequences={sequences}
               fps={(result?.source_fps ?? 30) * PLAYBACK_SPEEDS[speedIndex].rate}
               playing={playing}
               restartToken={restartToken}
               onFinished={() => setPlaying(false)}
-              testID="sign-video-skeleton"
+              testID="sign-video-avatar"
             />
           ) : (
             <Text style={[styles.caption, styles.captionWarning]} testID="sign-video-nothing">
@@ -127,12 +132,20 @@ export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
             </Text>
           )}
         </View>
-        {/* 자막 — 농인이 읽는 텍스트이므로 크게 · 고대비(반투명 배경)로 렌더링한다. */}
-        <View style={styles.subtitleStrip}>
-          <Text style={styles.subtitleText} testID="sign-video-subtitle">
-            {sentence}
-          </Text>
+
+        {/* 배지·속도는 아바타 위에 얹는다 — 세로 공간을 인물에게 준다. */}
+        <View style={styles.cardTop} pointerEvents="none">
+          <Badge label={strings.signVideo.playingBadge} variant="playing" />
         </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${strings.signVideo.speedLabel} ${PLAYBACK_SPEEDS[speedIndex].label}`}
+          onPress={() => setSpeedIndex((index) => (index + 1) % PLAYBACK_SPEEDS.length)}
+          style={styles.speedButton}
+          testID="sign-video-speed"
+        >
+          <Text style={styles.speedButtonText}>{PLAYBACK_SPEEDS[speedIndex].label}</Text>
+        </Pressable>
       </View>
 
       <View style={styles.sourceArea}>
@@ -170,29 +183,6 @@ export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
         </View>
       ) : null}
 
-      <View style={styles.speedArea}>
-        <Text style={styles.speedLabel}>{strings.signVideo.speedLabel}</Text>
-        <View style={styles.speedRow}>
-          {PLAYBACK_SPEEDS.map((speed, index) => {
-            const selected = index === speedIndex;
-            return (
-              <Pressable
-                key={speed.label}
-                accessibilityRole="button"
-                accessibilityLabel={`${strings.signVideo.speedLabel} ${speed.label}`}
-                accessibilityState={{ selected }}
-                onPress={() => setSpeedIndex(index)}
-                style={[styles.speedPill, selected && styles.speedPillSelected]}
-                testID={`sign-video-speed-${index}`}
-              >
-                <Text style={[styles.speedText, selected && styles.speedTextSelected]}>
-                  {speed.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
     </ScreenFrame>
   );
 }
@@ -203,51 +193,44 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     borderRadius: radius.lg,
     overflow: 'hidden',
-    padding: spacing.lg,
-    backgroundColor: colors.bg.video,
-  },
-  cardTop: {
-    alignSelf: 'flex-start',
+    // 배경이 밝아야 한다 — 아바타의 머리카락이 어두운 색이라 어두운 배경에서는
+    // 머리 윤곽이 사라진다. 카메라 영상이 아니라 그림이라 어두운 무대일 이유도 없다.
+    backgroundColor: colors.bg.surface,
   },
   cardCenter: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xl,
   },
-  avatarRing: {
-    width: 132,
-    height: 132,
+  /** 배지·속도 버튼은 아바타 위에 떠 있다 — 세로 공간을 인물에게 준다. */
+  cardTop: {
+    position: 'absolute',
+    top: spacing.lg,
+    left: spacing.lg,
+  },
+  speedButton: {
+    position: 'absolute',
+    right: spacing.lg,
+    bottom: spacing.lg,
+    minHeight: touchTarget.minHeight,
+    minWidth: touchTarget.minHeight,
+    paddingHorizontal: spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
+    backgroundColor: colors.bg.canvas,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.4)',
+    borderColor: colors.border.default,
   },
-  avatar: {
-    width: 84,
-    height: 84,
-    borderRadius: radius.pill,
-    backgroundColor: colors.bg.surface,
+  speedButtonText: {
+    fontFamily: fonts.medium,
+    fontSize: 15,
+    color: colors.text.primary,
   },
   caption: {
     fontFamily: fonts.regular,
     fontSize: 14,
-    color: colors.text.onVideo,
-    textAlign: 'center',
-  },
-  subtitleStrip: {
-    marginHorizontal: -spacing.lg,
-    marginBottom: -spacing.lg,
-    paddingVertical: spacing.lg,
-    paddingHorizontal: spacing.lg,
-    backgroundColor: 'rgba(11, 15, 20, 0.6)',
-  },
-  subtitleText: {
-    fontFamily: fonts.bold,
-    fontSize: 24,
-    lineHeight: 34,
-    color: colors.text.onVideo,
+    color: colors.text.secondary,
     textAlign: 'center',
   },
   sourceArea: {
@@ -263,44 +246,6 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 18,
     color: colors.text.primary,
-  },
-  speedArea: {
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-    padding: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: colors.bg.surface,
-  },
-  speedLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    color: colors.text.secondary,
-  },
-  speedRow: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-  },
-  speedPill: {
-    flex: 1,
-    minHeight: touchTarget.minHeight,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    backgroundColor: colors.bg.canvas,
-  },
-  speedPillSelected: {
-    borderColor: colors.brand.primary,
-    backgroundColor: colors.brand.primary,
-  },
-  speedText: {
-    fontFamily: fonts.medium,
-    fontSize: 15,
-    color: colors.text.primary,
-  },
-  speedTextSelected: {
-    color: colors.text.onBrand,
   },
   captionWarning: {
     color: colors.status.error,

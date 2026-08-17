@@ -237,8 +237,7 @@ export const strings = {
   signVideo: {
     appBarTitle: '수어로 보기',
     playingBadge: '재생 중',
-    caption: '인식한 수어 동작을 다시 재생하고 있어요',
-    avatarAlt: '수어 아바타 스켈레톤',
+    avatarAlt: '수어 아바타',
     /** 서버에 문장을 보내 단어로 쪼개는 중. */
     preparing: '수어로 바꾸고 있어요',
     /** 서버에 닿지 못함 — 재시도가 의미 있는 실패다. */
