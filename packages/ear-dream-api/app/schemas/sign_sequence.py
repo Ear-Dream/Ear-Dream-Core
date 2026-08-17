@@ -35,7 +35,7 @@ class SignSequenceSource(str, Enum):
     """단어열을 만든 경로. `/compose-sentence` 의 SentenceSource 와 대칭이다."""
 
     template = "template"  # 문장 전체가 규칙 템플릿 역인덱스에 적중
-    word_list = "word_list"  # 공백 분해 후 어휘 라벨 대조 (template 미적중 시)
+    word_list = "word_list"  # 어절별 형태소 분석 후 어휘 라벨 대조 (template 미적중 시)
     model = "model"  # 문장→단어열 변환 모델. **아직 없다** — 도입 시 이 값이 쓰인다
 
 
@@ -54,7 +54,8 @@ class SignSequenceIssue(str, Enum):
 class SignSequenceItem(BaseModel):
     source_text: str = Field(
         description=(
-            "이 항목을 만든 입력 조각. word_list 경로에서는 입력 토큰 그대로이고, "
+            "이 항목을 만든 입력 조각. word_list 경로에서는 매칭된 원문 조각"
+            '("귀여워요" 중 "귀여워")이고, 매칭이 없었던 어절은 어절 전체가 들어간다. '
             "template 경로에서는 문장 전체가 한 덩어리로 적중하므로 어휘 라벨이 들어간다."
         )
     )
