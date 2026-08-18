@@ -1,0 +1,1838 @@
+{
+ "bundle_version": "sign-seq-v2-2026-08-18",
+ "vocab_version": "aihub300-pilot-v1-2026-08-11",
+ "format": {
+  "encoding": "int16-le",
+  "quant_scale": 4096,
+  "nan_sentinel": -32768,
+  "shape": [
+   "frame",
+   "keypoint",
+   "xy"
+  ],
+  "keypoint_count": 130,
+  "channel_count": 2,
+  "blocks": {
+   "left_hand": [
+    0,
+    21
+   ],
+   "right_hand": [
+    21,
+    42
+   ],
+   "pose": [
+    42,
+    52
+   ],
+   "face": [
+    52,
+    130
+   ]
+  },
+  "source_fps": 30.0,
+  "coordinate_space": "mediapipe-normalized-16x9"
+ },
+ "sequences": [
+  {
+   "word_id": "w_0003",
+   "label": "수어",
+   "sequence_key": "w_0003",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_0005",
+   "label": "눈",
+   "sequence_key": "w_0005",
+   "frame_count": 132
+  },
+  {
+   "word_id": "w_0007",
+   "label": "음료수",
+   "sequence_key": "w_0007",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_0009",
+   "label": "슬프다",
+   "sequence_key": "w_0009",
+   "frame_count": 138
+  },
+  {
+   "word_id": "w_0011",
+   "label": "안타깝다",
+   "sequence_key": "w_0011",
+   "frame_count": 124
+  },
+  {
+   "word_id": "w_0014",
+   "label": "외국인",
+   "sequence_key": "w_0014",
+   "frame_count": 140
+  },
+  {
+   "word_id": "w_0022",
+   "label": "침착",
+   "sequence_key": "w_0022",
+   "frame_count": 136
+  },
+  {
+   "word_id": "w_0023",
+   "label": "성실",
+   "sequence_key": "w_0023",
+   "frame_count": 135
+  },
+  {
+   "word_id": "w_0026",
+   "label": "급하다",
+   "sequence_key": "w_0026",
+   "frame_count": 125
+  },
+  {
+   "word_id": "w_0029",
+   "label": "검사",
+   "sequence_key": "w_0029",
+   "frame_count": 139
+  },
+  {
+   "word_id": "w_0034",
+   "label": "독서",
+   "sequence_key": "w_0034",
+   "frame_count": 140
+  },
+  {
+   "word_id": "w_0037",
+   "label": "감기",
+   "sequence_key": "w_0037",
+   "frame_count": 132
+  },
+  {
+   "word_id": "w_0039",
+   "label": "변비",
+   "sequence_key": "w_0039",
+   "frame_count": 131
+  },
+  {
+   "word_id": "w_0041",
+   "label": "보건소",
+   "sequence_key": "w_0041",
+   "frame_count": 140
+  },
+  {
+   "word_id": "w_0044",
+   "label": "붕대",
+   "sequence_key": "w_0044",
+   "frame_count": 144
+  },
+  {
+   "word_id": "w_0046",
+   "label": "설사",
+   "sequence_key": "w_0046",
+   "frame_count": 137
+  },
+  {
+   "word_id": "w_0057",
+   "label": "회복",
+   "sequence_key": "w_0057",
+   "frame_count": 134
+  },
+  {
+   "word_id": "w_0060",
+   "label": "입원",
+   "sequence_key": "w_0060",
+   "frame_count": 131
+  },
+  {
+   "word_id": "w_0064",
+   "label": "치료",
+   "sequence_key": "w_0064",
+   "frame_count": 133
+  },
+  {
+   "word_id": "w_0067",
+   "label": "퇴원",
+   "sequence_key": "w_0067",
+   "frame_count": 126
+  },
+  {
+   "word_id": "w_0071",
+   "label": "화상",
+   "sequence_key": "w_0071",
+   "frame_count": 138
+  },
+  {
+   "word_id": "w_0086",
+   "label": "돼지고기",
+   "sequence_key": "w_0086",
+   "frame_count": 133
+  },
+  {
+   "word_id": "w_0087",
+   "label": "두부",
+   "sequence_key": "w_0087",
+   "frame_count": 123
+  },
+  {
+   "word_id": "w_0088",
+   "label": "딸기",
+   "sequence_key": "w_0088",
+   "frame_count": 109
+  },
+  {
+   "word_id": "w_0090",
+   "label": "라면",
+   "sequence_key": "w_0090",
+   "frame_count": 124
+  },
+  {
+   "word_id": "w_0098",
+   "label": "비빔밥",
+   "sequence_key": "w_0098",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_0099",
+   "label": "사과",
+   "sequence_key": "w_0099",
+   "frame_count": 125
+  },
+  {
+   "word_id": "w_0100",
+   "label": "사이다",
+   "sequence_key": "w_0100",
+   "frame_count": 125
+  },
+  {
+   "word_id": "w_0104",
+   "label": "식당",
+   "sequence_key": "w_0104",
+   "frame_count": 125
+  },
+  {
+   "word_id": "w_0109",
+   "label": "술",
+   "sequence_key": "w_0109",
+   "frame_count": 106
+  },
+  {
+   "word_id": "w_0115",
+   "label": "커피",
+   "sequence_key": "w_0115",
+   "frame_count": 132
+  },
+  {
+   "word_id": "w_0116",
+   "label": "콜라",
+   "sequence_key": "w_0116",
+   "frame_count": 124
+  },
+  {
+   "word_id": "w_0130",
+   "label": "월세",
+   "sequence_key": "w_0130",
+   "frame_count": 128
+  },
+  {
+   "word_id": "w_0131",
+   "label": "전세",
+   "sequence_key": "w_0131",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_0132",
+   "label": "치약",
+   "sequence_key": "w_0132",
+   "frame_count": 128
+  },
+  {
+   "word_id": "w_0136",
+   "label": "경찰서",
+   "sequence_key": "w_0136",
+   "frame_count": 119
+  },
+  {
+   "word_id": "w_0140",
+   "label": "교수",
+   "sequence_key": "w_0140",
+   "frame_count": 131
+  },
+  {
+   "word_id": "w_0141",
+   "label": "교장",
+   "sequence_key": "w_0141",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_0147",
+   "label": "디자이너",
+   "sequence_key": "w_0147",
+   "frame_count": 137
+  },
+  {
+   "word_id": "w_0148",
+   "label": "마을버스",
+   "sequence_key": "w_0148",
+   "frame_count": 138
+  },
+  {
+   "word_id": "w_0149",
+   "label": "구급차",
+   "sequence_key": "w_0149",
+   "frame_count": 135
+  },
+  {
+   "word_id": "w_0154",
+   "label": "여객선",
+   "sequence_key": "w_0154",
+   "frame_count": 135
+  },
+  {
+   "word_id": "w_0155",
+   "label": "여행사",
+   "sequence_key": "w_0155",
+   "frame_count": 138
+  },
+  {
+   "word_id": "w_0156",
+   "label": "기차역",
+   "sequence_key": "w_0156",
+   "frame_count": 122
+  },
+  {
+   "word_id": "w_0157",
+   "label": "예술가",
+   "sequence_key": "w_0157",
+   "frame_count": 141
+  },
+  {
+   "word_id": "w_0159",
+   "label": "요리사",
+   "sequence_key": "w_0159",
+   "frame_count": 118
+  },
+  {
+   "word_id": "w_0163",
+   "label": "의사",
+   "sequence_key": "w_0163",
+   "frame_count": 125
+  },
+  {
+   "word_id": "w_0164",
+   "label": "이력서",
+   "sequence_key": "w_0164",
+   "frame_count": 156
+  },
+  {
+   "word_id": "w_0165",
+   "label": "자가용",
+   "sequence_key": "w_0165",
+   "frame_count": 123
+  },
+  {
+   "word_id": "w_0166",
+   "label": "재택근무",
+   "sequence_key": "w_0166",
+   "frame_count": 118
+  },
+  {
+   "word_id": "w_0168",
+   "label": "주차장",
+   "sequence_key": "w_0168",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_0169",
+   "label": "채팅",
+   "sequence_key": "w_0169",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_0170",
+   "label": "출근",
+   "sequence_key": "w_0170",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_0172",
+   "label": "터미널",
+   "sequence_key": "w_0172",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_0173",
+   "label": "근무",
+   "sequence_key": "w_0173",
+   "frame_count": 118
+  },
+  {
+   "word_id": "w_0174",
+   "label": "통역사",
+   "sequence_key": "w_0174",
+   "frame_count": 123
+  },
+  {
+   "word_id": "w_0175",
+   "label": "퇴사",
+   "sequence_key": "w_0175",
+   "frame_count": 125
+  },
+  {
+   "word_id": "w_0187",
+   "label": "간호사",
+   "sequence_key": "w_0187",
+   "frame_count": 123
+  },
+  {
+   "word_id": "w_0193",
+   "label": "구직",
+   "sequence_key": "w_0193",
+   "frame_count": 129
+  },
+  {
+   "word_id": "w_0200",
+   "label": "수입",
+   "sequence_key": "w_0200",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_0201",
+   "label": "신용카드",
+   "sequence_key": "w_0201",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_0206",
+   "label": "주유소",
+   "sequence_key": "w_0206",
+   "frame_count": 140
+  },
+  {
+   "word_id": "w_0212",
+   "label": "고등학생",
+   "sequence_key": "w_0212",
+   "frame_count": 125
+  },
+  {
+   "word_id": "w_0215",
+   "label": "교실",
+   "sequence_key": "w_0215",
+   "frame_count": 125
+  },
+  {
+   "word_id": "w_0223",
+   "label": "복습",
+   "sequence_key": "w_0223",
+   "frame_count": 123
+  },
+  {
+   "word_id": "w_0226",
+   "label": "서점",
+   "sequence_key": "w_0226",
+   "frame_count": 112
+  },
+  {
+   "word_id": "w_0228",
+   "label": "실습",
+   "sequence_key": "w_0228",
+   "frame_count": 127
+  },
+  {
+   "word_id": "w_0230",
+   "label": "여학생",
+   "sequence_key": "w_0230",
+   "frame_count": 127
+  },
+  {
+   "word_id": "w_0232",
+   "label": "연구실",
+   "sequence_key": "w_0232",
+   "frame_count": 133
+  },
+  {
+   "word_id": "w_0233",
+   "label": "예습",
+   "sequence_key": "w_0233",
+   "frame_count": 135
+  },
+  {
+   "word_id": "w_0238",
+   "label": "연구",
+   "sequence_key": "w_0238",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_0239",
+   "label": "학부모",
+   "sequence_key": "w_0239",
+   "frame_count": 120
+  },
+  {
+   "word_id": "w_0241",
+   "label": "훈련",
+   "sequence_key": "w_0241",
+   "frame_count": 126
+  },
+  {
+   "word_id": "w_0257",
+   "label": "일요일",
+   "sequence_key": "w_0257",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_0288",
+   "label": "체온",
+   "sequence_key": "w_0288",
+   "frame_count": 136
+  },
+  {
+   "word_id": "w_0290",
+   "label": "하늘",
+   "sequence_key": "w_0290",
+   "frame_count": 109
+  },
+  {
+   "word_id": "w_0309",
+   "label": "어젯밤",
+   "sequence_key": "w_0309",
+   "frame_count": 139
+  },
+  {
+   "word_id": "w_0312",
+   "label": "공휴일",
+   "sequence_key": "w_0312",
+   "frame_count": 166
+  },
+  {
+   "word_id": "w_0316",
+   "label": "금요일",
+   "sequence_key": "w_0316",
+   "frame_count": 126
+  },
+  {
+   "word_id": "w_0320",
+   "label": "방금",
+   "sequence_key": "w_0320",
+   "frame_count": 109
+  },
+  {
+   "word_id": "w_0329",
+   "label": "수요일",
+   "sequence_key": "w_0329",
+   "frame_count": 122
+  },
+  {
+   "word_id": "w_0331",
+   "label": "어떻게",
+   "sequence_key": "w_0331",
+   "frame_count": 136
+  },
+  {
+   "word_id": "w_0334",
+   "label": "예전",
+   "sequence_key": "w_0334",
+   "frame_count": 124
+  },
+  {
+   "word_id": "w_0336",
+   "label": "월요일",
+   "sequence_key": "w_0336",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_0338",
+   "label": "자정",
+   "sequence_key": "w_0338",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_0339",
+   "label": "아까",
+   "sequence_key": "w_0339",
+   "frame_count": 118
+  },
+  {
+   "word_id": "w_0344",
+   "label": "평일",
+   "sequence_key": "w_0344",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_0347",
+   "label": "화요일",
+   "sequence_key": "w_0347",
+   "frame_count": 122
+  },
+  {
+   "word_id": "w_0387",
+   "label": "골절",
+   "sequence_key": "w_0387",
+   "frame_count": 115
+  },
+  {
+   "word_id": "w_0412",
+   "label": "학습",
+   "sequence_key": "w_0412",
+   "frame_count": 133
+  },
+  {
+   "word_id": "w_0436",
+   "label": "얼마",
+   "sequence_key": "w_0436",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_0461",
+   "label": "농인",
+   "sequence_key": "w_0461",
+   "frame_count": 122
+  },
+  {
+   "word_id": "w_0489",
+   "label": "주민센터",
+   "sequence_key": "w_0489",
+   "frame_count": 131
+  },
+  {
+   "word_id": "w_0504",
+   "label": "의미",
+   "sequence_key": "w_0504",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_0530",
+   "label": "묻다",
+   "sequence_key": "w_0530",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_0566",
+   "label": "소개",
+   "sequence_key": "w_0566",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_0608",
+   "label": "친척",
+   "sequence_key": "w_0608",
+   "frame_count": 126
+  },
+  {
+   "word_id": "w_0634",
+   "label": "서울역",
+   "sequence_key": "w_0634",
+   "frame_count": 142
+  },
+  {
+   "word_id": "w_0655",
+   "label": "수영장",
+   "sequence_key": "w_0655",
+   "frame_count": 130
+  },
+  {
+   "word_id": "w_0684",
+   "label": "괴롭다",
+   "sequence_key": "w_0684",
+   "frame_count": 127
+  },
+  {
+   "word_id": "w_0689",
+   "label": "통증",
+   "sequence_key": "w_0689",
+   "frame_count": 126
+  },
+  {
+   "word_id": "w_0738",
+   "label": "좋다",
+   "sequence_key": "w_0738",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_0808",
+   "label": "전화번호",
+   "sequence_key": "w_0808",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_0814",
+   "label": "월초",
+   "sequence_key": "w_0814",
+   "frame_count": 119
+  },
+  {
+   "word_id": "w_0815",
+   "label": "우유",
+   "sequence_key": "w_0815",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_0846",
+   "label": "차도",
+   "sequence_key": "w_0846",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_0858",
+   "label": "제안",
+   "sequence_key": "w_0858",
+   "frame_count": 115
+  },
+  {
+   "word_id": "w_0878",
+   "label": "출석",
+   "sequence_key": "w_0878",
+   "frame_count": 109
+  },
+  {
+   "word_id": "w_0932",
+   "label": "매일매일",
+   "sequence_key": "w_0932",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_0943",
+   "label": "가다",
+   "sequence_key": "w_0943",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_0948",
+   "label": "가깝다",
+   "sequence_key": "w_0948",
+   "frame_count": 114
+  },
+  {
+   "word_id": "w_0949",
+   "label": "멀다",
+   "sequence_key": "w_0949",
+   "frame_count": 114
+  },
+  {
+   "word_id": "w_0953",
+   "label": "배고프다",
+   "sequence_key": "w_0953",
+   "frame_count": 109
+  },
+  {
+   "word_id": "w_0968",
+   "label": "난감하다",
+   "sequence_key": "w_0968",
+   "frame_count": 96
+  },
+  {
+   "word_id": "w_0970",
+   "label": "불면",
+   "sequence_key": "w_0970",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1096",
+   "label": "모르다",
+   "sequence_key": "w_1096",
+   "frame_count": 67
+  },
+  {
+   "word_id": "w_1097",
+   "label": "불가능",
+   "sequence_key": "w_1097",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_1104",
+   "label": "남자",
+   "sequence_key": "w_1104",
+   "frame_count": 95
+  },
+  {
+   "word_id": "w_1106",
+   "label": "잊다",
+   "sequence_key": "w_1106",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_1107",
+   "label": "충분",
+   "sequence_key": "w_1107",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_1115",
+   "label": "건강",
+   "sequence_key": "w_1115",
+   "frame_count": 92
+  },
+  {
+   "word_id": "w_1121",
+   "label": "흰",
+   "sequence_key": "w_1121",
+   "frame_count": 85
+  },
+  {
+   "word_id": "w_1123",
+   "label": "불안",
+   "sequence_key": "w_1123",
+   "frame_count": 96
+  },
+  {
+   "word_id": "w_1124",
+   "label": "밉다",
+   "sequence_key": "w_1124",
+   "frame_count": 98
+  },
+  {
+   "word_id": "w_1128",
+   "label": "당황",
+   "sequence_key": "w_1128",
+   "frame_count": 101
+  },
+  {
+   "word_id": "w_1130",
+   "label": "원하다",
+   "sequence_key": "w_1130",
+   "frame_count": 109
+  },
+  {
+   "word_id": "w_1133",
+   "label": "잘하다",
+   "sequence_key": "w_1133",
+   "frame_count": 119
+  },
+  {
+   "word_id": "w_1134",
+   "label": "무섭다",
+   "sequence_key": "w_1134",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1135",
+   "label": "빠르다",
+   "sequence_key": "w_1135",
+   "frame_count": 96
+  },
+  {
+   "word_id": "w_1138",
+   "label": "눕다",
+   "sequence_key": "w_1138",
+   "frame_count": 104
+  },
+  {
+   "word_id": "w_1139",
+   "label": "믿다",
+   "sequence_key": "w_1139",
+   "frame_count": 106
+  },
+  {
+   "word_id": "w_1140",
+   "label": "즐겁다",
+   "sequence_key": "w_1140",
+   "frame_count": 95
+  },
+  {
+   "word_id": "w_1143",
+   "label": "듣다",
+   "sequence_key": "w_1143",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1144",
+   "label": "생각",
+   "sequence_key": "w_1144",
+   "frame_count": 107
+  },
+  {
+   "word_id": "w_1145",
+   "label": "예쁘다",
+   "sequence_key": "w_1145",
+   "frame_count": 96
+  },
+  {
+   "word_id": "w_1147",
+   "label": "팔",
+   "sequence_key": "w_1147",
+   "frame_count": 104
+  },
+  {
+   "word_id": "w_1148",
+   "label": "서다",
+   "sequence_key": "w_1148",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_1149",
+   "label": "오다",
+   "sequence_key": "w_1149",
+   "frame_count": 107
+  },
+  {
+   "word_id": "w_1152",
+   "label": "아프다",
+   "sequence_key": "w_1152",
+   "frame_count": 95
+  },
+  {
+   "word_id": "w_1154",
+   "label": "깨끗하다",
+   "sequence_key": "w_1154",
+   "frame_count": 107
+  },
+  {
+   "word_id": "w_1156",
+   "label": "나쁘다",
+   "sequence_key": "w_1156",
+   "frame_count": 89
+  },
+  {
+   "word_id": "w_1157",
+   "label": "나",
+   "sequence_key": "w_1157",
+   "frame_count": 85
+  },
+  {
+   "word_id": "w_1158",
+   "label": "피곤하다",
+   "sequence_key": "w_1158",
+   "frame_count": 91
+  },
+  {
+   "word_id": "w_1169",
+   "label": "행복",
+   "sequence_key": "w_1169",
+   "frame_count": 95
+  },
+  {
+   "word_id": "w_1174",
+   "label": "맞다",
+   "sequence_key": "w_1174",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1177",
+   "label": "솔직",
+   "sequence_key": "w_1177",
+   "frame_count": 99
+  },
+  {
+   "word_id": "w_1181",
+   "label": "혀",
+   "sequence_key": "w_1181",
+   "frame_count": 92
+  },
+  {
+   "word_id": "w_1185",
+   "label": "알다",
+   "sequence_key": "w_1185",
+   "frame_count": 93
+  },
+  {
+   "word_id": "w_1186",
+   "label": "조심",
+   "sequence_key": "w_1186",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_1188",
+   "label": "차분",
+   "sequence_key": "w_1188",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1189",
+   "label": "아기",
+   "sequence_key": "w_1189",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1190",
+   "label": "방법",
+   "sequence_key": "w_1190",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_1193",
+   "label": "중요",
+   "sequence_key": "w_1193",
+   "frame_count": 110
+  },
+  {
+   "word_id": "w_1195",
+   "label": "실망",
+   "sequence_key": "w_1195",
+   "frame_count": 112
+  },
+  {
+   "word_id": "w_1200",
+   "label": "배부르다",
+   "sequence_key": "w_1200",
+   "frame_count": 75
+  },
+  {
+   "word_id": "w_1201",
+   "label": "죄송",
+   "sequence_key": "w_1201",
+   "frame_count": 72
+  },
+  {
+   "word_id": "w_1204",
+   "label": "친구",
+   "sequence_key": "w_1204",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1205",
+   "label": "우습다",
+   "sequence_key": "w_1205",
+   "frame_count": 89
+  },
+  {
+   "word_id": "w_1207",
+   "label": "이해",
+   "sequence_key": "w_1207",
+   "frame_count": 104
+  },
+  {
+   "word_id": "w_1210",
+   "label": "얼굴",
+   "sequence_key": "w_1210",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1211",
+   "label": "어렵다",
+   "sequence_key": "w_1211",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1212",
+   "label": "지겹다",
+   "sequence_key": "w_1212",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_1215",
+   "label": "창피",
+   "sequence_key": "w_1215",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_1217",
+   "label": "희망",
+   "sequence_key": "w_1217",
+   "frame_count": 86
+  },
+  {
+   "word_id": "w_1220",
+   "label": "부럽다",
+   "sequence_key": "w_1220",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1222",
+   "label": "힘들다",
+   "sequence_key": "w_1222",
+   "frame_count": 110
+  },
+  {
+   "word_id": "w_1224",
+   "label": "웃다",
+   "sequence_key": "w_1224",
+   "frame_count": 98
+  },
+  {
+   "word_id": "w_1226",
+   "label": "손",
+   "sequence_key": "w_1226",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_1232",
+   "label": "쉽다",
+   "sequence_key": "w_1232",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1235",
+   "label": "코",
+   "sequence_key": "w_1235",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1236",
+   "label": "화나다",
+   "sequence_key": "w_1236",
+   "frame_count": 88
+  },
+  {
+   "word_id": "w_1237",
+   "label": "이것",
+   "sequence_key": "w_1237",
+   "frame_count": 82
+  },
+  {
+   "word_id": "w_1241",
+   "label": "머리카락",
+   "sequence_key": "w_1241",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_1242",
+   "label": "사람",
+   "sequence_key": "w_1242",
+   "frame_count": 96
+  },
+  {
+   "word_id": "w_1244",
+   "label": "졸리다",
+   "sequence_key": "w_1244",
+   "frame_count": 81
+  },
+  {
+   "word_id": "w_1248",
+   "label": "춥다",
+   "sequence_key": "w_1248",
+   "frame_count": 104
+  },
+  {
+   "word_id": "w_1249",
+   "label": "머리",
+   "sequence_key": "w_1249",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1251",
+   "label": "우울",
+   "sequence_key": "w_1251",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1252",
+   "label": "후회",
+   "sequence_key": "w_1252",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_1253",
+   "label": "몸",
+   "sequence_key": "w_1253",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1255",
+   "label": "짜증",
+   "sequence_key": "w_1255",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1262",
+   "label": "턱",
+   "sequence_key": "w_1262",
+   "frame_count": 98
+  },
+  {
+   "word_id": "w_1269",
+   "label": "못하다",
+   "sequence_key": "w_1269",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_1273",
+   "label": "일어나다",
+   "sequence_key": "w_1273",
+   "frame_count": 131
+  },
+  {
+   "word_id": "w_1274",
+   "label": "달리다",
+   "sequence_key": "w_1274",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1275",
+   "label": "여자",
+   "sequence_key": "w_1275",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_1278",
+   "label": "싫다",
+   "sequence_key": "w_1278",
+   "frame_count": 86
+  },
+  {
+   "word_id": "w_1279",
+   "label": "입",
+   "sequence_key": "w_1279",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1282",
+   "label": "가능",
+   "sequence_key": "w_1282",
+   "frame_count": 93
+  },
+  {
+   "word_id": "w_1289",
+   "label": "감동",
+   "sequence_key": "w_1289",
+   "frame_count": 123
+  },
+  {
+   "word_id": "w_1290",
+   "label": "감사",
+   "sequence_key": "w_1290",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1294",
+   "label": "걱정",
+   "sequence_key": "w_1294",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_1295",
+   "label": "걷다",
+   "sequence_key": "w_1295",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_1301",
+   "label": "시원하다",
+   "sequence_key": "w_1301",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1303",
+   "label": "기억",
+   "sequence_key": "w_1303",
+   "frame_count": 98
+  },
+  {
+   "word_id": "w_1304",
+   "label": "부족",
+   "sequence_key": "w_1304",
+   "frame_count": 95
+  },
+  {
+   "word_id": "w_1314",
+   "label": "귀엽다",
+   "sequence_key": "w_1314",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1321",
+   "label": "검정",
+   "sequence_key": "w_1321",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_1322",
+   "label": "빨강",
+   "sequence_key": "w_1322",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1323",
+   "label": "노랑",
+   "sequence_key": "w_1323",
+   "frame_count": 106
+  },
+  {
+   "word_id": "w_1324",
+   "label": "초록",
+   "sequence_key": "w_1324",
+   "frame_count": 114
+  },
+  {
+   "word_id": "w_1325",
+   "label": "파랑",
+   "sequence_key": "w_1325",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_1337",
+   "label": "느리다",
+   "sequence_key": "w_1337",
+   "frame_count": 101
+  },
+  {
+   "word_id": "w_1342",
+   "label": "왼쪽",
+   "sequence_key": "w_1342",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_1343",
+   "label": "오른쪽",
+   "sequence_key": "w_1343",
+   "frame_count": 118
+  },
+  {
+   "word_id": "w_1346",
+   "label": "귀찮다",
+   "sequence_key": "w_1346",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_1351",
+   "label": "너",
+   "sequence_key": "w_1351",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1352",
+   "label": "저",
+   "sequence_key": "w_1352",
+   "frame_count": 92
+  },
+  {
+   "word_id": "w_1353",
+   "label": "당신",
+   "sequence_key": "w_1353",
+   "frame_count": 106
+  },
+  {
+   "word_id": "w_1359",
+   "label": "틀리다",
+   "sequence_key": "w_1359",
+   "frame_count": 106
+  },
+  {
+   "word_id": "w_1370",
+   "label": "귀",
+   "sequence_key": "w_1370",
+   "frame_count": 106
+  },
+  {
+   "word_id": "w_1371",
+   "label": "눈썹",
+   "sequence_key": "w_1371",
+   "frame_count": 114
+  },
+  {
+   "word_id": "w_1373",
+   "label": "치아",
+   "sequence_key": "w_1373",
+   "frame_count": 101
+  },
+  {
+   "word_id": "w_1374",
+   "label": "이마",
+   "sequence_key": "w_1374",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1375",
+   "label": "볼",
+   "sequence_key": "w_1375",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1376",
+   "label": "목",
+   "sequence_key": "w_1376",
+   "frame_count": 92
+  },
+  {
+   "word_id": "w_1377",
+   "label": "자다",
+   "sequence_key": "w_1377",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_1381",
+   "label": "괜찮다",
+   "sequence_key": "w_1381",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_1382",
+   "label": "덥다",
+   "sequence_key": "w_1382",
+   "frame_count": 96
+  },
+  {
+   "word_id": "w_1383",
+   "label": "따뜻하다",
+   "sequence_key": "w_1383",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_1384",
+   "label": "없다",
+   "sequence_key": "w_1384",
+   "frame_count": 101
+  },
+  {
+   "word_id": "w_1399",
+   "label": "미소",
+   "sequence_key": "w_1399",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_1456",
+   "label": "시청",
+   "sequence_key": "w_1456",
+   "frame_count": 107
+  },
+  {
+   "word_id": "w_1492",
+   "label": "가족",
+   "sequence_key": "w_1492",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1496",
+   "label": "병원",
+   "sequence_key": "w_1496",
+   "frame_count": 95
+  },
+  {
+   "word_id": "w_1501",
+   "label": "운전면허",
+   "sequence_key": "w_1501",
+   "frame_count": 139
+  },
+  {
+   "word_id": "w_1503",
+   "label": "구경",
+   "sequence_key": "w_1503",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1516",
+   "label": "누나",
+   "sequence_key": "w_1516",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1518",
+   "label": "여동생",
+   "sequence_key": "w_1518",
+   "frame_count": 85
+  },
+  {
+   "word_id": "w_1519",
+   "label": "상처",
+   "sequence_key": "w_1519",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1522",
+   "label": "딸",
+   "sequence_key": "w_1522",
+   "frame_count": 92
+  },
+  {
+   "word_id": "w_1524",
+   "label": "아내",
+   "sequence_key": "w_1524",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_1528",
+   "label": "엄마",
+   "sequence_key": "w_1528",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_1530",
+   "label": "바쁘다",
+   "sequence_key": "w_1530",
+   "frame_count": 94
+  },
+  {
+   "word_id": "w_1531",
+   "label": "남편",
+   "sequence_key": "w_1531",
+   "frame_count": 94
+  },
+  {
+   "word_id": "w_1533",
+   "label": "병",
+   "sequence_key": "w_1533",
+   "frame_count": 87
+  },
+  {
+   "word_id": "w_1534",
+   "label": "밥",
+   "sequence_key": "w_1534",
+   "frame_count": 95
+  },
+  {
+   "word_id": "w_1535",
+   "label": "부부",
+   "sequence_key": "w_1535",
+   "frame_count": 87
+  },
+  {
+   "word_id": "w_1540",
+   "label": "생활",
+   "sequence_key": "w_1540",
+   "frame_count": 115
+  },
+  {
+   "word_id": "w_1556",
+   "label": "오빠",
+   "sequence_key": "w_1556",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_1557",
+   "label": "출장",
+   "sequence_key": "w_1557",
+   "frame_count": 96
+  },
+  {
+   "word_id": "w_1558",
+   "label": "이사",
+   "sequence_key": "w_1558",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_1565",
+   "label": "할머니",
+   "sequence_key": "w_1565",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_1566",
+   "label": "할아버지",
+   "sequence_key": "w_1566",
+   "frame_count": 98
+  },
+  {
+   "word_id": "w_1568",
+   "label": "조카",
+   "sequence_key": "w_1568",
+   "frame_count": 95
+  },
+  {
+   "word_id": "w_1574",
+   "label": "형",
+   "sequence_key": "w_1574",
+   "frame_count": 101
+  },
+  {
+   "word_id": "w_1576",
+   "label": "환자",
+   "sequence_key": "w_1576",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_1577",
+   "label": "시작",
+   "sequence_key": "w_1577",
+   "frame_count": 102
+  },
+  {
+   "word_id": "w_1578",
+   "label": "밖",
+   "sequence_key": "w_1578",
+   "frame_count": 93
+  },
+  {
+   "word_id": "w_1581",
+   "label": "시험",
+   "sequence_key": "w_1581",
+   "frame_count": 110
+  },
+  {
+   "word_id": "w_1584",
+   "label": "관계",
+   "sequence_key": "w_1584",
+   "frame_count": 114
+  },
+  {
+   "word_id": "w_1589",
+   "label": "부탁",
+   "sequence_key": "w_1589",
+   "frame_count": 101
+  },
+  {
+   "word_id": "w_1592",
+   "label": "회사",
+   "sequence_key": "w_1592",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_1593",
+   "label": "기차",
+   "sequence_key": "w_1593",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_1597",
+   "label": "상담",
+   "sequence_key": "w_1597",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_1599",
+   "label": "다리",
+   "sequence_key": "w_1599",
+   "frame_count": 107
+  },
+  {
+   "word_id": "w_1731",
+   "label": "재미없다",
+   "sequence_key": "w_1731",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_2013",
+   "label": "한국인",
+   "sequence_key": "w_2013",
+   "frame_count": 128
+  },
+  {
+   "word_id": "w_2023",
+   "label": "청년",
+   "sequence_key": "w_2023",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_2024",
+   "label": "청소년",
+   "sequence_key": "w_2024",
+   "frame_count": 113
+  },
+  {
+   "word_id": "w_2032",
+   "label": "노인",
+   "sequence_key": "w_2032",
+   "frame_count": 116
+  },
+  {
+   "word_id": "w_2039",
+   "label": "몸무게",
+   "sequence_key": "w_2039",
+   "frame_count": 124
+  },
+  {
+   "word_id": "w_2050",
+   "label": "계획",
+   "sequence_key": "w_2050",
+   "frame_count": 119
+  },
+  {
+   "word_id": "w_2053",
+   "label": "동의",
+   "sequence_key": "w_2053",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_2057",
+   "label": "관광",
+   "sequence_key": "w_2057",
+   "frame_count": 146
+  },
+  {
+   "word_id": "w_2100",
+   "label": "위",
+   "sequence_key": "w_2100",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_2108",
+   "label": "가루약",
+   "sequence_key": "w_2108",
+   "frame_count": 89
+  },
+  {
+   "word_id": "w_2131",
+   "label": "물약",
+   "sequence_key": "w_2131",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_2143",
+   "label": "신부",
+   "sequence_key": "w_2143",
+   "frame_count": 110
+  },
+  {
+   "word_id": "w_2144",
+   "label": "신혼",
+   "sequence_key": "w_2144",
+   "frame_count": 121
+  },
+  {
+   "word_id": "w_2153",
+   "label": "운동장",
+   "sequence_key": "w_2153",
+   "frame_count": 144
+  },
+  {
+   "word_id": "w_2174",
+   "label": "용돈",
+   "sequence_key": "w_2174",
+   "frame_count": 111
+  },
+  {
+   "word_id": "w_2177",
+   "label": "공항",
+   "sequence_key": "w_2177",
+   "frame_count": 112
+  },
+  {
+   "word_id": "w_2179",
+   "label": "월급",
+   "sequence_key": "w_2179",
+   "frame_count": 114
+  },
+  {
+   "word_id": "w_2183",
+   "label": "사무실",
+   "sequence_key": "w_2183",
+   "frame_count": 120
+  },
+  {
+   "word_id": "w_2184",
+   "label": "직원",
+   "sequence_key": "w_2184",
+   "frame_count": 107
+  },
+  {
+   "word_id": "w_2185",
+   "label": "사장",
+   "sequence_key": "w_2185",
+   "frame_count": 112
+  },
+  {
+   "word_id": "w_2190",
+   "label": "운전자",
+   "sequence_key": "w_2190",
+   "frame_count": 116
+  },
+  {
+   "word_id": "w_2196",
+   "label": "취업",
+   "sequence_key": "w_2196",
+   "frame_count": 124
+  },
+  {
+   "word_id": "w_2198",
+   "label": "알려주다",
+   "sequence_key": "w_2198",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_2205",
+   "label": "잊어버리다",
+   "sequence_key": "w_2205",
+   "frame_count": 115
+  },
+  {
+   "word_id": "w_2226",
+   "label": "거절",
+   "sequence_key": "w_2226",
+   "frame_count": 82
+  },
+  {
+   "word_id": "w_2538",
+   "label": "달",
+   "sequence_key": "w_2538",
+   "frame_count": 101
+  },
+  {
+   "word_id": "w_2542",
+   "label": "뜨겁다",
+   "sequence_key": "w_2542",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_2546",
+   "label": "바다",
+   "sequence_key": "w_2546",
+   "frame_count": 123
+  },
+  {
+   "word_id": "w_2549",
+   "label": "바람",
+   "sequence_key": "w_2549",
+   "frame_count": 105
+  },
+  {
+   "word_id": "w_2551",
+   "label": "별",
+   "sequence_key": "w_2551",
+   "frame_count": 101
+  },
+  {
+   "word_id": "w_2552",
+   "label": "비",
+   "sequence_key": "w_2552",
+   "frame_count": 117
+  },
+  {
+   "word_id": "w_2563",
+   "label": "온도",
+   "sequence_key": "w_2563",
+   "frame_count": 115
+  },
+  {
+   "word_id": "w_2577",
+   "label": "아래",
+   "sequence_key": "w_2577",
+   "frame_count": 99
+  },
+  {
+   "word_id": "w_2631",
+   "label": "영",
+   "sequence_key": "w_2631",
+   "frame_count": 91
+  },
+  {
+   "word_id": "w_2632",
+   "label": "일",
+   "sequence_key": "w_2632",
+   "frame_count": 103
+  },
+  {
+   "word_id": "w_2633",
+   "label": "이",
+   "sequence_key": "w_2633",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_2634",
+   "label": "삼",
+   "sequence_key": "w_2634",
+   "frame_count": 110
+  },
+  {
+   "word_id": "w_2635",
+   "label": "사",
+   "sequence_key": "w_2635",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_2636",
+   "label": "오",
+   "sequence_key": "w_2636",
+   "frame_count": 96
+  },
+  {
+   "word_id": "w_2637",
+   "label": "육",
+   "sequence_key": "w_2637",
+   "frame_count": 97
+  },
+  {
+   "word_id": "w_2638",
+   "label": "칠",
+   "sequence_key": "w_2638",
+   "frame_count": 100
+  },
+  {
+   "word_id": "w_2640",
+   "label": "구",
+   "sequence_key": "w_2640",
+   "frame_count": 108
+  },
+  {
+   "word_id": "w_2641",
+   "label": "십",
+   "sequence_key": "w_2641",
+   "frame_count": 108
+  }
+ ]
+}

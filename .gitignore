@@ -50,12 +50,6 @@ packages/core/src/generated/
 # 별도인 바이너리라 public 레포에 커밋하지 않는다.
 packages/ear-dream-app/public/mediapipe/
 
-# 생성물 — uv run python scripts/build_sign_sequences.py 로 재생성한다 (api 패키지에서)
-# 아바타 재생용 수어 시퀀스 좌표. 원천은 형제 레포 Ear-Dream-Model 의 키포인트라
-# 이 레포에 복사하지 않는다 (CLAUDE.md 「서빙 모델과 Ear-Dream-Model 레포」).
-# 서버가 참조하는 목록은 좌표 없는 app/ml/data/sign_sequences.json 으로 따로 커밋된다.
-packages/ear-dream-app/public/sign-sequences/
-
 # 팀 내부용 메모 (public 레포이므로 커밋하지 않는다)
 CLAUDE.local.md
 packages/ear-dream-api/app/examples/*.json
