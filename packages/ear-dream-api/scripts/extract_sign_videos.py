@@ -77,6 +77,17 @@ FACE_ROI_SCALE = 1.6
 # ROI 중심을 코보다 살짝 위로 (어깨 너비 대비). 이마·정수리가 잘리지 않게.
 FACE_ROI_RISE = 0.1
 
+# 손목이 포즈 손목에서 이만큼(어깨 너비 대비) 넘게 떨어지면 **그 손은 버린다.**
+#
+# 검출기가 한 손 근처에서 손을 두 개 잡는 프레임이 있다(실측 300단어 중 114단어,
+# 316프레임). 진 쪽을 남은 자리에 밀어넣으면 실제로는 반대편에 있는 손이 엉뚱한
+# 위치에 그려진다 — 배꼽 근처에서 살구색 덩어리가 깜빡이는 증상이 이것이었다.
+# **없는 손은 없는 채로 두는 편이 낫다.** 결측은 재생 쪽에서 앞뒤로 메워지지만
+# 잘못 놓인 손은 아무도 못 고친다.
+#
+# 정상 프레임의 손목 거리는 어깨 너비의 0.02~0.08 수준이라 0.25 는 넉넉한 상한이다.
+MAX_WRIST_OFFSET = 0.25
+
 
 def build_landmarkers():
     from mediapipe.tasks import python as mp_python
@@ -181,49 +192,90 @@ def fill_face(frame: np.ndarray, rgb, face_landmarker) -> None:
 
 
 def assign_hands(hand_res, frame: np.ndarray):
-    """검출된 손을 좌/우 블록에 배정한다. 포즈 손목 거리 우선, handedness 폴백."""
+    """검출된 손을 좌/우 블록에 배정한다. 포즈 손목 거리 우선, 라벨은 폴백.
+
+    두 손을 각각 가까운 쪽에 붙이는 게 아니라 **짝짓기 전체의 거리 합이 최소**가 되는
+    조합을 고른다. 하나씩 탐욕적으로 붙이면 먼저 처리된 손이 자리를 차지해 남은 손이
+    엉뚱한 자리로 밀린다.
+    """
     hands = list(hand_res.hand_landmarks or [])
     if not hands:
         return []
 
-    wrists = {"left": frame[L_WRIST][:2], "right": frame[R_WRIST][:2]}
-    taken: dict[str, int] = {}
+    span = _shoulder_span(frame)
+    wrists = {
+        "left": frame[L_WRIST][:2],
+        "right": frame[R_WRIST][:2],
+    }
+    sides = [s for s, w in wrists.items() if not np.isnan(w).any()]
 
-    for index, landmarks in enumerate(hands):
-        point = np.array([landmarks[0].x, landmarks[0].y], dtype=np.float32)
-        distances = {
-            side: float(np.hypot(*(point - wrist)))
-            for side, wrist in wrists.items()
-            if not np.isnan(wrist).any()
-        }
-        if distances:
-            side = min(distances, key=distances.get)
-        else:
-            # 포즈가 없을 때만 라벨에 기댄다 (영상 미러링 여부에 의존한다).
+    if not sides or span <= 0:
+        # 포즈가 없으면 라벨에 기댄다 (영상 미러링 여부에 의존한다).
+        chosen: dict[str, int] = {}
+        for index in range(len(hands)):
             label = hand_res.handedness[index][0].category_name.lower()
-            side = "left" if label == "left" else "right"
-        # 두 손이 같은 쪽으로 몰리면 더 가까운 쪽만 남긴다 — 겹쳐 쓰면 한 손이 사라진다.
-        if side in taken:
-            other = taken[side]
-            keep = index if distances.get(side, 9e9) < _wrist_distance(hands[other], wrists[side]) else other
-            drop = other if keep == index else index
-            taken[side] = keep
-            free = "right" if side == "left" else "left"
-            if free not in taken:
-                taken[free] = drop
-        else:
-            taken[side] = index
+            chosen.setdefault("left" if label == "left" else "right", index)
+        return [
+            (LEFT_HAND if side == "left" else RIGHT_HAND, hands[index])
+            for side, index in chosen.items()
+        ]
 
+    def distance(index: int, side: str) -> float:
+        wrist = wrists[side]
+        point = hands[index][0]
+        return float(np.hypot((point.x - wrist[0]) * (16 / 9), point.y - wrist[1]))
+
+    # 손 ≤ 2, 자리 ≤ 2 라 가능한 짝짓기가 몇 개 안 된다 — 전부 따져 최소를 고른다.
+    best: tuple[float, dict[str, int]] | None = None
+    for pairing in _pairings(range(len(hands)), sides):
+        total = sum(distance(index, side) for side, index in pairing.items())
+        if best is None or total < best[0]:
+            best = (total, pairing)
+    assert best is not None
+
+    limit = span * MAX_WRIST_OFFSET
     return [
         (LEFT_HAND if side == "left" else RIGHT_HAND, hands[index])
-        for side, index in taken.items()
+        for side, index in best[1].items()
+        if distance(index, side) <= limit
     ]
 
 
-def _wrist_distance(landmarks, wrist) -> float:
-    if np.isnan(wrist).any():
-        return 9e9
-    return float(np.hypot(landmarks[0].x - wrist[0], landmarks[0].y - wrist[1]))
+def _pairings(indices, sides) -> list[dict[str, int]]:
+    """손 index 를 자리에 겹치지 않게 배정하는 **최대 크기** 조합들.
+
+    자리를 비우는 조합은 넣지 않는다 — 거리 합으로 고르는데 빈 조합은 합이 0 이라
+    무조건 이겨 버린다(모든 손을 버리게 된다). 몇 개를 버릴지는 거리 상한이 정하고,
+    여기서는 "가능한 만큼 붙인 배치들" 만 후보로 낸다.
+    """
+    indices = list(indices)
+    sides = list(sides)
+    size = min(len(indices), len(sides))
+    results: list[dict[str, int]] = []
+
+    def walk(remaining_sides: list[str], remaining: list[int], acc: dict[str, int]) -> None:
+        if len(acc) == size:
+            results.append(dict(acc))
+            return
+        if not remaining_sides:
+            return
+        side = remaining_sides[0]
+        for index in remaining:
+            acc[side] = index
+            walk(remaining_sides[1:], [i for i in remaining if i != index], acc)
+            del acc[side]
+        # 이 자리를 건너뛰고 나머지로 채우는 경우 (손보다 자리가 많을 때)
+        walk(remaining_sides[1:], remaining, acc)
+
+    walk(sides, indices, {})
+    return results or [{}]
+
+
+def _shoulder_span(frame: np.ndarray) -> float:
+    left, right = frame[L_SHOULDER][:2], frame[R_SHOULDER][:2]
+    if np.isnan(left).any() or np.isnan(right).any():
+        return 0.0
+    return float(np.hypot((left[0] - right[0]) * (16 / 9), left[1] - right[1]))
 
 
 def extract_video(path: Path) -> tuple[np.ndarray, float]:

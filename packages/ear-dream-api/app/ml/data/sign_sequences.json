@@ -50,7 +50,7 @@
    "label": "안타깝다",
    "sequence_key": "w_0011",
    "frame_count": 124,
-   "missing_rate": 0.00782,
+   "missing_rate": 0.01042,
    "source_clip_id": "NIA_SL_WORD0011_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -60,7 +60,7 @@
    "label": "외국인",
    "sequence_key": "w_0014",
    "frame_count": 140,
-   "missing_rate": 0.01731,
+   "missing_rate": 0.01846,
    "source_clip_id": "NIA_SL_WORD0014_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -100,7 +100,7 @@
    "label": "검사",
    "sequence_key": "w_0029",
    "frame_count": 139,
-   "missing_rate": 0.0093,
+   "missing_rate": 0.01046,
    "source_clip_id": "NIA_SL_WORD0029_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -110,7 +110,7 @@
    "label": "독서",
    "sequence_key": "w_0034",
    "frame_count": 140,
-   "missing_rate": 0.015,
+   "missing_rate": 0.01615,
    "source_clip_id": "NIA_SL_WORD0034_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -120,7 +120,7 @@
    "label": "감기",
    "sequence_key": "w_0037",
    "frame_count": 132,
-   "missing_rate": 0.00979,
+   "missing_rate": 0.01958,
    "source_clip_id": "NIA_SL_WORD0037_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -150,7 +150,7 @@
    "label": "붕대",
    "sequence_key": "w_0044",
    "frame_count": 144,
-   "missing_rate": 0.01346,
+   "missing_rate": 0.01458,
    "source_clip_id": "NIA_SL_WORD0044_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -180,7 +180,7 @@
    "label": "입원",
    "sequence_key": "w_0060",
    "frame_count": 131,
-   "missing_rate": 0.00986,
+   "missing_rate": 0.0148,
    "source_clip_id": "NIA_SL_WORD0060_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -220,7 +220,7 @@
    "label": "돼지고기",
    "sequence_key": "w_0086",
    "frame_count": 133,
-   "missing_rate": 0.00607,
+   "missing_rate": 0.00729,
    "source_clip_id": "NIA_SL_WORD0086_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -230,7 +230,7 @@
    "label": "두부",
    "sequence_key": "w_0087",
    "frame_count": 123,
-   "missing_rate": 0.01051,
+   "missing_rate": 0.01182,
    "source_clip_id": "NIA_SL_WORD0087_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -260,7 +260,7 @@
    "label": "비빔밥",
    "sequence_key": "w_0098",
    "frame_count": 117,
-   "missing_rate": 0.01105,
+   "missing_rate": 0.01243,
    "source_clip_id": "NIA_SL_WORD0098_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -270,7 +270,7 @@
    "label": "사과",
    "sequence_key": "w_0099",
    "frame_count": 125,
-   "missing_rate": 0.01034,
+   "missing_rate": 0.01422,
    "source_clip_id": "NIA_SL_WORD0099_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -280,7 +280,7 @@
    "label": "사이다",
    "sequence_key": "w_0100",
    "frame_count": 125,
-   "missing_rate": 0.01034,
+   "missing_rate": 0.01163,
    "source_clip_id": "NIA_SL_WORD0100_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -400,7 +400,7 @@
    "label": "마을버스",
    "sequence_key": "w_0148",
    "frame_count": 138,
-   "missing_rate": 0.00819,
+   "missing_rate": 0.01054,
    "source_clip_id": "NIA_SL_WORD0148_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -460,7 +460,7 @@
    "label": "요리사",
    "sequence_key": "w_0159",
    "frame_count": 118,
-   "missing_rate": 0.00821,
+   "missing_rate": 0.00958,
    "source_clip_id": "NIA_SL_WORD0159_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -480,7 +480,7 @@
    "label": "이력서",
    "sequence_key": "w_0164",
    "frame_count": 156,
-   "missing_rate": 0.01036,
+   "missing_rate": 0.01139,
    "source_clip_id": "NIA_SL_WORD0164_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -490,7 +490,7 @@
    "label": "자가용",
    "sequence_key": "w_0165",
    "frame_count": 123,
-   "missing_rate": 0.00657,
+   "missing_rate": 0.00788,
    "source_clip_id": "NIA_SL_WORD0165_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -500,7 +500,7 @@
    "label": "재택근무",
    "sequence_key": "w_0166",
    "frame_count": 118,
-   "missing_rate": 0.01232,
+   "missing_rate": 0.01643,
    "source_clip_id": "NIA_SL_WORD0166_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -520,7 +520,7 @@
    "label": "채팅",
    "sequence_key": "w_0169",
    "frame_count": 121,
-   "missing_rate": 0.01068,
+   "missing_rate": 0.01602,
    "source_clip_id": "NIA_SL_WORD0169_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -530,7 +530,7 @@
    "label": "출근",
    "sequence_key": "w_0170",
    "frame_count": 113,
-   "missing_rate": 0.01287,
+   "missing_rate": 0.01858,
    "source_clip_id": "NIA_SL_WORD0170_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -540,7 +540,7 @@
    "label": "터미널",
    "sequence_key": "w_0172",
    "frame_count": 117,
-   "missing_rate": 0.01105,
+   "missing_rate": 0.01243,
    "source_clip_id": "NIA_SL_WORD0172_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -550,7 +550,7 @@
    "label": "근무",
    "sequence_key": "w_0173",
    "frame_count": 118,
-   "missing_rate": 0.01643,
+   "missing_rate": 0.02053,
    "source_clip_id": "NIA_SL_WORD0173_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -580,7 +580,7 @@
    "label": "간호사",
    "sequence_key": "w_0187",
    "frame_count": 123,
-   "missing_rate": 0.06548,
+   "missing_rate": 0.06811,
    "source_clip_id": "NIA_SL_WORD0187_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -600,7 +600,7 @@
    "label": "수입",
    "sequence_key": "w_0200",
    "frame_count": 117,
-   "missing_rate": 0.00966,
+   "missing_rate": 0.01105,
    "source_clip_id": "NIA_SL_WORD0200_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -610,7 +610,7 @@
    "label": "신용카드",
    "sequence_key": "w_0201",
    "frame_count": 113,
-   "missing_rate": 0.01287,
+   "missing_rate": 0.01858,
    "source_clip_id": "NIA_SL_WORD0201_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -660,7 +660,7 @@
    "label": "서점",
    "sequence_key": "w_0226",
    "frame_count": 112,
-   "missing_rate": 0.01442,
+   "missing_rate": 0.01587,
    "source_clip_id": "NIA_SL_WORD0226_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -670,7 +670,7 @@
    "label": "실습",
    "sequence_key": "w_0228",
    "frame_count": 127,
-   "missing_rate": 0.01272,
+   "missing_rate": 0.01399,
    "source_clip_id": "NIA_SL_WORD0228_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -710,7 +710,7 @@
    "label": "연구",
    "sequence_key": "w_0238",
    "frame_count": 121,
-   "missing_rate": 0.01068,
+   "missing_rate": 0.01335,
    "source_clip_id": "NIA_SL_WORD0238_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -740,7 +740,7 @@
    "label": "일요일",
    "sequence_key": "w_0257",
    "frame_count": 117,
-   "missing_rate": 0.01657,
+   "missing_rate": 0.04142,
    "source_clip_id": "NIA_SL_WORD0257_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -760,7 +760,7 @@
    "label": "하늘",
    "sequence_key": "w_0290",
    "frame_count": 109,
-   "missing_rate": 0.01482,
+   "missing_rate": 0.0163,
    "source_clip_id": "NIA_SL_WORD0290_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -780,7 +780,7 @@
    "label": "공휴일",
    "sequence_key": "w_0312",
    "frame_count": 166,
-   "missing_rate": 0.02238,
+   "missing_rate": 0.02627,
    "source_clip_id": "NIA_SL_WORD0312_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -790,7 +790,7 @@
    "label": "금요일",
    "sequence_key": "w_0316",
    "frame_count": 126,
-   "missing_rate": 0.01538,
+   "missing_rate": 0.02051,
    "source_clip_id": "NIA_SL_WORD0316_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -810,7 +810,7 @@
    "label": "수요일",
    "sequence_key": "w_0329",
    "frame_count": 122,
-   "missing_rate": 0.01059,
+   "missing_rate": 0.01324,
    "source_clip_id": "NIA_SL_WORD0329_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -820,7 +820,7 @@
    "label": "어떻게",
    "sequence_key": "w_0331",
    "frame_count": 136,
-   "missing_rate": 0.0095,
+   "missing_rate": 0.01188,
    "source_clip_id": "NIA_SL_WORD0331_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -840,7 +840,7 @@
    "label": "월요일",
    "sequence_key": "w_0336",
    "frame_count": 121,
-   "missing_rate": 0.01202,
+   "missing_rate": 0.01335,
    "source_clip_id": "NIA_SL_WORD0336_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -860,7 +860,7 @@
    "label": "아까",
    "sequence_key": "w_0339",
    "frame_count": 118,
-   "missing_rate": 0.00684,
+   "missing_rate": 0.00958,
    "source_clip_id": "NIA_SL_WORD0339_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -870,7 +870,7 @@
    "label": "평일",
    "sequence_key": "w_0344",
    "frame_count": 121,
-   "missing_rate": 0.01335,
+   "missing_rate": 0.01602,
    "source_clip_id": "NIA_SL_WORD0344_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -880,7 +880,7 @@
    "label": "화요일",
    "sequence_key": "w_0347",
    "frame_count": 122,
-   "missing_rate": 0.01192,
+   "missing_rate": 0.01721,
    "source_clip_id": "NIA_SL_WORD0347_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -890,7 +890,7 @@
    "label": "골절",
    "sequence_key": "w_0387",
    "frame_count": 115,
-   "missing_rate": 0.00702,
+   "missing_rate": 0.00983,
    "source_clip_id": "NIA_SL_WORD0387_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -900,7 +900,7 @@
    "label": "학습",
    "sequence_key": "w_0412",
    "frame_count": 133,
-   "missing_rate": 0.01215,
+   "missing_rate": 0.01336,
    "source_clip_id": "NIA_SL_WORD0412_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -960,7 +960,7 @@
    "label": "소개",
    "sequence_key": "w_0566",
    "frame_count": 103,
-   "missing_rate": 0.01882,
+   "missing_rate": 0.02039,
    "source_clip_id": "NIA_SL_WORD0566_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -980,7 +980,7 @@
    "label": "서울역",
    "sequence_key": "w_0634",
    "frame_count": 142,
-   "missing_rate": 0.0091,
+   "missing_rate": 0.01138,
    "source_clip_id": "NIA_SL_WORD0634_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -990,7 +990,7 @@
    "label": "수영장",
    "sequence_key": "w_0655",
    "frame_count": 130,
-   "missing_rate": 0.00746,
+   "missing_rate": 0.03107,
    "source_clip_id": "NIA_SL_WORD0655_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1050,7 +1050,7 @@
    "label": "우유",
    "sequence_key": "w_0815",
    "frame_count": 111,
-   "missing_rate": 0.01455,
+   "missing_rate": 0.01601,
    "source_clip_id": "NIA_SL_WORD0815_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1090,7 +1090,7 @@
    "label": "매일매일",
    "sequence_key": "w_0932",
    "frame_count": 108,
-   "missing_rate": 0.01496,
+   "missing_rate": 0.01645,
    "source_clip_id": "NIA_SL_WORD0932_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1150,7 +1150,7 @@
    "label": "불면",
    "sequence_key": "w_0970",
    "frame_count": 97,
-   "missing_rate": 0.02165,
+   "missing_rate": 0.02331,
    "source_clip_id": "NIA_SL_WORD0970_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1160,7 +1160,7 @@
    "label": "모르다",
    "sequence_key": "w_1096",
    "frame_count": 67,
-   "missing_rate": 0.00723,
+   "missing_rate": 0.00964,
    "source_clip_id": "NIA_SL_WORD1096_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1180,7 +1180,7 @@
    "label": "남자",
    "sequence_key": "w_1104",
    "frame_count": 95,
-   "missing_rate": 0.017,
+   "missing_rate": 0.0204,
    "source_clip_id": "NIA_SL_WORD1104_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1210,7 +1210,7 @@
    "label": "건강",
    "sequence_key": "w_1115",
    "frame_count": 92,
-   "missing_rate": 0.02283,
+   "missing_rate": 0.03336,
    "source_clip_id": "NIA_SL_WORD1115_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1230,7 +1230,7 @@
    "label": "불안",
    "sequence_key": "w_1123",
    "frame_count": 96,
-   "missing_rate": 0.01178,
+   "missing_rate": 0.01514,
    "source_clip_id": "NIA_SL_WORD1123_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1240,7 +1240,7 @@
    "label": "밉다",
    "sequence_key": "w_1124",
    "frame_count": 98,
-   "missing_rate": 0.01319,
+   "missing_rate": 0.02308,
    "source_clip_id": "NIA_SL_WORD1124_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1250,7 +1250,7 @@
    "label": "당황",
    "sequence_key": "w_1128",
    "frame_count": 101,
-   "missing_rate": 0.01439,
+   "missing_rate": 0.01599,
    "source_clip_id": "NIA_SL_WORD1128_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1270,7 +1270,7 @@
    "label": "잘하다",
    "sequence_key": "w_1133",
    "frame_count": 119,
-   "missing_rate": 0.019,
+   "missing_rate": 0.02986,
    "source_clip_id": "NIA_SL_WORD1133_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1300,7 +1300,7 @@
    "label": "눕다",
    "sequence_key": "w_1138",
    "frame_count": 104,
-   "missing_rate": 0.03572,
+   "missing_rate": 0.05747,
    "source_clip_id": "NIA_SL_WORD1138_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1310,7 +1310,7 @@
    "label": "믿다",
    "sequence_key": "w_1139",
    "frame_count": 106,
-   "missing_rate": 0.01829,
+   "missing_rate": 0.02134,
    "source_clip_id": "NIA_SL_WORD1139_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1360,7 +1360,7 @@
    "label": "팔",
    "sequence_key": "w_1147",
    "frame_count": 104,
-   "missing_rate": 0.01398,
+   "missing_rate": 0.0233,
    "source_clip_id": "NIA_SL_WORD1147_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1390,7 +1390,7 @@
    "label": "아프다",
    "sequence_key": "w_1152",
    "frame_count": 95,
-   "missing_rate": 0.0068,
+   "missing_rate": 0.0085,
    "source_clip_id": "NIA_SL_WORD1152_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1430,7 +1430,7 @@
    "label": "피곤하다",
    "sequence_key": "w_1158",
    "frame_count": 91,
-   "missing_rate": 0.0071,
+   "missing_rate": 0.01065,
    "source_clip_id": "NIA_SL_WORD1158_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1490,7 +1490,7 @@
    "label": "조심",
    "sequence_key": "w_1186",
    "frame_count": 103,
-   "missing_rate": 0.01098,
+   "missing_rate": 0.01412,
    "source_clip_id": "NIA_SL_WORD1186_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1500,7 +1500,7 @@
    "label": "차분",
    "sequence_key": "w_1188",
    "frame_count": 102,
-   "missing_rate": 0.00475,
+   "missing_rate": 0.00633,
    "source_clip_id": "NIA_SL_WORD1188_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1510,7 +1510,7 @@
    "label": "아기",
    "sequence_key": "w_1189",
    "frame_count": 105,
-   "missing_rate": 0.01692,
+   "missing_rate": 0.03077,
    "source_clip_id": "NIA_SL_WORD1189_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1520,7 +1520,7 @@
    "label": "방법",
    "sequence_key": "w_1190",
    "frame_count": 111,
-   "missing_rate": 0.01746,
+   "missing_rate": 0.02911,
    "source_clip_id": "NIA_SL_WORD1190_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1530,7 +1530,7 @@
    "label": "중요",
    "sequence_key": "w_1193",
    "frame_count": 110,
-   "missing_rate": 0.03965,
+   "missing_rate": 0.04406,
    "source_clip_id": "NIA_SL_WORD1193_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1570,7 +1570,7 @@
    "label": "친구",
    "sequence_key": "w_1204",
    "frame_count": 97,
-   "missing_rate": 0.05163,
+   "missing_rate": 0.05496,
    "source_clip_id": "NIA_SL_WORD1204_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1590,7 +1590,7 @@
    "label": "이해",
    "sequence_key": "w_1207",
    "frame_count": 104,
-   "missing_rate": 0.01087,
+   "missing_rate": 0.01243,
    "source_clip_id": "NIA_SL_WORD1207_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1630,7 +1630,7 @@
    "label": "창피",
    "sequence_key": "w_1215",
    "frame_count": 103,
-   "missing_rate": 0.00784,
+   "missing_rate": 0.00941,
    "source_clip_id": "NIA_SL_WORD1215_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1680,7 +1680,7 @@
    "label": "손",
    "sequence_key": "w_1226",
    "frame_count": 100,
-   "missing_rate": 0.00808,
+   "missing_rate": 0.00969,
    "source_clip_id": "NIA_SL_WORD1226_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1740,7 +1740,7 @@
    "label": "사람",
    "sequence_key": "w_1242",
    "frame_count": 96,
-   "missing_rate": 0.01346,
+   "missing_rate": 0.03029,
    "source_clip_id": "NIA_SL_WORD1242_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1750,7 +1750,7 @@
    "label": "졸리다",
    "sequence_key": "w_1244",
    "frame_count": 81,
-   "missing_rate": 0.00798,
+   "missing_rate": 0.00997,
    "source_clip_id": "NIA_SL_WORD1244_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1760,7 +1760,7 @@
    "label": "춥다",
    "sequence_key": "w_1248",
    "frame_count": 104,
-   "missing_rate": 0.01553,
+   "missing_rate": 0.01709,
    "source_clip_id": "NIA_SL_WORD1248_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1790,7 +1790,7 @@
    "label": "후회",
    "sequence_key": "w_1252",
    "frame_count": 111,
-   "missing_rate": 0.01164,
+   "missing_rate": 0.01601,
    "source_clip_id": "NIA_SL_WORD1252_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1800,7 +1800,7 @@
    "label": "몸",
    "sequence_key": "w_1253",
    "frame_count": 105,
-   "missing_rate": 0.01385,
+   "missing_rate": 0.01538,
    "source_clip_id": "NIA_SL_WORD1253_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1840,7 +1840,7 @@
    "label": "일어나다",
    "sequence_key": "w_1273",
    "frame_count": 131,
-   "missing_rate": 0.01356,
+   "missing_rate": 0.0148,
    "source_clip_id": "NIA_SL_WORD1273_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1850,7 +1850,7 @@
    "label": "달리다",
    "sequence_key": "w_1274",
    "frame_count": 102,
-   "missing_rate": 0.02059,
+   "missing_rate": 0.02217,
    "source_clip_id": "NIA_SL_WORD1274_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1860,7 +1860,7 @@
    "label": "여자",
    "sequence_key": "w_1275",
    "frame_count": 100,
-   "missing_rate": 0.01777,
+   "missing_rate": 0.02423,
    "source_clip_id": "NIA_SL_WORD1275_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1900,7 +1900,7 @@
    "label": "감동",
    "sequence_key": "w_1289",
    "frame_count": 123,
-   "missing_rate": 0.00525,
+   "missing_rate": 0.00657,
    "source_clip_id": "NIA_SL_WORD1289_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -1960,7 +1960,7 @@
    "label": "부족",
    "sequence_key": "w_1304",
    "frame_count": 95,
-   "missing_rate": 0.0102,
+   "missing_rate": 0.0119,
    "source_clip_id": "NIA_SL_WORD1304_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2030,7 +2030,7 @@
    "label": "느리다",
    "sequence_key": "w_1337",
    "frame_count": 101,
-   "missing_rate": 0.02879,
+   "missing_rate": 0.03519,
    "source_clip_id": "NIA_SL_WORD1337_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2040,7 +2040,7 @@
    "label": "왼쪽",
    "sequence_key": "w_1342",
    "frame_count": 113,
-   "missing_rate": 0.00858,
+   "missing_rate": 0.02287,
    "source_clip_id": "NIA_SL_WORD1342_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2050,7 +2050,7 @@
    "label": "오른쪽",
    "sequence_key": "w_1343",
    "frame_count": 118,
-   "missing_rate": 0.01095,
+   "missing_rate": 0.03286,
    "source_clip_id": "NIA_SL_WORD1343_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2090,7 +2090,7 @@
    "label": "당신",
    "sequence_key": "w_1353",
    "frame_count": 106,
-   "missing_rate": 0.00457,
+   "missing_rate": 0.0061,
    "source_clip_id": "NIA_SL_WORD1353_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2190,7 +2190,7 @@
    "label": "덥다",
    "sequence_key": "w_1382",
    "frame_count": 96,
-   "missing_rate": 0.02019,
+   "missing_rate": 0.03197,
    "source_clip_id": "NIA_SL_WORD1382_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2240,7 +2240,7 @@
    "label": "가족",
    "sequence_key": "w_1492",
    "frame_count": 105,
-   "missing_rate": 0.02,
+   "missing_rate": 0.02615,
    "source_clip_id": "NIA_SL_WORD1492_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2250,7 +2250,7 @@
    "label": "병원",
    "sequence_key": "w_1496",
    "frame_count": 95,
-   "missing_rate": 0.0102,
+   "missing_rate": 0.0119,
    "source_clip_id": "NIA_SL_WORD1496_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2280,7 +2280,7 @@
    "label": "누나",
    "sequence_key": "w_1516",
    "frame_count": 102,
-   "missing_rate": 0.01425,
+   "missing_rate": 0.02059,
    "source_clip_id": "NIA_SL_WORD1516_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2290,7 +2290,7 @@
    "label": "여동생",
    "sequence_key": "w_1518",
    "frame_count": 85,
-   "missing_rate": 0.0114,
+   "missing_rate": 0.0152,
    "source_clip_id": "NIA_SL_WORD1518_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2320,7 +2320,7 @@
    "label": "아내",
    "sequence_key": "w_1524",
    "frame_count": 97,
-   "missing_rate": 0.01832,
+   "missing_rate": 0.02331,
    "source_clip_id": "NIA_SL_WORD1524_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2340,7 +2340,7 @@
    "label": "바쁘다",
    "sequence_key": "w_1530",
    "frame_count": 94,
-   "missing_rate": 0.01547,
+   "missing_rate": 0.01718,
    "source_clip_id": "NIA_SL_WORD1530_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2380,7 +2380,7 @@
    "label": "부부",
    "sequence_key": "w_1535",
    "frame_count": 87,
-   "missing_rate": 0.02228,
+   "missing_rate": 0.02414,
    "source_clip_id": "NIA_SL_WORD1535_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2390,7 +2390,7 @@
    "label": "생활",
    "sequence_key": "w_1540",
    "frame_count": 115,
-   "missing_rate": 0.01124,
+   "missing_rate": 0.01545,
    "source_clip_id": "NIA_SL_WORD1540_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2400,7 +2400,7 @@
    "label": "오빠",
    "sequence_key": "w_1556",
    "frame_count": 100,
-   "missing_rate": 0.021,
+   "missing_rate": 0.02262,
    "source_clip_id": "NIA_SL_WORD1556_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2410,7 +2410,7 @@
    "label": "출장",
    "sequence_key": "w_1557",
    "frame_count": 96,
-   "missing_rate": 0.02187,
+   "missing_rate": 0.02861,
    "source_clip_id": "NIA_SL_WORD1557_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2420,7 +2420,7 @@
    "label": "이사",
    "sequence_key": "w_1558",
    "frame_count": 105,
-   "missing_rate": 0.01385,
+   "missing_rate": 0.01538,
    "source_clip_id": "NIA_SL_WORD1558_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2450,7 +2450,7 @@
    "label": "조카",
    "sequence_key": "w_1568",
    "frame_count": 95,
-   "missing_rate": 0.0153,
+   "missing_rate": 0.017,
    "source_clip_id": "NIA_SL_WORD1568_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2460,7 +2460,7 @@
    "label": "형",
    "sequence_key": "w_1574",
    "frame_count": 101,
-   "missing_rate": 0.01759,
+   "missing_rate": 0.02079,
    "source_clip_id": "NIA_SL_WORD1574_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2490,7 +2490,7 @@
    "label": "밖",
    "sequence_key": "w_1578",
    "frame_count": 93,
-   "missing_rate": 0.01563,
+   "missing_rate": 0.02258,
    "source_clip_id": "NIA_SL_WORD1578_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2500,7 +2500,7 @@
    "label": "시험",
    "sequence_key": "w_1581",
    "frame_count": 110,
-   "missing_rate": 0.03084,
+   "missing_rate": 0.03378,
    "source_clip_id": "NIA_SL_WORD1581_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2530,7 +2530,7 @@
    "label": "회사",
    "sequence_key": "w_1592",
    "frame_count": 111,
-   "missing_rate": 0.01601,
+   "missing_rate": 0.01892,
    "source_clip_id": "NIA_SL_WORD1592_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2540,7 +2540,7 @@
    "label": "기차",
    "sequence_key": "w_1593",
    "frame_count": 117,
-   "missing_rate": 0.02209,
+   "missing_rate": 0.02623,
    "source_clip_id": "NIA_SL_WORD1593_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2560,7 +2560,7 @@
    "label": "다리",
    "sequence_key": "w_1599",
    "frame_count": 107,
-   "missing_rate": 0.01208,
+   "missing_rate": 0.0151,
    "source_clip_id": "NIA_SL_WORD1599_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2570,7 +2570,7 @@
    "label": "재미없다",
    "sequence_key": "w_1731",
    "frame_count": 103,
-   "missing_rate": 0.01098,
+   "missing_rate": 0.01255,
    "source_clip_id": "NIA_SL_WORD1731_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2600,7 +2600,7 @@
    "label": "청소년",
    "sequence_key": "w_2024",
    "frame_count": 113,
-   "missing_rate": 0.0486,
+   "missing_rate": 0.05146,
    "source_clip_id": "NIA_SL_WORD2024_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2620,7 +2620,7 @@
    "label": "몸무게",
    "sequence_key": "w_2039",
    "frame_count": 124,
-   "missing_rate": 0.00912,
+   "missing_rate": 0.01303,
    "source_clip_id": "NIA_SL_WORD2039_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2630,7 +2630,7 @@
    "label": "계획",
    "sequence_key": "w_2050",
    "frame_count": 119,
-   "missing_rate": 0.01222,
+   "missing_rate": 0.01493,
    "source_clip_id": "NIA_SL_WORD2050_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2640,7 +2640,7 @@
    "label": "동의",
    "sequence_key": "w_2053",
    "frame_count": 117,
-   "missing_rate": 0.01243,
+   "missing_rate": 0.01519,
    "source_clip_id": "NIA_SL_WORD2053_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2660,7 +2660,7 @@
    "label": "위",
    "sequence_key": "w_2100",
    "frame_count": 117,
-   "missing_rate": 0.00414,
+   "missing_rate": 0.00828,
    "source_clip_id": "NIA_SL_WORD2100_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2680,7 +2680,7 @@
    "label": "물약",
    "sequence_key": "w_2131",
    "frame_count": 111,
-   "missing_rate": 0.01019,
+   "missing_rate": 0.0131,
    "source_clip_id": "NIA_SL_WORD2131_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2710,7 +2710,7 @@
    "label": "운동장",
    "sequence_key": "w_2153",
    "frame_count": 144,
-   "missing_rate": 0.01122,
+   "missing_rate": 0.01234,
    "source_clip_id": "NIA_SL_WORD2153_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2760,7 +2760,7 @@
    "label": "직원",
    "sequence_key": "w_2184",
    "frame_count": 107,
-   "missing_rate": 0.0151,
+   "missing_rate": 0.01963,
    "source_clip_id": "NIA_SL_WORD2184_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2780,7 +2780,7 @@
    "label": "운전자",
    "sequence_key": "w_2190",
    "frame_count": 116,
-   "missing_rate": 0.01532,
+   "missing_rate": 0.02089,
    "source_clip_id": "NIA_SL_WORD2190_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2820,7 +2820,7 @@
    "label": "거절",
    "sequence_key": "w_2226",
    "frame_count": 82,
-   "missing_rate": 0.01576,
+   "missing_rate": 0.0197,
    "source_clip_id": "NIA_SL_WORD2226_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2830,7 +2830,7 @@
    "label": "달",
    "sequence_key": "w_2538",
    "frame_count": 101,
-   "missing_rate": 0.0064,
+   "missing_rate": 0.0112,
    "source_clip_id": "NIA_SL_WORD2538_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2840,7 +2840,7 @@
    "label": "뜨겁다",
    "sequence_key": "w_2542",
    "frame_count": 100,
-   "missing_rate": 0.01615,
+   "missing_rate": 0.01777,
    "source_clip_id": "NIA_SL_WORD2542_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2860,7 +2860,7 @@
    "label": "바람",
    "sequence_key": "w_2549",
    "frame_count": 105,
-   "missing_rate": 0.01846,
+   "missing_rate": 0.02615,
    "source_clip_id": "NIA_SL_WORD2549_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2880,7 +2880,7 @@
    "label": "비",
    "sequence_key": "w_2552",
    "frame_count": 117,
-   "missing_rate": 0.01381,
+   "missing_rate": 0.01657,
    "source_clip_id": "NIA_SL_WORD2552_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2890,7 +2890,7 @@
    "label": "온도",
    "sequence_key": "w_2563",
    "frame_count": 115,
-   "missing_rate": 0.04916,
+   "missing_rate": 0.05057,
    "source_clip_id": "NIA_SL_WORD2563_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
@@ -2980,7 +2980,7 @@
    "label": "칠",
    "sequence_key": "w_2638",
    "frame_count": 100,
-   "missing_rate": 0.00323,
+   "missing_rate": 0.00485,
    "source_clip_id": "NIA_SL_WORD2638_REAL01_F",
    "source_signer_id": "F",
    "candidate_count": 1
