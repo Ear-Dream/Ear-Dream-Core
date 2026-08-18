@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse
 from app.api.v1.router import api_router
 from app.core.compression import GzipRequestMiddleware
 from app.core.config import settings
+from app.core.limits import BodySizeLimitMiddleware
 from app.core.logging import configure_logging, get_logger
 from app.ml.model import get_model_state
 from app.ml.vocab import VOCAB_SIZE
@@ -48,6 +49,10 @@ app.add_middleware(
 # `Content-Encoding: gzip` 요청 본문 해제. /recognize 페이로드가 세그먼트당 수 MB 라
 # 전송 계층에서만 줄인다 — 풀면 바이트가 같아 학습 계약은 그대로다 (app/core/compression.py).
 app.add_middleware(GzipRequestMiddleware)
+
+# 크기 상한은 **가장 바깥**이어야 한다 — 해제도 아카이빙도 하기 전에 끊어야 의미가 있다.
+# (add_middleware 는 나중에 등록한 것이 바깥이다.)
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=settings.max_request_bytes)
 
 app.include_router(api_router, prefix=settings.api_v1_prefix)
 
