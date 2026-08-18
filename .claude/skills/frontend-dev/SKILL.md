@@ -10,7 +10,7 @@ description: "Ear Dream 앱(Expo / React Native) 프론트엔드 개발. 화면�
 
 ## 착수 전 확인
 
-1. `README.md` — 구조, 실행 방법, API 계약 파이프라인
+1. `README.md` — 프로젝트 개요·실행. 구조와 API 계약 파이프라인은 `docs/development.md`
 2. `CLAUDE.md` — 레포 전체 규칙
 3. `packages/core/src/` — 사용 가능한 API 타입
 4. http://localhost:8000/docs — 실제 엔드포인트와 응답 형태 (`pnpm dev:api` 실행 후)

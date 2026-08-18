@@ -243,7 +243,7 @@ TypeScript는 Expo SDK 57이 고정한 `~6.0.3`에 맞춰 `core`와 `app` 양쪽
 - **백엔드는 기계마다 갈린다** — vLLM 이 CUDA 전용이라 맥에서 안 돈다. Windows/WSL 은
   vLLM(`:8001`, `Qwen/Qwen3-4B` BF16), macOS 는 Ollama(`:11434`, `qwen3:4b` Q4).
   둘 다 OpenAI 호환 `/chat/completions` 라 클라이언트는 하나고, 갈리는 건 설정뿐이다
-  (README 「개발 기계별 LLM 백엔드」·`.env.example`)
+  (`docs/optional-services.md` 「문장 변환 LLM」·`.env.example`)
 - **맥 프로필은 스위치 2종이 한 세트다** (2026-08-14 실측 — 하나라도 빠지면 매 요청 폴백):
   `sentence_llm_reasoning_effort="none"` 이 없으면 thinking 이 `max_tokens` 를 다 먹어
   응답이 빈 문자열로 잘리고 46초가 걸린다 (Ollama 는 vLLM 이 쓰는
@@ -428,7 +428,7 @@ CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않
 | 모바일 웹 단일 오리진 서빙 (`scripts/serve-mobile.mjs`) | 완료 — https 인증서는 사람이 설치 |
 | 카메라 프리뷰 (T-02) | **부분** — 프레이밍 가이드 박스·감지 안내·녹화 타이머는 반영, 실기기 세로 구도 확인 필요 |
 | 청인 트랙 STT (`features/voice/stt/`) | 코드 완료 — 브라우저 엔진 없으면 키보드 입력 폴백. **실제 엔진 미검증**(가짜 주입 테스트 기반) |
-| 청인 트랙 아바타 (`/sign-sequence` + 아바타 재생) | 코드 완료 — 좌표에 살을 붙이고 얼굴 78점으로 표정까지 그린다(2.5D · 손바닥 방향은 표현 불가). **어휘 300단어 전부** 자산 보유(`extract_sign_videos.py` 로 원본 영상에서 추출). 조음 정확성 육안 검증 전 |
+| 청인 트랙 아바타 (`/sign-sequence` + 아바타 재생) | 코드 완료 — 좌표에 살을 붙이고 얼굴 78점으로 표정까지 그린다(2.5D · 손바닥 방향은 표현 불가). **어휘 300단어 전부** 동작 시퀀스 보유(`extract_sign_videos.py` 로 원본 영상에서 추출). 조음 정확성 육안 검증 전 |
 | `/phrases` 상황 문장 | 스켈레톤 — 빈 배열 |
 | 발화 단위 촬영 + 서버 오프라인 분절 (MVP 이후 전환) | 미착수 |
 
@@ -448,7 +448,7 @@ CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않
 - ~~https 서빙~~ — **해결됨**. `pnpm build:web-mobile` + `pnpm serve:mobile` 로 웹과 API 를
   **한 오리진**에 묶어 서빙하고(`scripts/serve-mobile.mjs` — dist 정적 + `/api` 프록시),
   https 는 터널(`ngrok http 8080`)이 씌운다. 한 오리진이라 mixed content·CORS 가 없다.
-  절차는 README 「실기기(모바일 웹)」. LAN + mkcert 경로는 **쓰지 않기로 하고 삭제했다**
+  절차는 `docs/development.md` 「실기기(모바일 웹)」. LAN + mkcert 경로는 **쓰지 않기로 하고 삭제했다**
   (2026-08-18) — 필요하면 그 이전 커밋에서 `scripts/setup-https-cert.mjs` 를 가져온다
 - 라벨된 실사용 평가셋 확보 — **지금 가장 비싼 미지수다.** 아카이브에 정답 라벨이 없어
   실사용 정답률이 미지이고, 라이브 도메인 갭 개입 3종(`live_y_scale`·`debias_alpha`·

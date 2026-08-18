@@ -10,6 +10,54 @@ FastAPI + React Native 기반의 한손 수어 인식 실시간 통역 서비스
 - 청인 → 농인: 음성 인식(STT) → 문장을 어휘 단어로 분해 → 단어별 수어 동작을
   아바타로 재생
 
+> 설계와 파이프라인은 [아키텍처 문서](docs/architecture.md)에 있다.
+
+## 빠른 시작
+
+**요구사항** — Node.js 20+, Python 3.12+, pnpm, uv
+
+```bash
+brew install node pnpm uv                       # macOS
+```
+
+```powershell
+winget install OpenJS.NodeJS astral-sh.uv       # Windows
+npm install -g pnpm
+```
+
+**설치** — 클론 직후 두 번이면 끝난다.
+
+```bash
+pnpm install
+pnpm setup
+```
+
+`pnpm setup`은 커밋하지 않는 산출물 셋을 만든다 — 파이썬 의존성(`uv sync`),
+API 타입, 수어 인식 모델 번들.
+
+**실행** — 터미널 두 개.
+
+```bash
+pnpm dev:api    # API 서버 — http://localhost:8000
+```
+
+```bash
+pnpm dev:web    # 앱 — 브라우저가 자동으로 열린다
+```
+
+첫 실행 시 MediaPipe WASM·모델(약 50MB)을 자동으로 받는다. 수어 입력 화면에서
+카메라 권한을 허용하면 끝이다. API 문서는 http://localhost:8000/docs 에 있다.
+
+인식 모델은 API 서버에 in-process로 로드되므로 별도 프로세스가 없다. 문장 변환 LLM과
+음성 합성은 GPU 서버가 필요한 [선택 기능](docs/optional-services.md)이고, 없어도
+규칙 폴백과 브라우저 음성으로 전 구간이 돈다.
+
+폰에서 카메라까지 확인하려면 [개발 가이드](docs/development.md)의 「실기기(모바일 웹)」를 본다.
+
+> **모델 번들이 없어도 서버는 뜬다.** `POST /api/v1/recognize`만 503이 되고
+> `GET /health`의 `model_loaded`가 `false`가 된다 — 문장 변환·아바타·음성은 그대로
+> 동작한다. 다시 받으려면 `pnpm setup:model-bundle`.
+
 ## 구성
 
 ```
@@ -21,392 +69,6 @@ packages/
 
 수어 인식 모델의 학습·실험 코드는 별도 레포에 있고, 이 레포의 서버는 그 학습
 산출물(모델 번들)을 읽어 서빙만 한다.
-
-## 아키텍처
-
-양방향 통역이라 파이프라인이 둘이다. 노란 영역은 **앱(브라우저)**, 파란 영역은
-**API 서버**에서 돈다.
-
-### 농인 → 청인 (수어를 말로)
-
-```mermaid
-flowchart LR
-  CAM["카메라"] --> MP["MediaPipe 랜드마크"]
-  MP --> SEG["세그먼트 캡처"]
-  SEG -->|"gzip"| REC["POST /recognize"]
-  REC -->|"top-4 후보"| PILL["단어 pill 큐"]
-  PILL -->|"단어 ID 열"| CMP["POST /compose-sentence"]
-  CMP --> SENT["문장 · 감정 · 말투"]
-  SENT --> SPK["POST /speech"]
-  SPK --> VOICE["음성 재생"]
-
-  classDef server fill:#dbe7ff,stroke:#4a6fa5
-  class REC,CMP,SPK server
-```
-
-> 파란 상자가 **API 서버**, 나머지는 **앱(브라우저)**에서 돈다.
-
-
-버튼을 누르는 동안 한 단어를 캡처해 보내고, 응답의 1순위 후보가 pill로 쌓인다.
-pill을 탭하면 후보를 교체하거나 지울 수 있다. 세그먼트는 얼굴 메쉬까지 포함해
-수 MB라 gzip으로 보낸다.
-
-### 청인 → 농인 (말을 수어로)
-
-```mermaid
-flowchart LR
-  MIC["마이크"] --> STT["음성 인식"]
-  STT --> SENT2["문장"]
-  KBD["키보드 입력"] --> SENT2
-  SENT2 --> SEQ["POST /sign-sequence"]
-  SEQ -->|"단어 ID · 조회 키"| ASSET[("빌트인 좌표 자산")]
-  ASSET --> AVATAR["아바타 재생"]
-  SEQ -.->|"재생 불가 사유"| MISS["안내 표시"]
-
-  classDef server fill:#dbe7ff,stroke:#4a6fa5
-  class SEQ server
-```
-
-
-**좌표는 응답에 싣지 않는다.** 앱에 함께 빌드되어 있고 서버는 재생 순서와 조회 키만
-준다 — 아바타 재생이 서버 왕복 없이 끝난다. 재생 불가는 두 종류로 나뉜다:
-어휘에 없는 단어(`unknown_word`)와 어휘엔 있으나 동작 자산이 없는 단어(`no_sequence`).
-
-### 외부 의존과 폴백
-
-무거운 생성 모델 둘은 별도 GPU 서버에서 돈다. **없어도 서비스는 멈추지 않는다.**
-
-```mermaid
-flowchart LR
-  CMP["/compose-sentence"] --> LLM{"문장 변환 LLM"}
-  LLM -->|"성공"| S1["문장 · 감정 · 말투"]
-  LLM -->|"실패"| RULE["규칙 템플릿"]
-  RULE --> S1
-  SPK["/speech"] --> TTS{"음성 합성 TTS"}
-  TTS -->|"성공"| S2["감정이 실린 음성"]
-  TTS -->|"503"| BROWSER["브라우저 음성 합성"]
-  BROWSER --> S2
-```
-
-그래서 노트북 한 대로도 전 구간이 시연된다.
-
-### 수어 인식 모델 (SPOTER-208)
-
-Transformer 인코더 분류기. 좌표는 **x·y만** 쓴다 — z는 추출기 세대 간 분포가 달라
-신뢰할 수 없음이 실측으로 확인됐다.
-
-```mermaid
-flowchart TB
-  IN["랜드마크 세그먼트"] --> ASM["손 좌우 배정"]
-  ASM --> RS["30fps 리샘플"]
-  RS --> DOM["라이브 도메인 보정"]
-  DOM --> FEAT["특징 추출 · 208차원"]
-  FEAT --> ENC["Transformer 인코더"]
-  ENC --> CAL["temperature scaling"]
-  CAL --> DEB["로짓 편향 제거"]
-  DEB --> TH{"reject 임계"}
-  TH -->|"통과"| TOP["top-4 후보"]
-  TH -->|"미달"| REJ["rejected"]
-```
-
-208차원은 포즈 25점(global 정규화) + 손 21×2(local) + 얼굴 37점(local)의 x·y다.
-손은 위치·크기를 제거해 **모양만** 남기고, 위치와 움직임은 포즈가 담당한다.
-
-### 문장 변환 (2단계 LLM)
-
-같은 모델을 두 번 호출한다. 감정·말투는 원본 단어가 아니라 **완성된 문장**을 보고
-분류한다 — "기쁘지 않아요"를 happy로 잘못 읽지 않기 위해서다.
-
-```mermaid
-flowchart LR
-  W["단어 ID 열"] --> G["라벨 변환"]
-  G --> P1["1단계 · 문장 생성"]
-  P1 --> SENT["한국어 문장"]
-  SENT --> P2["2단계 · 감정 말투 분류"]
-  G --> P2
-  P2 --> TAG["emotion 6종 · style 4종"]
-```
-
-### 아바타 재생
-
-문장을 단어로 쪼개는 모델은 아직 없다. 지금은 규칙 템플릿을 역방향으로 쓰는 mock이고,
-진짜 모델이 붙으면 이것이 폴백으로 남는다.
-
-```mermaid
-flowchart LR
-  SENT2["문장"] --> DEC["문장 분해"]
-  DEC --> IDS["단어 ID 열"]
-  IDS --> LOOK{"동작 자산"}
-  LOOK -->|"있음"| BIN["int16 디코딩"]
-  LOOK -->|"없음"| ERR["재생 불가"]
-  BIN --> DRAW["아바타 그리기"]
-  DRAW --> PLAY["순차 재생"]
-```
-
-손·상체는 선으로, 얼굴 78점은 점으로 그린다. 단어 사이에는 짧은 보간을 넣어
-자세가 튀지 않게 한다.
-
-## 요구사항
-
-- Node.js 20 이상
-- Python 3.12 이상
-- pnpm, uv
-
-macOS ([Homebrew](https://brew.sh))
-
-```bash
-brew install node pnpm uv
-```
-
-Windows ([winget](https://learn.microsoft.com/windows/package-manager/winget/))
-
-```powershell
-winget install OpenJS.NodeJS astral-sh.uv
-npm install -g pnpm
-```
-
-## 설치
-
-```bash
-pnpm install
-```
-
-```bash
-pnpm setup
-```
-
-`pnpm setup`이 세 가지를 한다 — 파이썬 의존성(`uv sync`), API 타입 생성, 모델 번들
-내려받기. 전부 커밋하지 않는 산출물이라 클론 직후 한 번 필요하다.
-
-API 타입(`packages/core/src/generated/`)을 건너뛰면 `pnpm typecheck`가
-`Cannot find module './generated/schema'`로 실패한다(타입은 번들 시점에 지워지므로
-`pnpm dev:web` 자체는 돈다). 자세한 흐름은 「API 타입 생성」 참고.
-
-MediaPipe 자산과 폰트 서브셋은 `pnpm dev:web`·`pnpm build:web-mobile`이 알아서
-만든다 — 따로 칠 명령이 없다.
-
-### 모델 번들
-
-수어 인식 모델은 대용량 바이너리라 커밋하지 않는다(`var/`는 .gitignore). `pnpm setup`이
-받아 두지만 따로 다시 받을 수도 있다.
-
-```bash
-pnpm setup:model-bundle
-```
-
-`packages/ear-dream-api/var/models/spoter300-pilot/`에 풀린다. 이미 있으면 건너뛰고,
-다시 받으려면 `--force`를 붙인다.
-
-- 구성: `model_torchscript.pt`(TorchScript 가중치) + `release.json`(계약·캘리브레이션
-  메타) + `live_debias.npy`(라이브 편향 벡터 — 없으면 경고 후 보정 없이 동작)
-- 로드 게이트: `release.json`의 `feature_version`이 서버 전처리 계약과 다르거나,
-  `class_labels`가 어휘 데이터와 어긋나면 로드를 거부한다 — 구모델+신전처리 조합이나
-  조용한 전량 오답을 막는 장치다
-- 다른 위치는 환경변수 `EAR_DREAM_MODEL_BUNDLE_DIR`로 지정한다
-  (상대경로는 `packages/ear-dream-api` 기준)
-
-**번들이 없어도 서버는 뜬다.** `POST /api/v1/recognize`만 503이고
-`GET /health`의 `model_loaded`가 `false`가 된다 — 문장 변환·아바타·음성 흐름은 그대로
-돈다. 즉 수어 인식을 제외한 전 구간은 번들 없이 확인할 수 있다.
-
-#### 번들을 새로 올릴 때
-
-학습 산출물(별도 레포)을 가진 사람이 한다. 릴리스 태그와 파일명은
-`scripts/setup-model-bundle.mjs`의 상수와 맞춘다. **세 명령 모두 레포 루트에서** 돌린다
-— 빌드만 하위 디렉토리를 쓰므로 서브셸로 감싸 현재 위치가 바뀌지 않게 했다.
-
-```bash
-(cd packages/ear-dream-api && uv run python scripts/build_spoter300_bundle.py)
-```
-
-```bash
-tar -czf spoter300-pilot.tar.gz -C packages/ear-dream-api/var/models spoter300-pilot
-```
-
-```bash
-gh release create model-spoter300-pilot spoter300-pilot.tar.gz --notes "SPOTER-208 300단어 서빙 번들"
-```
-
-빌드 스크립트는 학습 산출물 위치를 환경변수 `EAR_DREAM_BENCHMARKS_DIR` → 이 레포의
-형제 디렉토리 → `~/Documents` 순으로 찾는다. 다른 곳이면 `--source`로 넘긴다.
-`vocab300.json`도 함께 갱신되며 이쪽은 커밋 대상이다.
-
-## 실행
-
-### 전체 흐름 (API 서버 + 웹)
-
-수어 인식은 실제로 서버 추론을 타므로, 끝까지 눌러보려면 터미널 두 개가 필요하다.
-
-```bash
-pnpm dev:api    # http://localhost:8000
-```
-
-```bash
-pnpm dev:web    # 브라우저에서 앱 실행
-```
-
-- 첫 실행 시 MediaPipe WASM·모델(약 50MB — 손·얼굴·포즈)을 자동으로 내려받는다. 이후에는 건너뛴다.
-- 수어 입력 화면에서 브라우저가 카메라 권한을 물으면 허용한다. 거부하면 화면 안에 안내가 뜬다.
-- 수어 트랙: 단어당 버튼을 누르는 동안 동작을 캡처 → 인식 결과가 1순위 후보로 자동
-  확정되어 단어 pill로 누적(pill을 탭하면 하단 시트에서 후보 교체·삭제) → 문장 변환 →
-  결과 화면. 어휘는 현재 300단어다.
-- 청인 트랙: 말하면 브라우저 음성 인식으로 텍스트가 되고, 서버가 문장을 어휘 단어로
-  쪼개면 단어별 수어 동작을 아바타로 재생한다. 음성 인식을 쓸 수 없는 환경에서는
-  키보드 입력으로 같은 흐름을 탄다.
-
-**터미널 두 개가 전부다.** 수어 인식 모델은 API 서버에 in-process로 로드되므로 별도
-프로세스가 필요 없다. 문장 변환 LLM과 음성 합성은 선택 사항이다 — 「선택 기능」 참고.
-
-API 문서는 서버 실행 후 http://localhost:8000/docs 에서 볼 수 있다.
-
-### 실기기(모바일 웹)
-
-실기기 브라우저는 localhost 밖에서 `getUserMedia`에 https를 요구한다. 웹과 API를 한
-오리진으로 묶어 서빙하고, https는 터널이 씌운다 — 인증서를 폰에 설치할 필요가 없어
-링크만 보내면 된다. 한 오리진이라 mixed content도 CORS도 없다.
-
-```bash
-pnpm build:web-mobile
-```
-
-터미널 셋이다.
-
-```bash
-pnpm dev:api          # API (8000)
-```
-
-```bash
-pnpm serve:mobile     # 웹 + API 프록시 (8080, 평문 — 터널이 https를 씌운다)
-```
-
-```bash
-ngrok http 8080
-```
-
-ngrok이 출력하는 https 주소를 폰 브라우저에서 연다.
-
-#### 링크를 나눠 줄 때
-
-터널 주소는 인터넷에 노출된 상태다. 링크를 아는 사람만 들어오게 하려면 시크릿을 준다.
-
-```bash
-node scripts/serve-mobile.mjs --port 8080 --token $(openssl rand -hex 8)
-```
-
-공유할 주소는 `https://<ngrok 주소>/?k=<시크릿>`이다. 한 번 열면 쿠키로 바뀌고 주소에서
-시크릿이 지워지므로 이후 이동에는 붙일 필요가 없다. API 문서(`/docs`)는 기본으로
-프록시하지 않는다 — 폰에서 봐야 하면 `--docs`를 준다.
-
-무료 플랜은 재시작마다 주소가 바뀐다. 계정에 static domain을 하나 배정받아
-`ngrok http --url=<도메인> 8080`으로 띄우면 링크를 다시 뿌리지 않아도 된다.
-
-첫 방문은 약 19MB(폰트·WASM·모델)를 받고 그 뒤로는 캐시된다. 인식은 단어당 약 0.9MB를
-올린다 — 사람이 몇 명 붙는지에 따라 터널 대역폭 한도를 먼저 확인하는 게 좋다.
-
-#### 실기기 개발 화면
-
-FPS·단계별 처리 시간·실제 delegate는 홈의 "개발용: 랜드마크 확인 화면"에서 볼 수 있다.
-프로덕션 번들에서는 숨으므로 아래로 연다.
-
-```bash
-EXPO_PUBLIC_LANDMARK_DEV=1 pnpm build:web-mobile
-```
-
-이미 만든 빌드는 `?dev=1`을 붙여 열어도 된다.
-
-### UI만 보기 (서버 없이)
-
-`pnpm dev:web` 하나로도 앱은 뜬다. 서버가 없으면 수어 인식 요청이 실패했다고 안내되고,
-어휘·모델 정보는 "미확인"으로 표시된다.
-
-### 앱 실행 대상
-
-`pnpm dev:app`이 띄우는 8081 포트는 Metro 번들러이며 앱 화면이 아니다.
-브라우저로 열면 JSON이 반환된다. 화면은 아래 중 하나로 확인한다.
-
-| 대상 | 실행 | 준비물 |
-| --- | --- | --- |
-| 웹 브라우저 | `pnpm dev:web` | 없음 |
-| 실제 기기 | QR 코드 스캔 | Expo Go 앱, 동일 Wi-Fi |
-| Android 에뮬레이터 | 터미널에서 `a` | Android Studio |
-| iOS 시뮬레이터 | 터미널에서 `i` | Xcode (macOS 전용) |
-
-현재는 웹이 기본 시연 대상이다. 카메라·랜드마크 추출(손·얼굴·포즈)이 브라우저 WASM 기반이라
-웹에서만 동작하고, 실기기(Expo Go)에서는 해당 화면에 안내 문구가 표시된다. 실기기는 웹 이외
-화면의 레이아웃 확인과 추후 네이티브 전환 검증에 쓴다.
-
-iOS 시뮬레이터는 macOS에서만 사용할 수 있다. Xcode 설치 후 아래를 한 번 실행한다.
-Command Line Tools만으로는 동작하지 않는다.
-
-```bash
-sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
-```
-
-Windows에서는 iOS 확인이 필요할 때 실제 기기의 Expo Go를 사용한다.
-
-### API 주소 설정
-
-앱은 `EXPO_PUBLIC_API_URL`로 API 서버를 찾는다. 실행 대상에 따라 주소가 다르다.
-
-| 실행 대상 | 주소 |
-| --- | --- |
-| 웹 브라우저, iOS 시뮬레이터 | 기본값 (`http://localhost:8000`) |
-| Android 에뮬레이터 | `http://10.0.2.2:8000` |
-| 실제 기기 | `http://<PC의 LAN IP>:8000` |
-
-기본값이 아닌 경우 `packages/ear-dream-app/.env`에 설정한다. `.env.example` 참고.
-
-```
-EXPO_PUBLIC_API_URL=http://192.168.0.10:8000
-```
-
-실제 기기에서는 API 서버도 외부 접속을 허용해야 한다.
-
-```bash
-cd packages/ear-dream-api
-uv run fastapi dev app/main.py --host 0.0.0.0
-```
-
-PC의 LAN IP 확인은 macOS에서 아래를 쓴다.
-
-```bash
-ipconfig getifaddr en0
-```
-
-Windows에서는 아래 출력의 IPv4 주소를 사용한다.
-
-```powershell
-ipconfig
-```
-
-## API 타입 생성
-
-API 타입의 단일 진실 공급원은 FastAPI의 Pydantic 스키마다. 프론트에서 요청/응답 타입을
-직접 정의하지 않는다.
-
-```
-ear-dream-api/app/schemas/*.py  ──(OpenAPI)──▶  core/openapi.json
-                                                     │
-                                        (openapi-typescript)
-                                                     ▼
-                                        core/src/generated/schema.ts
-```
-
-스키마나 라우트를 변경한 뒤 실행한다.
-
-```bash
-pnpm generate:api-types
-```
-
-계약이 깨진 부분은 `pnpm typecheck`에서 컴파일 에러로 드러난다.
-
-앱에서는 `@ear-dream/core`의 클라이언트를 사용한다. 경로, 요청, 응답이 모두 타입 검사된다.
-
-```typescript
-const { data, error } = await api.GET('/api/v1/vocabulary');
-```
-
-`openapi.json`과 `src/generated/`는 생성물이므로 커밋하지 않는다. 설치 후 한 번 생성하면 된다.
 
 ## 명령어
 
@@ -428,83 +90,13 @@ MediaPipe 자산·폰트 서브셋·gzip 사이드카는 위 명령들이 알아
 원본 영상에서 다시 뽑는 일은 드물어서 스크립트를 직접 부른다 —
 `cd packages/ear-dream-api && uv run python scripts/build_sign_sequences.py`.
 
-## 인식 모델과 서빙 파이프라인
+## 문서
 
-### 모델 아키텍처
-
-**SPOTER-208** — 수어 인식용 Transformer 인코더 분류기. 어휘 300단어(AI Hub 일상
-고빈도 핵심단어), TorchScript로 서빙한다.
-
-- 입력: 프레임당 **208차원 특징 × 최대 256프레임**. 좌표는 **x·y만 쓴다**
-  (z는 추출기 세대 간 분포가 달라 신뢰할 수 없음이 실측으로 확인돼 제외)
-- 208차원 구성 (전처리 계약 `spoter2_mp_xy_v1`):
-  - pose 25점×2 — 어깨 중점 원점, 어깨거리 스케일의 global 정규화 (위치·움직임 담당)
-  - 오른손·왼손 각 21점×2 — square bbox → [-1,1] local 정규화 (손 모양만 담당,
-    위치·크기 제거)
-  - 얼굴 37점×2 — 478점 메쉬(홍채 포함)에서 서브셋 선택, local 정규화 (비수지신호)
-- 출력: 300클래스 확률. temperature scaling(번들 값) 후 임계 미달이면 `rejected`
-
-### 서빙 파이프라인 (요청 → 후보)
-
-```
-raw 아카이빙 → 손 좌우 배정(포즈 손목 기하 매칭) → 30fps 최근접 리샘플
-→ 라이브 도메인 보정(아래) → 정규화·특징 추출 [T,208] → TorchScript 추론
-→ temperature → 로짓 편향 제거 → reject 임계 → top-4 후보
-```
-
-### 적용된 라이브 도메인 보정
-
-학습 데이터(스튜디오 16:9 촬영)와 실사용 입력(휴대폰 셀피 세로)의 분포 차이를
-서빙 입력을 학습 분포 쪽으로 사영해 좁힌다. 실측 근거와 함께 도입됐고, 수치는
-전부 **재학습·재캘리브레이션 전까지의 임시값**이다 (`app/core/config.py` 주석 참조).
-
-| 보정 | 내용 | 근거 |
-| --- | --- | --- |
-| 종횡비(AR) 보정 | `x ← x × AR입력/(16/9)` — 세로 캡처 좌표를 16:9 학습 관례로 사영 | 세로 왜곡만으로 top-1 98→62% 붕괴 실측 |
-| y축 기하 보정 | `y ← y × 1.205` — 셀피 근접 원근으로 몸통 비례가 눌리는 갭 보정 | 어깨-엉덩이 비율 스튜디오/라이브 실측 차 |
-| 로짓 편향 제거 | log-softmax에서 편향 벡터(α=1.0) 차감 — 도메인 이동이 만든 특정 단어 과호출 억제 | 라벨 없는 실사용 아카이브로 추정 |
-| reject 임계 0.15 | 라이브 conf 분포 기준 임시 하향 (스튜디오 기준 0.5는 라이브 정답도 전량 거부) | 라벨된 라이브 클립 임계 곡선 |
-
-이 밖에 검토 후 **기각된** 접근(추출기 통일, 결측 보간, 미러링, 스무딩, TTA 등)과
-그 근거는 모델 레포의 가설 원장 문서에 기록돼 있다.
-
-### 알려진 구조적 한계
-
-- **한손 재조음 갭**: 어휘 300단어 중 194단어가 학습 데이터에서 양손 조음이다.
-  한 손만 보이는 입력(다른 손이 폰을 쥔 상황)은 학습에 없는 분포라 해당 단어의
-  인식이 급락한다 — 한손 뷰 증강 재학습으로 대응 예정
-- **깊이축 동작 단어**: 몸 쪽으로 당기는 동작처럼 움직임이 카메라 축 방향인 단어는
-  x·y 투영에 신호가 거의 남지 않는다 — 손 크기(bbox scale) 피처 추가가 후속 후보
-- 위 정확도 관련 수치는 소규모 진단 실측이므로 목표치·기대치로 인용하지 않는다
-
-## 선택 기능 — 문장 변환 LLM · 음성 합성
-
-둘 다 별도 GPU 서버가 필요하고, **없어도 서비스는 동작한다.**
-
-| 기능 | 엔드포인트 | 서버가 없을 때 |
-| --- | --- | --- |
-| 문장 변환 LLM | `POST /api/v1/compose-sentence` | 규칙 템플릿 → 단어 나열로 폴백 (200 유지) |
-| 음성 합성 (TTS) | `POST /api/v1/speech` | 503 → 앱이 브라우저 음성 합성으로 읽는다 |
-
-설정은 `packages/ear-dream-api/.env`에 둔다 (`.env.example` 참고).
-
-### 문장 변환 LLM
-
-누적된 단어 열을 한국어 문장으로 바꾼다. Qwen3-4B 2단계(문장 생성 → 감정·말투 분류)이며,
-실패하면 규칙 템플릿으로 내려가고 사유를 서버 로그에 `llm_failed=`로 남긴다.
-
-| 기계 | 백엔드 | 설정 |
-| --- | --- | --- |
-| Windows / WSL + NVIDIA | vLLM (`:8001`) | `MODEL=Qwen/Qwen3-4B` |
-| macOS | Ollama (`:11434`) | `MODEL=qwen3:4b` + `REASONING_EFFORT=none` + `STRUCTURED_OUTPUT=true` |
-
-맥 프로필의 뒤 두 스위치는 한 세트다 — 하나라도 빠지면 매 요청 폴백한다.
-
-### 음성 합성 (TTS)
-
-문장과 감정·말투 태그를 받아 WAV를 돌려준다. `compose-sentence` 응답의 태그를 그대로
-넘기면 그 감정으로 읽는다. Qwen3-TTS VoiceDesign을 vLLM-Omni로 서빙하며 **CUDA 전용이라
-맥에서는 켤 수 없다** — 기본값이 꺼짐인 이유다.
+| 문서 | 내용 |
+| --- | --- |
+| [아키텍처](docs/architecture.md) | 양방향 파이프라인, 인식 모델(SPOTER-208), 라이브 도메인 보정, 알려진 한계 |
+| [개발 가이드](docs/development.md) | 실기기(모바일 웹), 앱 실행 대상, API 주소 설정, API 타입 생성, 모델 번들 배포 |
+| [선택 기능](docs/optional-services.md) | 문장 변환 LLM · 음성 합성 서버 설정 |
 
 ## 현재 상태
 
@@ -529,7 +121,7 @@ raw 아카이빙 → 손 좌우 배정(포즈 손목 기하 매칭) → 30fps �
 | M1 | 제한 어휘 인식, 후보 top-N (30단어 → 현재 300단어로 확장) | 완료 |
 | M2 | 후보 확정, 단어 누적 → 문장 변환, 텍스트 표시 | 완료 |
 | M3 | 오인식 정정, 상황 문장 호출 | 부분 — 정정(후보 교체·삭제·재전송)은 됨, 상황 문장 미착수 |
-| M4 | 음성 → 수어 영상 | 부분 — STT·문장 분해·아바타 재생은 됨. 어휘 **300단어 전부** 동작 자산 보유. 조음 정확성 육안 검증 전 |
+| M4 | 음성 → 수어 영상 | 부분 — STT·문장 분해·아바타 재생은 됨. 어휘 **300단어 전부** 동작 시퀀스 보유. 조음 정확성 육안 검증 전 |
 | M5 | WebRTC 양방향 세션 | 미착수 |
 
 다음 단계로 확정된 것: 단어당 버튼 캡처를 발화 단위 촬영 + 서버 오프라인 분절(손 keypoint
