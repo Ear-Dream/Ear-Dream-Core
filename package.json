@@ -6,14 +6,15 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev:app": "pnpm --filter @ear-dream/app dev",
-    "dev:web": "pnpm setup:mediapipe && pnpm --filter @ear-dream/app web",
+    "dev:app": "pnpm setup:fonts && pnpm --filter @ear-dream/app dev",
+    "dev:web": "pnpm setup:mediapipe && pnpm setup:fonts && pnpm --filter @ear-dream/app web",
     "setup:mediapipe": "node scripts/setup-mediapipe-assets.mjs",
+    "setup:fonts": "node scripts/setup-fonts.mjs",
     "setup:model-bundle": "node scripts/setup-model-bundle.mjs",
     "setup:sign-sequences": "cd packages/ear-dream-api && uv run python scripts/build_sign_sequences.py",
     "dev:api": "cd packages/ear-dream-api && uv run fastapi dev app/main.py",
     "setup:https-cert": "node scripts/setup-https-cert.mjs",
-    "build:web-mobile": "pnpm setup:mediapipe && cd packages/ear-dream-app && EXPO_PUBLIC_API_URL= npx expo export --platform web && cd ../.. && pnpm precompress:dist",
+    "build:web-mobile": "pnpm setup:mediapipe && pnpm setup:fonts && cd packages/ear-dream-app && EXPO_PUBLIC_API_URL= npx expo export --platform web && cd ../.. && pnpm precompress:dist",
     "precompress:dist": "node scripts/precompress-dist.mjs",
     "serve:mobile": "node scripts/serve-mobile.mjs --https",
     "typecheck": "pnpm -r --parallel typecheck",

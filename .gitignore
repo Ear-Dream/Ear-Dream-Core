@@ -50,6 +50,9 @@ packages/core/src/generated/
 # 별도인 바이너리라 public 레포에 커밋하지 않는다.
 packages/ear-dream-app/public/mediapipe/
 
+# 생성물 — pnpm setup:fonts 로 재생성한다 (Noto Sans KR 한국어 서브셋).
+packages/ear-dream-app/assets/fonts/
+
 # 팀 내부용 메모 (public 레포이므로 커밋하지 않는다)
 CLAUDE.local.md
 packages/ear-dream-api/app/examples/*.json
