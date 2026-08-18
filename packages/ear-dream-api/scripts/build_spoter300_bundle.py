@@ -1,6 +1,7 @@
 """SPOTER-208 300단어 서빙 산출물 빌드 — 벤치마크 레포 → 로컬 번들 + 어휘 데이터.
 
-입력 (기본: ~/Documents/Ear-Dream-Benchmarks/sign_word_300):
+입력 (기본: 환경변수 EAR_DREAM_BENCHMARKS_DIR → ../Ear-Dream-Benchmarks →
+       ~/Documents/Ear-Dream-Benchmarks 순으로 찾는다. --source 로 직접 지정):
     runs/pilot300_spoter_base_seed42_train/model_torchscript.pt   TorchScript 모델
     runs/pilot300_spoter_base_seed42_train/calibration.json       temperature + threshold sweep
     runs/pilot300_spoter_base_seed42_train/test_metrics.json      기록용 지표
@@ -27,6 +28,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import os
 import shutil
 import sys
 from datetime import UTC, datetime
@@ -34,7 +36,25 @@ from pathlib import Path
 
 API_ROOT = Path(__file__).resolve().parents[1]
 
-DEFAULT_SOURCE = Path.home() / "Documents/Ear-Dream-Benchmarks/sign_word_300"
+# 벤치마크 레포는 이 레포 밖에 있고 위치가 기계마다 다르다 — 절대경로를 박지 않는다.
+# 환경변수 → 형제 디렉토리 → 홈 순으로 찾고, 어디에도 없으면 --source 로 넘긴다.
+SOURCE_ENV = "EAR_DREAM_BENCHMARKS_DIR"  # Ear-Dream-Benchmarks 레포 루트
+SOURCE_SUBDIR = "sign_word_300"
+REPO_ROOT = API_ROOT.parents[1]
+
+
+def default_source() -> Path:
+    """번들 입력 디렉토리 후보를 순서대로 찾는다 (없으면 첫 후보를 그대로 돌려준다)."""
+    env = os.environ.get(SOURCE_ENV)
+    if env:
+        return Path(env).expanduser() / SOURCE_SUBDIR
+    candidates = [
+        REPO_ROOT.parent / "Ear-Dream-Benchmarks" / SOURCE_SUBDIR,
+        Path.home() / "Documents/Ear-Dream-Benchmarks" / SOURCE_SUBDIR,
+    ]
+    return next((c for c in candidates if c.is_dir()), candidates[0])
+
+
 RUN_SUBDIR = "runs/pilot300_spoter_base_seed42_train"
 WORDS_CSV = "일상_고빈도_핵심단어_300.csv"
 
@@ -90,9 +110,14 @@ def build_class_labels(source: Path) -> list[dict]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--source", type=Path, default=DEFAULT_SOURCE)
+    parser.add_argument(
+        "--source",
+        type=Path,
+        default=None,
+        help=f"sign_word_300 경로 (기본: ${SOURCE_ENV} → 형제 → 홈 순으로 탐색)",
+    )
     args = parser.parse_args()
-    source: Path = args.source
+    source: Path = (args.source or default_source()).expanduser()
     run = source / RUN_SUBDIR
     for required in (
         run / "model_torchscript.pt",
@@ -154,7 +179,9 @@ def main() -> int:
             ),
         },
         "source": {
-            "run_dir": str(run),
+            # 빌드한 기계의 절대경로를 싣지 않는다 — release.json 은 릴리스로 공개되고,
+            # 여기 필요한 정보는 "어느 학습 run 인가"뿐이라 run 이름이면 충분하다.
+            "run_dir": RUN_SUBDIR,
             "validation_nll_before": calibration.get("validation_nll_before"),
             "validation_nll_after": calibration.get("validation_nll_after"),
             "test_metrics": {

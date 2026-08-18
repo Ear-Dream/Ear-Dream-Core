@@ -55,7 +55,10 @@ from app.ml.model import get_model_state
 from app.ml.preprocess_spoter import AR_TRAIN, preprocess_spoter
 from app.schemas.landmark import LandmarkFrame
 
-DEFAULT_EVAL_DIR = Path("/Users/kihoonkim/Documents/GitHub/Ear-Dream-Model/data/live_eval")
+# 모델 레포는 이 레포의 형제 디렉토리에 있다 (build_sign_sequences.py 와 같은 규약).
+# 다른 위치면 --eval-dir 로 넘긴다 — 절대경로를 박지 않는다.
+REPO_ROOT = API_ROOT.parents[1]
+DEFAULT_EVAL_DIR = REPO_ROOT.parent / "Ear-Dream-Model/data/live_eval"
 TOP_K = 4
 
 # [T,208] 피처의 부위별 열 구간 (preprocess_spoter 의 specs 순서와 동일)
@@ -584,7 +587,12 @@ def eval_clip(
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--eval-dir", type=Path, default=DEFAULT_EVAL_DIR)
+    ap.add_argument(
+        "--eval-dir",
+        type=Path,
+        default=DEFAULT_EVAL_DIR,
+        help="라벨된 라이브 클립 디렉토리 (기본: ../Ear-Dream-Model/data/live_eval)",
+    )
     ap.add_argument(
         "--no-ar",
         action="store_true",
