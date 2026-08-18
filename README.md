@@ -169,15 +169,34 @@ npm install -g pnpm
 
 ```bash
 pnpm install
-cd packages/ear-dream-api
-uv sync
 ```
+
+```bash
+cd packages/ear-dream-api && uv sync
+```
+
+API 타입(`packages/core/src/generated/`)은 커밋하지 않으므로 클론 직후 한 번 생성한다.
+FastAPI 스키마에서 뽑으므로 위의 `uv sync`가 먼저 끝나 있어야 한다.
+
+```bash
+pnpm generate:api-types
+```
+
+이 단계를 건너뛰면 `pnpm typecheck`가 `Cannot find module './generated/schema'`로 실패한다
+(타입은 번들 시점에 지워지므로 `pnpm dev:web` 자체는 돈다). 자세한 흐름은
+「API 타입 생성」 참고.
 
 ### 모델 번들
 
-수어 인식 모델은 로컬 번들 디렉토리 `packages/ear-dream-api/var/models/spoter300-pilot/`
-에서 로드한다. 번들은 커밋하지 않으며(`var/`는 .gitignore), 학습 산출물에서
-`scripts/build_spoter300_bundle.py`로 생성한다.
+수어 인식 모델은 대용량 바이너리라 커밋하지 않는다(`var/`는 .gitignore). MediaPipe
+자산처럼 스크립트로 받는다.
+
+```bash
+pnpm setup:model-bundle
+```
+
+`packages/ear-dream-api/var/models/spoter300-pilot/`에 풀린다. 이미 있으면 건너뛰고,
+다시 받으려면 `--force`를 붙인다.
 
 - 구성: `model_torchscript.pt`(TorchScript 가중치) + `release.json`(계약·캘리브레이션
   메타) + `live_debias.npy`(라이브 편향 벡터 — 없으면 경고 후 보정 없이 동작)
@@ -187,8 +206,30 @@ uv sync
 - 다른 위치는 환경변수 `EAR_DREAM_MODEL_BUNDLE_DIR`로 지정한다
   (상대경로는 `packages/ear-dream-api` 기준)
 
-번들이 없어도 서버는 뜬다. 다만 `POST /api/v1/recognize`가 503을 반환하고
-`GET /health`의 `model_loaded`가 `false`가 된다.
+**번들이 없어도 서버는 뜬다.** `POST /api/v1/recognize`만 503이고
+`GET /health`의 `model_loaded`가 `false`가 된다 — 문장 변환·아바타·음성 흐름은 그대로
+돈다. 즉 수어 인식을 제외한 전 구간은 번들 없이 확인할 수 있다.
+
+#### 번들을 새로 올릴 때
+
+학습 산출물(별도 레포)을 가진 사람이 한다. 릴리스 태그와 파일명은
+`scripts/setup-model-bundle.mjs`의 상수와 맞춘다.
+
+```bash
+cd packages/ear-dream-api && uv run python scripts/build_spoter300_bundle.py
+```
+
+```bash
+tar -czf spoter300-pilot.tar.gz -C packages/ear-dream-api/var/models spoter300-pilot
+```
+
+```bash
+gh release create model-spoter300-pilot spoter300-pilot.tar.gz --notes "SPOTER-208 300단어 서빙 번들"
+```
+
+빌드 스크립트는 학습 산출물 위치를 환경변수 `EAR_DREAM_BENCHMARKS_DIR` → 이 레포의
+형제 디렉토리 → `~/Documents` 순으로 찾는다. 다른 곳이면 `--source`로 넘긴다.
+`vocab300.json`도 함께 갱신되며 이쪽은 커밋 대상이다.
 
 ## 실행
 
@@ -359,6 +400,7 @@ const { data, error } = await api.GET('/api/v1/vocabulary');
 | `pnpm lint:api` | API 린트 |
 | `pnpm generate:api-types` | API 타입 생성 |
 | `pnpm setup:mediapipe` | MediaPipe WASM·모델(손·얼굴·포즈) 내려받기 |
+| `pnpm setup:model-bundle` | 수어 인식 모델 번들 내려받기 (`--force`로 재설치) |
 | `pnpm build:web-mobile` | 실기기용 웹 내보내기 (API를 상대경로로) |
 | `pnpm serve:mobile` | 웹 + API 단일 오리진 서버 (https) |
 | `pnpm setup:https-cert` | 실기기용 로컬 https 인증서 생성 |

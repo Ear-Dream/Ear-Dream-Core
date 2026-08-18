@@ -2,7 +2,7 @@ name: API
 
 on:
   push:
-    branches: [main]
+    branches: [develop]
     paths:
       - "packages/ear-dream-api/**"
       - ".github/workflows/api.yml"
