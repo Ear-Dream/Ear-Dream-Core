@@ -221,7 +221,8 @@ def _decompose_words(text: str) -> list[tuple[str, str | None]]:
         covered.update(range(span_start, span_end))
 
     items: list[tuple[int, str, str | None]] = [
-        (span_start, text[span_start:span_end], word_id) for span_start, span_end, word_id in matches
+        (span_start, text[span_start:span_end], word_id)
+        for span_start, span_end, word_id in matches
     ]
     for start, end in _word_spans(text):
         if any(pos in covered for pos in range(start, end)):

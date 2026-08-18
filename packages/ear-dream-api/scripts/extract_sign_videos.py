@@ -96,7 +96,9 @@ def build_landmarkers():
     def opts(cls, name, **extra):
         path = MODEL_DIR / name
         if not path.exists():
-            raise SystemExit(f"모델 파일이 없다: {path}\n앱에서 `pnpm setup:mediapipe` 를 먼저 돌릴 것.")
+            raise SystemExit(
+                f"모델 파일이 없다: {path}\n앱에서 `pnpm setup:mediapipe` 를 먼저 돌릴 것."
+            )
         return cls(
             # CPU 고정 — macOS 에서 기본 GPU(Metal) 위임이 초기화 중 죽는다.
             # 오프라인 배치라 속도보다 돌아가는 게 우선이다.
@@ -128,9 +130,7 @@ def build_landmarkers():
         ),
         # 얼굴만 IMAGE 모드다 — ROI 가 프레임마다 옮겨다녀서 VIDEO 모드의 추적이
         # 오히려 어긋난다. 잘라 넣는 이상 매 프레임 새로 찾는 편이 정직하다.
-        vision.FaceLandmarker.create_from_options(
-            cls_face_options(mp_python, vision)
-        ),
+        vision.FaceLandmarker.create_from_options(cls_face_options(mp_python, vision)),
     )
 
 
@@ -361,8 +361,11 @@ def main() -> int:
                 "status": "ok" if len(keypoints) else "empty",
             }
         )
-        print(f"[{order}/{len(videos)}] {word:8} {len(keypoints):4}프레임 "
-              f"{fps:.0f}fps 손미검출 {missing:.1%}", flush=True)
+        print(
+            f"[{order}/{len(videos)}] {word:8} {len(keypoints):4}프레임 "
+            f"{fps:.0f}fps 손미검출 {missing:.1%}",
+            flush=True,
+        )
 
     manifest = args.out / "data/manifest.csv"
     with manifest.open("w", encoding="utf-8", newline="") as stream:
