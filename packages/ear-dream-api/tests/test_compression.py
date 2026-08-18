@@ -9,9 +9,16 @@ from __future__ import annotations
 import gzip
 import json
 
+import pytest
 from fastapi.testclient import TestClient
 
+from app.ml import model as model_module
+
 from .conftest import make_frames, make_recognize_request
+
+# 모델 번들은 .gitignore 대상이라 CI 에는 없다. /recognize 가 200 을 내야 하는 테스트는
+# 번들이 있을 때만 돈다 — test_recognize.py 등이 쓰는 것과 같은 가드다.
+BUNDLE_AVAILABLE = (model_module.resolve_bundle_dir() / "release.json").exists()
 
 
 def _gz(payload: dict) -> bytes:
@@ -33,6 +40,7 @@ def test_gzip_body_is_transparent(client: TestClient) -> None:
     assert plain.json() == packed.json()
 
 
+@pytest.mark.skipif(not BUNDLE_AVAILABLE, reason="model bundle not available")
 def test_gzip_recognize_reaches_validation(client: TestClient) -> None:
     """큰 실제 페이로드도 해제되어 정상 처리된다 (여기가 실제 사용처다)."""
     payload = make_recognize_request(make_frames(20), request_id="req-gz")
@@ -67,6 +75,7 @@ def test_uncompressed_still_works(client: TestClient) -> None:
     assert res.status_code == 200
 
 
+@pytest.mark.skipif(not BUNDLE_AVAILABLE, reason="model bundle not available")
 def test_archive_stores_client_gzip_without_recompressing(client: TestClient, tmp_path) -> None:
     """클라이언트가 보낸 gzip 원본을 그대로 저장한다 — 내용은 동일해야 한다."""
     payload = make_recognize_request(make_frames(12), request_id="req-arch-gz")
