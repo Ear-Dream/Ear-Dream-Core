@@ -9,7 +9,7 @@ export interface CircleIconButtonProps {
   accessibilityLabel: string;
   /** 지름(px). 한 손 조작 최소 터치 타겟(48) 미만으로 내리지 않는다. */
   size: number;
-  /** 아이콘(도형)을 children 으로 받는다 — 확정 아이콘 자산이 없어 View 도형으로 그린다. */
+  /** 아이콘(도형)을 children 으로 받는다 — 확정 아이콘 애셋이 없어 View 도형으로 그린다. */
   children: ReactNode;
   /**
    * 누를 수 없는 상태(준비 중 · 미지원). 터치를 막고 흐리게 그리며 스크린리더에도 알린다.

@@ -86,7 +86,7 @@ packages/
 | `pnpm generate:api-types` | API 타입 재생성 (스키마·라우트 변경 후) |
 | `pnpm setup:model-bundle` | 모델 번들 다시 받기 (`--force`로 재설치) |
 
-MediaPipe 자산·폰트 서브셋·gzip 사이드카는 위 명령들이 알아서 만든다. 아바타 시퀀스를
+MediaPipe 애셋·폰트 서브셋·gzip 사이드카는 위 명령들이 알아서 만든다. 아바타 시퀀스를
 원본 영상에서 다시 뽑는 일은 드물어서 스크립트를 직접 부른다 —
 `cd packages/ear-dream-api && uv run python scripts/build_sign_sequences.py`.
 

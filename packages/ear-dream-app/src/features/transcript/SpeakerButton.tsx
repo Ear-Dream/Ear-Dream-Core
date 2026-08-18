@@ -78,7 +78,7 @@ export function SpeakerButton({ status, onPress, played, testID }: SpeakerButton
         {speaking ? (
           <View style={styles.stopSquare} />
         ) : (
-          // 스피커 아이콘 — 확정 자산 전 placeholder 도형(몸통 + 나팔).
+          // 스피커 아이콘 — 확정 애셋 전 placeholder 도형(몸통 + 나팔).
           <View style={styles.speakerShape}>
             <View style={styles.speakerBody} />
             <View style={styles.speakerHorn} />

@@ -9,7 +9,7 @@ export interface ChevronProps {
 }
 
 /**
- * V 자 화살표(＜ / ＞). 확정 아이콘 자산이 없어 View 테두리로 그린다 — 텍스트 글리프보다
+ * V 자 화살표(＜ / ＞). 확정 아이콘 애셋이 없어 View 테두리로 그린다 — 텍스트 글리프보다
  * 플랫폼 간 렌더링이 일정하다. AppBar 뒤로가기와 CandidateRow 우측 표시가 쓴다.
  */
 export function Chevron({ direction, size = 12, color = colors.text.primary }: ChevronProps) {

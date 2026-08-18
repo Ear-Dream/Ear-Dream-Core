@@ -17,7 +17,7 @@
  * ⚠️ 그만큼 주소가 인터넷에 노출된 상태다: 문서 프록시는 기본으로 꺼져 있고
  * `--token` 으로 링크를 아는 사람만 들어오게 막는다.
  *
- * 정적 자산은 gzip 사이드카(scripts/precompress-dist.mjs)와 캐시 헤더로 내보낸다.
+ * 정적 애셋은 gzip 사이드카(scripts/precompress-dist.mjs)와 캐시 헤더로 내보낸다.
  * 첫 로드가 약 19MB 라 터널 경유에서는 이게 곧 체감 속도이자 대역폭이다.
  *
  * 새 의존성을 쓰지 않는다 — node 내장 모듈만 쓴다 (setup-mediapipe-assets.mjs 와 같은 방침).
@@ -91,15 +91,15 @@ const MIME = {
 const IMMUTABLE_PREFIXES = ['/_expo/', '/assets/'];
 
 /**
- * 이름이 고정된 대용량 자산 (MediaPipe wasm·모델 약 28MB, 아바타 시퀀스).
+ * 이름이 고정된 대용량 애셋 (MediaPipe wasm·모델 약 28MB, 아바타 시퀀스).
  *
- * 해시가 없어 `immutable` 은 줄 수 없다 — 자산을 교체해도 유효기간 동안 낡은 사본이
+ * 해시가 없어 `immutable` 은 줄 수 없다 — 애셋을 교체해도 유효기간 동안 낡은 사본이
  * 쓰인다. 대신 기간을 길게 줘서 재방문 비용을 0 으로 만든다. 터널 경유 공개에서는
  * 이 한 줄이 사용자당 수십 MB 를 좌우한다. 교체 시에는 사용자가 강제 새로고침해야 한다.
  */
 const LONG_CACHE_PREFIXES = ['/mediapipe/', '/sign-sequences/'];
 
-/** 30일. 위 대용량 자산용. */
+/** 30일. 위 대용량 애셋용. */
 const LONG_CACHE_SECONDS = 30 * 24 * 60 * 60;
 
 /**
@@ -259,7 +259,7 @@ function cookieValue(req, name) {
 
 /**
  * 접근 게이트. `?k=<시크릿>` 으로 한 번 들어오면 쿠키로 바꿔 주고 주소에서 지운다 —
- * 시크릿이 히스토리·Referer 에 남지 않게 하고, 이후 요청(자산·API)은 쿠키로 통과한다.
+ * 시크릿이 히스토리·Referer 에 남지 않게 하고, 이후 요청(애셋·API)은 쿠키로 통과한다.
  *
  * 반환값이 true 면 이 요청은 여기서 끝났다는 뜻이다.
  */
