@@ -93,3 +93,46 @@ def test_archive_stores_client_gzip_without_recompressing(client: TestClient, tm
     stored = json.loads(gzip.decompress(archived[-1].read_bytes()))
     assert stored["request_id"] == "req-arch-gz"
     assert stored == payload
+
+
+def test_large_response_is_gzipped(client: TestClient) -> None:
+    """카탈로그처럼 큰 응답은 압축해 내보낸다 (실측 54KB → 5KB)."""
+    res = client.get("/api/v1/vocabulary", headers={"Accept-Encoding": "gzip"})
+    assert res.status_code == 200
+    assert res.headers.get("content-encoding") == "gzip"
+    # httpx 가 해제해 주므로 내용은 그대로여야 한다.
+    assert len(res.json()["entries"]) > 0
+
+
+def test_small_response_is_not_gzipped(client: TestClient) -> None:
+    """작은 응답은 압축하지 않는다 — 줄어드는 양보다 왕복 오버헤드가 크다."""
+    res = client.get("/health", headers={"Accept-Encoding": "gzip"})
+    assert res.status_code == 200
+    assert "content-encoding" not in res.headers
+
+
+def test_client_without_gzip_gets_plain_response(client: TestClient) -> None:
+    """압축을 못 받는 클라이언트에는 그대로 보낸다."""
+    res = client.get("/api/v1/vocabulary", headers={"Accept-Encoding": "identity"})
+    assert res.status_code == 200
+    assert "content-encoding" not in res.headers
+
+
+def test_speech_path_is_excluded_from_response_gzip(client: TestClient) -> None:
+    """/speech 는 압축 대상이 아니다 — WAV 는 이득이 적고 첫 소리가 늦어진다.
+
+    conftest 는 TTS 를 꺼 두므로 503 이 온다. 여기서 확인할 것은 경로가 압축 미들웨어를
+    거치지 않는다는 사실이라 상태 코드와 무관하게 성립한다.
+    """
+    res = client.post(
+        "/api/v1/speech",
+        json={
+            "session_id": "s",
+            "request_id": "r",
+            "text": "안녕하세요",
+            "emotion": "neutral",
+            "style": "polite",
+        },
+        headers={"Accept-Encoding": "gzip"},
+    )
+    assert "content-encoding" not in res.headers

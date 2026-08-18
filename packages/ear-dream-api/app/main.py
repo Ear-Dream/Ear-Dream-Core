@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.v1.router import api_router
-from app.core.compression import GzipRequestMiddleware
+from app.core.compression import GzipRequestMiddleware, SelectiveGzipResponseMiddleware
 from app.core.config import settings
 from app.core.limits import BodySizeLimitMiddleware
 from app.core.logging import configure_logging, get_logger
@@ -49,6 +49,14 @@ app.add_middleware(
 # `Content-Encoding: gzip` 요청 본문 해제. /recognize 페이로드가 세그먼트당 수 MB 라
 # 전송 계층에서만 줄인다 — 풀면 바이트가 같아 학습 계약은 그대로다 (app/core/compression.py).
 app.add_middleware(GzipRequestMiddleware)
+
+# 응답 압축. 카탈로그(/vocabulary)가 유일한 실질 수혜자지만, 터널 경유로 공개하면
+# 사용자마다 한 번씩 나가는 값이다. /speech 의 오디오는 제외한다.
+app.add_middleware(
+    SelectiveGzipResponseMiddleware,
+    minimum_size=settings.response_gzip_min_bytes,
+    skip_suffixes=("/speech",),
+)
 
 # 크기 상한은 **가장 바깥**이어야 한다 — 해제도 아카이빙도 하기 전에 끊어야 의미가 있다.
 # (add_middleware 는 나중에 등록한 것이 바깥이다.)

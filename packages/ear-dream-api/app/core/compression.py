@@ -20,6 +20,7 @@ from __future__ import annotations
 import zlib
 
 from starlette.datastructures import Headers
+from starlette.middleware.gzip import GZipMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from app.core.config import settings
@@ -173,4 +174,28 @@ async def _send_400(send: Send, detail: str) -> None:
     await send({"type": "http.response.body", "body": body})
 
 
-__all__ = ["GzipRequestMiddleware"]
+class SelectiveGzipResponseMiddleware:
+    """응답 gzip. 단 **오디오 경로는 건너뛴다**.
+
+    Starlette 의 GZipMiddleware 는 콘텐츠 타입을 가리지 않는데, `/speech` 는 WAV 바이트를
+    돌려준다 — PCM 은 압축 이득이 적으면서 응답 전체를 버퍼링해 첫 소리를 늦춘다.
+    경로는 요청 시점에 알 수 있으므로 여기서 갈라 검증된 구현을 그대로 쓴다.
+
+    실측 이득은 `/vocabulary` 에 몰려 있다 (54KB → 5KB, 10.8배). 나머지 응답은 수백
+    바이트라 minimum_size 아래로 떨어져 압축되지 않는다 — 작은 응답을 압축하면 줄어드는
+    양보다 왕복 오버헤드가 크다 (요청 쪽 COMPRESS_MIN_BYTES 와 같은 취지).
+    """
+
+    def __init__(self, app: ASGIApp, minimum_size: int, skip_suffixes: tuple[str, ...]) -> None:
+        self.plain = app
+        self.gzipped = GZipMiddleware(app, minimum_size=minimum_size)
+        self.skip_suffixes = skip_suffixes
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        if scope["type"] != "http" or scope.get("path", "").endswith(self.skip_suffixes):
+            await self.plain(scope, receive, send)
+            return
+        await self.gzipped(scope, receive, send)
+
+
+__all__ = ["GzipRequestMiddleware", "SelectiveGzipResponseMiddleware"]

@@ -147,6 +147,11 @@ class Settings(BaseSettings):
     # instruction 요청이 실패하면 텍스트만으로 재시도한다(감정은 빠지고 소리는 나온다).
     tts_text_only_fallback: bool = True
 
+    # ---- 응답 압축 (app/core/compression.py)
+    # 실측: /vocabulary 54KB → 5KB. 나머지 응답은 수백 바이트라 상한 아래로 떨어진다.
+    # /speech 의 WAV 는 경로로 제외한다 — 이득이 적고 첫 소리가 늦어진다.
+    response_gzip_min_bytes: int = 1024
+
     # ---- 요청 크기 상한 (app/core/limits.py · app/core/compression.py)
     # 공개 URL(터널)로 열면 인증 없는 /recognize 가 그대로 노출된다. 라우트가 검증
     # 이전에 raw body 를 통째로 버퍼링해 아카이빙하므로 그 앞에서 끊어야 한다.
