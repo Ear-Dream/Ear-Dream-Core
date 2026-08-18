@@ -402,7 +402,8 @@ const { data, error } = await api.GET('/api/v1/vocabulary');
 | `pnpm generate:api-types` | API 타입 생성 |
 | `pnpm setup:mediapipe` | MediaPipe WASM·모델(손·얼굴·포즈) 내려받기 |
 | `pnpm setup:model-bundle` | 수어 인식 모델 번들 내려받기 (`--force`로 재설치) |
-| `pnpm build:web-mobile` | 실기기용 웹 내보내기 (API를 상대경로로) |
+| `pnpm build:web-mobile` | 실기기용 웹 내보내기 (API를 상대경로로, gzip 사이드카 포함) |
+| `pnpm precompress:dist` | 내보낸 웹의 gzip 사이드카만 다시 생성 |
 | `pnpm serve:mobile` | 웹 + API 단일 오리진 서버 (https) |
 | `pnpm setup:https-cert` | 실기기용 로컬 https 인증서 생성 |
 
