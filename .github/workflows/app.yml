@@ -61,6 +61,11 @@ jobs:
       - name: 타입 검사
         run: pnpm typecheck
 
+      # 폰트 서브셋도 커밋하지 않는 생성물이다 (App.tsx 가 require 로 싣는다).
+      # 없으면 아래 번들 검사가 모듈 해석 실패로 떨어진다.
+      - name: 폰트 서브셋 생성
+        run: node scripts/setup-fonts.mjs
+
       # 타입 검사는 Metro 번들링 실패를 잡지 못한다.
       # (선언하지 않은 패키지 import, 모듈 해석 실패 등)
       - name: 번들 검사
