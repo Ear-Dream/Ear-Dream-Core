@@ -2,7 +2,7 @@
 
 핵심은 **두 실패의 구분**이다 (schemas/sign_sequence.py SignSequenceIssue 주석):
   - unknown_word : 어휘 300에 없다
-  - no_sequence  : 어휘엔 있으나 아바타 시퀀스 자산이 없다 (현재 259단어)
+  - no_sequence  : 어휘엔 있으나 아바타 시퀀스 자산이 없다
 이 둘이 섞이면 진짜 변환 모델이 붙었을 때 "변환은 됐는데 재생할 게 없는" 상태를
 구분할 수 없다.
 
@@ -30,8 +30,6 @@ def test_sequence_manifest_is_a_subset_of_vocab():
     """시퀀스 매니페스트의 단어가 전부 어휘에 있어야 한다 — 어긋나면 어휘 판본 불일치다."""
     assert SEQUENCES, "시퀀스 매니페스트가 비어 있다 (build_sign_sequences.py 를 돌렸는가?)"
     assert set(SEQUENCES) <= set(ID_TO_ENTRY)
-    # 현재는 어휘의 일부만 커버한다 — no_sequence 경로가 살아 있다는 뜻이다
-    assert len(SEQUENCES) < len(ID_TO_ENTRY)
 
 
 def test_reverse_index_only_uses_current_vocab():
@@ -227,21 +225,27 @@ def test_unknown_word_keeps_position_among_playable_items(client):
 
 
 # ------------------------------------------------------------------ no_sequence
-def _word_without_sequence() -> tuple[str, str]:
-    """어휘엔 있으나 시퀀스가 없는 단어 하나 (label, id). 결정론적으로 고른다."""
-    for word_id in sorted(ID_TO_ENTRY):
-        if word_id not in SEQUENCES:
-            return ID_TO_ENTRY[word_id].label, word_id
-    raise AssertionError("모든 어휘에 시퀀스가 있다 — no_sequence 경로가 사라졌다")
+@pytest.fixture
+def missing_sequence(monkeypatch) -> tuple[str, str]:
+    """시퀀스가 없는 단어 상황을 **만들어서** 돌려준다 (label, id).
+
+    sign-seq-v2 부터 어휘 300 이 전부 자산을 갖게 돼서 실제로 비어 있는 단어가
+    없다. 그렇다고 no_sequence 테스트를 지우면, **어휘가 자산보다 먼저 늘어나는
+    순간**(정상적인 작업 순서다) 이 경로가 아무도 모르게 깨진다. 그래서 매니페스트에서
+    한 단어를 빼고 검사한다.
+    """
+    word_id = min(SEQUENCES)
+    monkeypatch.delitem(SEQUENCES, word_id)
+    return ID_TO_ENTRY[word_id].label, word_id
 
 
-def test_no_sequence(client):
+def test_no_sequence(client, missing_sequence):
     """어휘엔 있으나 아바타 시퀀스 자산이 없는 단어 → no_sequence.
 
     unknown_word 와 달리 word_id·label 은 채워지고 sequence_key 만 null 이다.
     "변환은 됐는데 재생할 게 없다" 를 그대로 드러내는 형태다.
     """
-    label, word_id = _word_without_sequence()
+    label, word_id = missing_sequence
     res = client.post(ENDPOINT, json=_body(label))
     assert res.status_code == 200
     data = res.json()
@@ -258,10 +262,11 @@ def test_no_sequence(client):
     ]
 
 
-def test_unknown_word_and_no_sequence_are_distinguished(client):
-    """두 실패가 한 응답 안에서 서로 다른 값으로 나와야 한다 — 이 API 의 존재 이유."""
-    label, _ = _word_without_sequence()
-    res = client.post(ENDPOINT, json=_body(f"{label} 컴퓨터 밥"))
+def test_unknown_word_and_no_sequence_are_distinguished(client, missing_sequence):
+    """세 실패 상태가 한 응답 안에서 서로 다른 값으로 나와야 한다 — 이 API 의 존재 이유."""
+    label, _ = missing_sequence
+    playable = ID_TO_ENTRY[min(SEQUENCES)].label
+    res = client.post(ENDPOINT, json=_body(f"{label} 컴퓨터 {playable}"))
     assert res.status_code == 200
     assert [item["issue"] for item in res.json()["items"]] == [
         "no_sequence",
