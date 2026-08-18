@@ -16,7 +16,7 @@ class VocabularyEntry(BaseModel):
     gloss_refs: list[GlossRef] = Field(default_factory=list)
     has_avatar: bool = Field(
         description="아바타 재생 시퀀스 보유 여부. 어휘에 있어도 시퀀스가 없을 수 있다 "
-        "(현재 300단어 중 41단어만 보유)"
+        "(현재 300단어 전부 보유)"
     )
     avatar_asset_id: str | None = Field(
         default=None,
