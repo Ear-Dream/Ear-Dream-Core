@@ -75,6 +75,7 @@ const PAINT = {
   shirtMid: '#4f46e5',
   shirtDark: '#3b32b4',
   hair: '#3a2418',
+  outline: '#a4694c',
   iris: '#4a3325',
   brow: '#4a3526',
   lip: '#d08a80',
@@ -178,6 +179,34 @@ const MOUTH = {
 } as const;
 
 /**
+ * 손 치수 — 손목~중지 MCP 거리(`unit`) 대비.
+ *
+ * 손이 얼굴 위로 올라오는 동작이 흔한데 둘 다 살색이라 **경계가 사라진다.** 그래서
+ * 윤곽선을 두르고, 선이 생기는 만큼 실루엣도 손처럼 다듬는다 — 굵기가 일정한 막대
+ * 다섯 개에 선만 두르면 장갑처럼 보인다.
+ */
+const HAND = {
+  /** 손바닥 — MCP 를 이은 다각형은 손금 선에 가까워서 살을 붙여야 손바닥이 된다. */
+  palmWidth: 0.52,
+  /** 손가락은 뿌리에서 끝으로 가늘어진다. 엄지는 굵고 짧다. */
+  fingerBase: 0.17,
+  fingerTip: 0.115,
+  thumbBase: 0.2,
+  thumbTip: 0.13,
+} as const;
+
+/**
+ * 외곽선 두께 — 어깨 너비 대비.
+ *
+ * 손이 얼굴 위로 올라오면 둘 다 살색이라 경계가 사라진다. 손에만 선을 두르면 그
+ * 손만 다른 그림에서 온 것처럼 보이므로 **모든 부위에 같은 굵기로** 두른다.
+ *
+ * 그리는 법: 부위마다 같은 도형을 굵게 한 번 깔고 그 위에 제 색을 얹는다. 겹친
+ * 도형들의 바깥선만 남고 내부 경계는 덮이므로 도형 합집합을 구할 필요가 없다.
+ */
+const OUTLINE_WIDTH = 0.016;
+
+/**
  * 인물 둘레에 남길 여백 (잘라낸 범위 대비 비율).
  *
  * 0 이면 손끝·정수리가 화면 가장자리에 딱 붙어 잘린 것처럼 보인다. 위쪽을 더 주는 것은
@@ -266,14 +295,28 @@ export function AvatarPlayer({
             <>
               {figure.body ? (
                 <G>
-                  {/* 목이 먼저다 — 나중에 그리면 옷깃을 가로지르는 사각형으로 보인다. */}
+                  {/* 목 — 옷깃을 가로지르는 사각형으로 보이지 않게 몸통보다 먼저. */}
                   {figure.body.neck ? (
                     <>
+                      <Path
+                        d={figure.body.neck}
+                        fill={PAINT.outline}
+                        stroke={PAINT.outline}
+                        strokeWidth={figure.outline * 2}
+                        strokeLinejoin="round"
+                      />
                       <Path d={figure.body.neck} fill="url(#avatar-skin)" />
                       {/* 턱 밑 그림자 — 없으면 목과 얼굴이 한 덩어리로 붙어 보인다. */}
                       <Path d={figure.body.neck} fill={PAINT.shadow} opacity={0.35} />
                     </>
                   ) : null}
+                  <Path
+                    d={figure.body.torso}
+                    fill={PAINT.outline}
+                    stroke={PAINT.outline}
+                    strokeWidth={figure.body.torsoRound + figure.outline * 2}
+                    strokeLinejoin="round"
+                  />
                   <Path
                     d={figure.body.torso}
                     fill="url(#avatar-shirt)"
@@ -283,12 +326,39 @@ export function AvatarPlayer({
                   />
                   {figure.body.arms.map((arm, index) => (
                     <G key={index}>
+                      {/* 소매와 팔뚝을 따로 두른다 — 옷깃 경계에 선이 생겨야 자연스럽다. */}
+                      <Path
+                        d={arm.upper}
+                        fill={PAINT.outline}
+                        stroke={PAINT.outline}
+                        strokeWidth={figure.outline * 2}
+                        strokeLinejoin="round"
+                      />
+                      <Circle
+                        cx={arm.shoulder[0]}
+                        cy={arm.shoulder[1]}
+                        r={arm.shoulderR + figure.outline}
+                        fill={PAINT.outline}
+                      />
                       <Path d={arm.upper} fill="url(#avatar-shirt)" />
                       <Circle
                         cx={arm.shoulder[0]}
                         cy={arm.shoulder[1]}
                         r={arm.shoulderR}
                         fill="url(#avatar-shirt)"
+                      />
+                      <Path
+                        d={arm.fore}
+                        fill={PAINT.outline}
+                        stroke={PAINT.outline}
+                        strokeWidth={figure.outline * 2}
+                        strokeLinejoin="round"
+                      />
+                      <Circle
+                        cx={arm.elbow[0]}
+                        cy={arm.elbow[1]}
+                        r={arm.elbowR + figure.outline}
+                        fill={PAINT.outline}
                       />
                       <Path d={arm.fore} fill="url(#avatar-skin)" />
                       <Circle
@@ -312,9 +382,23 @@ export function AvatarPlayer({
                   <Ellipse
                     cx={figure.head.cx}
                     cy={figure.head.cy}
+                    rx={figure.head.rx + figure.outline}
+                    ry={figure.head.ry + figure.outline}
+                    fill={PAINT.outline}
+                  />
+                  <Ellipse
+                    cx={figure.head.cx}
+                    cy={figure.head.cy}
                     rx={figure.head.rx}
                     ry={figure.head.ry}
                     fill="url(#avatar-skin)"
+                  />
+                  <Path
+                    d={figure.head.hair}
+                    fill={PAINT.outline}
+                    stroke={PAINT.outline}
+                    strokeWidth={figure.outline * 2}
+                    strokeLinejoin="round"
                   />
                   <Path d={figure.head.hair} fill={PAINT.hair} />
                 </G>
@@ -365,34 +449,50 @@ export function AvatarPlayer({
                 </G>
               ) : null}
 
-              {/* 손은 맨 앞이다 — 수어에서 손이 얼굴을 가리는 동작이 흔하다. */}
+              {/* 손은 맨 앞이다 — 수어에서 손이 얼굴을 가리는 동작이 흔하다.
+                  손 전체를 한 덩어리로 두르므로 손가락 사이에는 선이 생기지 않는다. */}
               {figure.hands.map((hand, index) => (
                 <G key={index}>
-                  <Path
-                    d={hand.palm}
-                    fill="url(#avatar-skin)"
-                    stroke="url(#avatar-skin)"
-                    strokeWidth={hand.palmWidth}
-                    strokeLinejoin="round"
-                  />
-                  <Path
-                    d={hand.fingers}
-                    stroke="url(#avatar-skin)"
-                    strokeWidth={hand.fingerWidth}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                  {/* 손가락 사이 옅은 선. 굵게 하면 손이 뭉개지고, 없으면 벙어리장갑이 된다. */}
-                  <Path
-                    d={hand.fingers}
-                    stroke={PAINT.shadow}
-                    strokeWidth={hand.fingerWidth * 0.07}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                    opacity={0.3}
-                  />
+                  {hand.shapes.map((shape, i) => (
+                    <Path
+                      key={`o${i}`}
+                      d={shape.d}
+                      fill={PAINT.outline}
+                      stroke={PAINT.outline}
+                      strokeWidth={shape.width + figure.outline * 2}
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                    />
+                  ))}
+                  {hand.joints.map((joint, i) => (
+                    <Circle
+                      key={`oj${i}`}
+                      cx={joint.center[0]}
+                      cy={joint.center[1]}
+                      r={joint.r + figure.outline}
+                      fill={PAINT.outline}
+                    />
+                  ))}
+                  {hand.shapes.map((shape, i) => (
+                    <Path
+                      key={`f${i}`}
+                      d={shape.d}
+                      fill="url(#avatar-skin)"
+                      stroke="url(#avatar-skin)"
+                      strokeWidth={shape.width}
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                    />
+                  ))}
+                  {hand.joints.map((joint, i) => (
+                    <Circle
+                      key={`fj${i}`}
+                      cx={joint.center[0]}
+                      cy={joint.center[1]}
+                      r={joint.r}
+                      fill="url(#avatar-skin)"
+                    />
+                  ))}
                 </G>
               ))}
             </>
@@ -497,6 +597,8 @@ interface Figure {
       elbowR: number;
     }[];
   } | null;
+  /** 모든 부위에 같은 굵기로 두르는 외곽선. */
+  outline: number;
   head: {
     cx: number;
     cy: number;
@@ -513,13 +615,17 @@ interface Figure {
     mouthFilled: boolean;
     mouthStroke: number;
   } | null;
-  hands: { palm: string; fingers: string; palmWidth: number; fingerWidth: number }[];
+  hands: {
+    shapes: { d: string; width: number }[];
+    joints: { center: Point; r: number }[];
+  }[];
 }
 
 function buildFigure(at: At, baseline: HeadBaseline): Figure {
   const unit = span(at(POSE.leftShoulder), at(POSE.rightShoulder));
 
   return {
+    outline: unit * OUTLINE_WIDTH,
     body: unit > 0 ? buildBody(at, unit, baseline) : null,
     head: buildHead(at, baseline),
     face: buildFace(at, baseline),
@@ -755,34 +861,84 @@ function buildHand(at: At, base: number): Figure['hands'][number] | null {
   const wrist = at(base);
   const middleMcp = at(base + 9);
   if (!ok(wrist) || !ok(middleMcp)) return null;
-  const unit = span(wrist, middleMcp);
+  // 손 크기 기준. 손이 비스듬하면 손목~중지 거리가 짧아져 손 전체가 쪼그라들므로
+  // 손바닥 가로폭(검지~새끼 MCP)과 견줘 큰 쪽을 쓴다.
+  const across = span(at(base + 5), at(base + 17));
+  const unit = Math.max(span(wrist, middleMcp), Number.isFinite(across) ? across * 1.15 : 0);
   if (unit <= 0) return null;
 
-  const palm = smoothRingAt(
-    PALM_RING.map((i) => base + i),
-    at,
-  );
+  const shapes: { d: string; width: number }[] = [];
+  const joints: { center: Point; r: number }[] = [];
+
+  // 손바닥 — 손목 · 엄지 뿌리 · 네 MCP 를 두른 면.
+  // 볼록 껍질을 쓰는 이유: 손이 돌아가면 엄지 뿌리가 반대쪽으로 넘어가 다각형이
+  // **스스로 꼬인다.** 꼬인 면은 윤곽선을 두르는 순간 삐죽한 조각으로 드러난다.
+  const palmPoints = PALM_RING.map((i) => at(base + i));
+  if (!palmPoints.every(ok)) return null;
+  const palm = smoothRing(convexHull(palmPoints));
   if (!palm) return null;
+  shapes.push({ d: palm, width: unit * HAND.palmWidth });
 
-  // 손목에서 각 손가락 끝까지 한 획씩. 미검출 마디가 있으면 그 손가락만 건너뛴다.
-  const fingers = FINGER_CHAINS
-    .map((chain) => {
-      const points = [0, ...chain].map((i) => at(base + i));
-      return points.every(ok) ? smoothOpen(points) : null;
-    })
-    .filter((path): path is string => path !== null)
-    .join('');
-  if (!fingers) return null;
+  // 손가락 — 마디마다 굵기가 줄어드는 사다리꼴. 굵기가 일정하면 손이 아니라 막대다.
+  let drawn = 0;
+  for (let index = 0; index < FINGER_CHAINS.length; index += 1) {
+    const points = FINGER_CHAINS[index].map((i) => at(base + i));
+    if (!points.every(ok)) continue; // 미검출 마디가 있으면 그 손가락만 건너뛴다
+    const isThumb = index === 0;
+    const from = unit * (isThumb ? HAND.thumbBase : HAND.fingerBase);
+    const to = unit * (isThumb ? HAND.thumbTip : HAND.fingerTip);
 
-  return {
-    palm,
-    fingers,
-    palmWidth: unit * 0.5,
-    fingerWidth: unit * 0.38,
-  };
+    for (let step = 0; step + 1 < points.length; step += 1) {
+      const t0 = step / (points.length - 1);
+      const t1 = (step + 1) / (points.length - 1);
+      const half0 = from + (to - from) * t0;
+      const half1 = from + (to - from) * t1;
+      shapes.push({ d: taper(points[step], points[step + 1], half0, half1), width: 0 });
+      joints.push({ center: points[step], r: half0 });
+    }
+    joints.push({ center: points[points.length - 1], r: to }); // 손끝은 둥글게
+    drawn += 1;
+  }
+  if (drawn === 0) return null;
+
+  return { shapes, joints };
 }
 
+
 // ---------------------------------------------------------------- 헬퍼
+
+/**
+ * 볼록 껍질 (모노톤 체인). 점이 대여섯 개라 비용은 무시할 수준이다.
+ *
+ * 순서가 뒤엉킨 점들을 **꼬이지 않는 다각형**으로 만든다. 손이 돌아가면 엄지 뿌리가
+ * 반대쪽으로 넘어가 손바닥 다각형이 스스로 꼬이는데, 꼬인 면은 외곽선을 두르는 순간
+ * 삐죽한 조각으로 드러난다.
+ */
+function convexHull(points: readonly Point[]): Point[] {
+  const sorted = [...points].sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  if (sorted.length < 3) return sorted;
+
+  const cross = (o: Point, a: Point, b: Point) =>
+    (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+
+  const build = (source: readonly Point[]) => {
+    const chain: Point[] = [];
+    for (const point of source) {
+      while (
+        chain.length >= 2 &&
+        cross(chain[chain.length - 2], chain[chain.length - 1], point) <= 0
+      ) {
+        chain.pop();
+      }
+      chain.push(point);
+    }
+    chain.pop();
+    return chain;
+  };
+
+  const hull = [...build(sorted), ...build([...sorted].reverse())];
+  return hull.length >= 3 ? hull : sorted;
+}
 
 function ok(point: Point): boolean {
   return Number.isFinite(point[0]) && Number.isFinite(point[1]);
@@ -819,23 +975,6 @@ function smoothRingAt(indices: readonly number[], at: At): string | null {
   const points = indices.map(at);
   if (!points.every(ok)) return null;
   return smoothRing(points);
-}
-
-/** 열린 곡선. 양 끝점은 그대로 지나고 가운데만 부드럽게 잇는다. */
-function smoothOpen(points: readonly Point[]): string {
-  if (points.length < 2) return '';
-  if (points.length === 2) return `M${pt(points[0])}L${pt(points[1])}`;
-  let d = `M${pt(points[0])}`;
-  for (let i = 1; i < points.length - 1; i += 1) {
-    const end: Point = [
-      (points[i][0] + points[i + 1][0]) / 2,
-      (points[i][1] + points[i + 1][1]) / 2,
-    ];
-    d += `Q${pt(points[i])} ${pt(end)}`;
-  }
-  const last = points[points.length - 1];
-  d += `L${pt(last)}`;
-  return d;
 }
 
 /** 두 점 사이를 굵기가 변하는 사다리꼴로 — 팔다리에 살을 붙인다. */

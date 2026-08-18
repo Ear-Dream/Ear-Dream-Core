@@ -7,7 +7,6 @@ import { spacing } from '../constants/theme';
 import { HomeScreen } from '../features/home/HomeScreen';
 import { useVocabulary } from '../features/recognition/api/useVocabulary';
 import { LandmarkDevScreen } from '../features/recognition/LandmarkDevScreen';
-import { RecognizingScreen } from '../features/recognition/RecognizingScreen';
 import { SignFlow } from '../features/recognition/SignFlow';
 import { SignVideoScreen } from '../features/voice/SignVideoScreen';
 import { VoiceInputScreen } from '../features/voice/VoiceInputScreen';
@@ -24,7 +23,7 @@ import { VoiceInputScreen } from '../features/voice/VoiceInputScreen';
  *     — 농인 트랙 내부 전환(입력/후보/결과)은 SignFlow 가 소유한다. 누적 칩과 세션이
  *       화면 전환을 넘어 유지되어야 해서다. 마스터의 signInput/result 라우트(mock 흐름)는
  *       SignFlow 가 대체한다.
- *   청인→농인: home → voiceInput(음성 인식 또는 키보드) → recognizing → signVideo
+ *   청인→농인: home → voiceInput(음성 인식 또는 키보드) → signVideo
  *     — 입력한 문장은 두 화면을 **실제로 타고 흐른다**(state 에 실린다). 수어 영상 생성만
  *       아직 미구현이라 signVideo 는 문장을 자막으로만 보여준다.
  */
@@ -36,7 +35,6 @@ export type WireScreen =
    * 청인 트랙 "인식 중". 음성 인식은 이 화면에 오기 전에 이미 끝나 있고, 이 체류 시간이
    * 덮는 것은 뒤따르는 수어 영상 생성(미구현)이다 — mock 타이머다(constants/mock.ts).
    */
-  | { name: 'recognizing'; text: string }
   | { name: 'voiceInput' }
   | { name: 'signVideo'; text: string }
   /** 개발용: T-03 랜드마크 확인 화면 (노출 조건은 constants/devFlags.ts). */
@@ -69,20 +67,14 @@ export function AppNavigator() {
       // onReply: 결과 화면의 "답장하기" — 청인 트랙으로 넘어간다. SignFlow 가 언마운트되며
       // 농인 트랙 세션(pill 큐)은 비워진다(SignFlow.onReply 주석 참고).
       return <SignFlow catalog={catalog} onExit={goHome} onReply={goVoiceInput} />;
-    case 'recognizing':
-      return (
-        <RecognizingScreen
-          context="voice"
-          // 문장을 그대로 다음 화면으로 넘긴다 — 이 화면은 텍스트를 바꾸지 않는다.
-          onDone={() => setScreen({ name: 'signVideo', text: screen.text })}
-          onCancel={goVoiceInput}
-        />
-      );
     case 'voiceInput':
       // 음성 인식 결과와 키보드 입력이 같은 콜백으로 온다 — 다음 화면 입장에서 차이가 없다.
+      // **곧바로 재생 화면으로 간다.** 중간에 "인식 중" 화면을 두던 시절이 있었는데,
+      // 그건 서버 호출이 시작되기도 전에 흐르는 고정 타이머였다. 실제 대기는
+      // SignVideoScreen 이 요청하는 동안이고 그 화면이 자기 로딩 상태를 갖고 있다.
       return (
         <VoiceInputScreen
-          onSubmit={(text) => setScreen({ name: 'recognizing', text })}
+          onSubmit={(text) => setScreen({ name: 'signVideo', text })}
           onBack={goHome}
         />
       );

@@ -46,5 +46,10 @@ export const FINGER_CHAINS: readonly (readonly number[])[] = [
   [17, 18, 19, 20], // 소지
 ];
 
-/** 손바닥 윤곽 — 손목과 네 손가락 MCP. 이 다섯 점이 손바닥 면이다. */
-export const PALM_RING: readonly number[] = [0, 5, 9, 13, 17];
+/**
+ * 손바닥 윤곽 — 손목 → 엄지 뿌리 → 네 손가락 MCP 순서로 한 바퀴.
+ *
+ * 엄지 뿌리(1)를 넣는 이유는 빼면 손날 쪽이 파여 손바닥이 좁아 보이기 때문이다.
+ * 순서가 곧 다각형이라 섞으면 면이 꼬인다.
+ */
+export const PALM_RING: readonly number[] = [0, 1, 5, 9, 13, 17];
