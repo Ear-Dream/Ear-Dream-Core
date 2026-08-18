@@ -51,6 +51,22 @@ export interface SignSequence {
 
 const ASSET_BASE = '/sign-sequences';
 
+/**
+ * 클립마다 다른 촬영 위치를 지우고 맞출 기준점 (자산 좌표계).
+ *
+ * 단어마다 따로 찍은 영상이라 사람이 서 있던 자리가 조금씩 다르다 — 300클립 실측으로
+ * 어깨 중점이 **어깨 너비의 54%** 만큼 좌우로 흩어져 있다(세로는 10%). 그대로 이어
+ * 재생하면 단어가 바뀔 때마다 사람이 옆으로 미끄러진다.
+ *
+ * 값 자체는 실측 중앙값이고 의미는 없다 — 어차피 화면은 시퀀스 전체를 감싸 잘라내
+ * 가운데 놓으므로, **클립들이 서로 맞기만 하면** 된다.
+ */
+const SHOULDER_ANCHOR = { x: 0.525, y: 0.353 } as const;
+
+/** kp130 레이아웃의 어깨 (`bodyLayout.POSE`). 여기서는 디코딩 직후라 상수만 쓴다. */
+const LEFT_SHOULDER = 44;
+const RIGHT_SHOULDER = 45;
+
 let manifestPromise: Promise<SequenceManifest | null> | null = null;
 const sequenceCache = new Map<string, Promise<SignSequence | null>>();
 
@@ -119,10 +135,58 @@ async function fetchSequence(
     xy[i] = raw[i] === format.nan_sentinel ? Number.NaN : raw[i] / format.quant_scale;
   }
 
+  const frameCount = raw.length / stride;
+  recenter(xy, frameCount, format.keypoint_count);
+
   return {
     key,
-    frameCount: raw.length / stride,
+    frameCount,
     keypointCount: format.keypoint_count,
     xy,
   };
+}
+
+/**
+ * 클립 전체를 평행이동해 어깨 중점을 공통 기준점에 맞춘다.
+ *
+ * **클립당 한 번만 옮긴다.** 프레임마다 가운데로 맞추면 단어 안에서 몸을 기울이거나
+ * 무게중심을 옮기는 움직임이 통째로 지워지는데, 그건 촬영 오차가 아니라 동작의
+ * 일부다. 클립당 한 번이면 단어 사이의 프레이밍 차이만 사라진다.
+ *
+ * 크기(어깨 너비)는 건드리지 않는다 — 실측 편차가 11% 로 위치(54%)보다 훨씬 작고,
+ * 배율을 바꾸면 단어 안 동작의 크기까지 함께 바뀌어 원본과 벌어지는 폭이 커진다.
+ *
+ * 어깨가 한 프레임도 잡히지 않았으면 그대로 둔다 — 기준이 없으면 옮길 수 없다.
+ */
+function recenter(xy: Float32Array, frameCount: number, keypointCount: number): void {
+  const xs: number[] = [];
+  const ys: number[] = [];
+
+  for (let frame = 0; frame < frameCount; frame += 1) {
+    const base = frame * keypointCount * 2;
+    const lx = xy[base + LEFT_SHOULDER * 2];
+    const ly = xy[base + LEFT_SHOULDER * 2 + 1];
+    const rx = xy[base + RIGHT_SHOULDER * 2];
+    const ry = xy[base + RIGHT_SHOULDER * 2 + 1];
+    if (!Number.isFinite(lx) || !Number.isFinite(ly)) continue;
+    if (!Number.isFinite(rx) || !Number.isFinite(ry)) continue;
+    xs.push((lx + rx) / 2);
+    ys.push((ly + ry) / 2);
+  }
+  if (xs.length === 0) return;
+
+  // 평균이 아니라 중앙값이다 — 한두 프레임 검출이 튀어도 기준이 끌려가지 않는다.
+  const shiftX = SHOULDER_ANCHOR.x - median(xs);
+  const shiftY = SHOULDER_ANCHOR.y - median(ys);
+
+  for (let i = 0; i < xy.length; i += 2) {
+    xy[i] += shiftX; // NaN 은 더해도 NaN 이라 미검출 표시가 유지된다
+    xy[i + 1] += shiftY;
+  }
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b);
+  const middle = sorted.length >> 1;
+  return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
