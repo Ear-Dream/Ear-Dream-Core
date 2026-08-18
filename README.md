@@ -169,9 +169,22 @@ npm install -g pnpm
 
 ```bash
 pnpm install
-cd packages/ear-dream-api
-uv sync
 ```
+
+```bash
+cd packages/ear-dream-api && uv sync
+```
+
+API 타입(`packages/core/src/generated/`)은 커밋하지 않으므로 클론 직후 한 번 생성한다.
+FastAPI 스키마에서 뽑으므로 위의 `uv sync`가 먼저 끝나 있어야 한다.
+
+```bash
+pnpm generate:api-types
+```
+
+이 단계를 건너뛰면 `pnpm typecheck`가 `Cannot find module './generated/schema'`로 실패한다
+(타입은 번들 시점에 지워지므로 `pnpm dev:web` 자체는 돈다). 자세한 흐름은
+「API 타입 생성」 참고.
 
 ### 모델 번들
 
