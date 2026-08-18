@@ -24,11 +24,11 @@ description: "코드 리팩토링 카탈로그. Martin Fowler 기반 리팩토�
 | 겉보기 스멜 | 실제 대상 | 왜 그대로 두는가 |
 | --- | --- | --- |
 | 중복 코드 | `services/sentence_llm/prompt.py`, `services/speech_tts/instructions.py`, `ml/keypoint_layout.py` | 다른 레포의 사본이고 그게 의도다. 공통화하면 원본과 갈라져 평가 수치가 무효가 된다 — 고치려면 원본과 동시에 + 버전 상수 갱신 |
-| 중복 상수 | `features/voice/avatar/connections.ts`의 kp130 인덱스 | 서버에서 못 가져온다. MediaPipe 런타임 인덱스와 대응하지 않고, 청인 트랙이 WASM 55MB를 받게 된다 |
+| 중복 상수 | `features/voice/avatar/bodyLayout.ts`·`faceLayout.ts`의 kp130 인덱스 | 서버에서 못 가져온다. MediaPipe 런타임 인덱스와 대응하지 않고, 청인 트랙이 WASM 55MB를 받게 된다 |
 | 죽은 코드 | LLM→규칙 폴백, `/speech` 503→브라우저 음성, STT→키보드, gzip→무압축 | 폴백이 요점이다. GPU 서버 없이 맥 단독으로 전 구간이 도는 근거 |
 | 매직 넘버 | `core/config.py`의 `live_y_scale`·`debias_alpha`·`reject_threshold` | 브라우저 tasks-vision 라이브 데이터에 피팅된 값. 근거는 주석에 있다 |
 | 매직 넘버 | 프리롤/포스트롤, `top_k`, 프레임 수 범위 | 미확정 임시값임이 주석에 명시돼 있다. 확정된 값처럼 정리하지 말 것 |
-| 클라이언트 전처리 | `avatar/SkeletonPlayer.tsx`의 좌표 보간 | 모델로 가지 않고 화면에만 그려진다 — 설계 결정 1 위반이 아니다 |
+| 클라이언트 전처리 | `avatar/usePlayback.ts`의 단어 사이 좌표 보간 | 모델로 가지 않고 화면에만 그려진다 — 설계 결정 1 위반이 아니다 |
 
 **적용 대상이 없는 절**:
 

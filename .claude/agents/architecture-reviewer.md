@@ -43,10 +43,10 @@ color: cyan
 | 대상 | 왜 그대로 두는가 |
 | --- | --- |
 | `services/sentence_llm/prompt.py`, `services/speech_tts/instructions.py`, `ml/keypoint_layout.py` | **다른 레포의 사본이고 그게 의도다.** 공통화·문구 수정은 원본과 갈라져 평가 수치를 무효로 만든다. 고치려면 원본과 동시에 + 버전 상수 갱신 |
-| `features/voice/avatar/connections.ts`의 kp130 상수 | 서버 `keypoint_layout.py`와의 중복이 의도. MediaPipe 런타임에서 가져오면 청인 트랙이 WASM 55MB를 받아야 하고 인덱스도 대응하지 않는다 |
+| `features/voice/avatar/bodyLayout.ts`·`faceLayout.ts`의 kp130 인덱스 | 서버 `keypoint_layout.py`와의 중복이 의도. MediaPipe 런타임에서 가져오면 청인 트랙이 WASM 55MB를 받아야 하고, kp130은 포즈 10점·얼굴 78점 서브셋이라 인덱스도 대응하지 않는다 |
 | `/compose-sentence`의 규칙 폴백, `/speech`의 503, `stt/`의 키보드 폴백, `client.ts`의 무압축 폴백 | 죽은 코드가 아니라 **요점**이다. GPU 서버 없이 맥 단독으로 전 구간이 도는 근거. **`/speech` 503은 고장이 아니라 신호다** |
 | `core/config.py`의 `live_y_scale`·`debias_alpha`·`reject_threshold` | 매직 넘버로 보이지만 브라우저 tasks-vision 라이브 데이터에 피팅된 값이다. 정리·기본값 복원은 정확도를 조용히 떨어뜨린다 |
-| `features/voice/avatar/SkeletonPlayer.tsx`의 좌표 보간 | 설계 결정 1(클라이언트 전처리 금지) 위반이 아니다. 모델로 가지 않고 화면에만 그려지는 좌표다 |
+| `features/voice/avatar/usePlayback.ts`의 단어 사이 좌표 보간 | 설계 결정 1(클라이언트 전처리 금지) 위반이 아니다. 모델로 가지 않고 화면에만 그려지는 좌표다 |
 | 프리롤/포스트롤·`top_k`·프레임 수 범위 등 | 임시값임이 주석에 명시된 미확정 항목이다. "매직 넘버 정리" 대상이 아니다 |
 
 의도된 중복을 발견했을 때 할 일은 **지적이 아니라 확인**이다 — 근거 주석이 실제로 붙어
@@ -57,7 +57,8 @@ color: cyan
 1. **문서-코드 드리프트** — `CLAUDE.md`/`README.md`가 기술하는 구조와 실제 코드의 차이.
    이 레포에서 가장 비싼 결함이다
 2. **정본이 둘이 된 곳** — 같은 관심사를 두 모듈이 다루면 어느 쪽이 살아 있는 경로인지
-   확인한다 (예: `ml/preprocess.py`와 `ml/preprocess_spoter.py`의 공존)
+   확인한다. 이 레포는 그런 공존을 두 번 겪었다(v2 전처리 잔재, 아바타 렌더러 교체) —
+   둘 다 "죽은 쪽에 갱신이 안 들어가 조용히 낡는" 형태로 드러났다
 3. **플랫폼 확장자 계약** — `.web.ts`/중립 스텁 쌍이 실제로 해석되는지, 중립 계약이
    구현이 반환하는 것을 표현할 수 있는지
 4. **비대해진 화면 컴포넌트** — 캡처·큐·오버레이가 한 파일에 뭉쳐 있는지
