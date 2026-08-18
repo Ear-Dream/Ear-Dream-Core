@@ -134,9 +134,13 @@ export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
         </View>
 
         {/* 배지·속도는 아바타 위에 얹는다 — 세로 공간을 인물에게 준다. */}
-        <View style={styles.cardTop} pointerEvents="none">
-          <Badge label={strings.signVideo.playingBadge} variant="playing" />
-        </View>
+        {/* 재생 중에만 띄운다 — 끝난 뒤에도 "재생 중" 이면 화면이 멈춘 건지
+            원래 그런 건지 알 수 없다. 끝난 상태의 안내는 "다시 보기" 버튼이 맡는다. */}
+        {playing && sequences.length > 0 ? (
+          <View style={styles.cardTop} pointerEvents="none">
+            <Badge label={strings.signVideo.playingBadge} variant="playing" />
+          </View>
+        ) : null}
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${strings.signVideo.speedLabel} ${PLAYBACK_SPEEDS[speedIndex].label}`}
