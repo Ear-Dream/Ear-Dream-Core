@@ -8,14 +8,21 @@
     data/manifest.csv              clip_id,word,signer_id,n_frames,hand_missing_rate,status
 
 출력 (둘 다 이 스크립트가 재생성한다 — 손으로 고치지 말 것):
-    packages/ear-dream-app/public/sign-sequences/{word_id}.bin   좌표 (커밋 금지)
-    packages/ear-dream-app/public/sign-sequences/index.json      클라이언트 인덱스 (커밋 금지)
+    packages/ear-dream-app/public/sign-sequences/{word_id}.bin   좌표 (커밋 대상)
+    packages/ear-dream-app/public/sign-sequences/index.json      클라이언트 인덱스 (커밋 대상)
     packages/ear-dream-api/app/ml/data/sign_sequences.json       서버 매니페스트 (커밋 대상)
 
-커밋 여부가 갈리는 이유는 `build_spoter300_bundle.py` 의 vocab300.json ↔ 번들 관계와 같다.
-서버는 "이 단어에 시퀀스가 있는가"(`no_sequence` 판정)만 알면 되고 좌표는 필요 없다 —
-좌표는 **클라이언트 빌트인**으로 가므로(서버가 매번 내려보내면 ngrok 대역폭을 먹는다)
-레포에 넣지 않는다. 양쪽 `bundle_version` 이 같은지로 어긋남을 감지한다.
+셋 다 커밋한다. **클론만으로 앱이 바로 돌아야 한다**는 것이 이 자산의 요구사항이다 —
+좌표는 클라이언트 빌트인이고(서버가 매번 내려보내면 ngrok 대역폭을 먹는다), 원천 영상은
+레포 밖에 있어서 별도 내려받기를 두면 클론한 사람이 재생을 못 본다. 300단어 17 MiB 는
+그 대가로 받아들인 값이다.
+
+⚠️ 그래서 이 스크립트를 돌리면 **17 MiB 짜리 변경이 생긴다.** 좌표가 실제로 바뀔 때만
+돌릴 것 — 같은 입력으로 다시 돌리는 것은 무해하지만(결과가 같다), 추출을 다시 하면
+좌표가 미세하게 달라져 300개 파일이 전부 수정된 것으로 잡힌다.
+
+서버 매니페스트에 좌표가 없는 이유는 그대로다: 서버는 "이 단어에 시퀀스가 있는가"
+(`no_sequence` 판정)만 알면 된다. 양쪽 `bundle_version` 이 같은지로 어긋남을 감지한다.
 
 사용:
     uv run python scripts/build_sign_sequences.py
@@ -48,8 +55,8 @@ FACE_MESH_IDS·FLIP_PERM 이 전부 일치함을 확인했다 (`--verify-layout`
 
 ## 포맷: **단어별** int16 바이너리 + index.json (실측 근거)
 
-41단어 실측 — 원본 2451 KiB, gzip 1374 KiB. 300단어 환산 약 **17.5 MiB (gzip 9.8 MiB)**.
-(⚠️ 초기 추정 1.5MB/10.6MB 보다 크다. gzip 후 값이 그 추정에 가깝다.)
+300단어 실측 — 원본 **17.0 MiB, gzip 9.8 MiB** (단어당 평균 56.6 KiB).
+(41단어 시절 환산치 17.5/9.8 MiB 와 거의 같다 — 추정이 맞았다.)
 
 - **단어별 파일**로 나눈 이유: 클라이언트는 한 문장에 쓰이는 몇 단어만 필요하다. 단일
   번들이면 300단어 17.5 MiB 를 첫 재생 전에 전부 받아야 하는데, 애초에 시퀀스를
@@ -95,7 +102,10 @@ DEFAULT_SOURCE = REPO_ROOT.parent / "Ear-Dream-Model"
 APP_OUT = REPO_ROOT / "packages/ear-dream-app/public/sign-sequences"
 SERVER_MANIFEST = API_ROOT / "app/ml/data/sign_sequences.json"
 
-BUNDLE_VERSION = "sign-seq-v1-2026-08-16"
+# v2: 좌표 출처가 바뀌었다 — 모델 레포의 Holistic 추출본(41단어) → 이 레포의
+# `extract_sign_videos.py` tasks API 추출본(300단어). 판본을 올리지 않으면 서버
+# 매니페스트와 앱 자산이 어긋나도 감지되지 않는다.
+BUNDLE_VERSION = "sign-seq-v2-2026-08-18"
 
 # 전처리 계약 문서 인용값 — 이 레포 실측 아님 (모듈 docstring 「fps」 절)
 SOURCE_FPS = 30.0
@@ -176,7 +186,7 @@ def resolve_entry(clip_id: str, word: str, strict: bool) -> tuple[VocabEntry | N
     기본은 **한국어 라벨 매칭**이다 (어휘 라벨은 유일성이 보장돼 있다 — vocab.py assert).
     AI Hub 는 같은 단어가 서로 다른 원본 단어 번호로 두 번 수록된 경우가 있어
     (자다 WORD1377/WORD1544, 없다 1384/1637, 아기 1189/2005, 귀엽다 1314/2059),
-    번호로만 매칭하면 실제로는 있는 시퀀스를 놓친다 — 41단어 중 4단어가 여기 해당한다.
+    번호로만 매칭하면 실제로는 있는 시퀀스를 놓친다.
 
     ⚠️ 라벨 매칭은 "같은 한국어 표기 = 같은 수어 동작" 을 전제한다. 위 4단어는 동음이의가
     아니라 안전하다고 판단했지만 **육안 검증은 안 됐다.** 번호 일치만 쓰려면
@@ -293,7 +303,7 @@ def main() -> int:
             }
         )
 
-    # ---- 클라이언트 인덱스 (커밋 금지)
+    # ---- 클라이언트 인덱스
     index = {
         "bundle_version": BUNDLE_VERSION,
         "vocab_version": VOCAB_VERSION,
