@@ -61,3 +61,6 @@ var/certs/
 # 세션 인계·작업 메모 (public 레포이므로 커밋하지 않는다 — CLAUDE.local.md 와 같은 취지)
 # 새 세션은 로컬에서 그대로 읽을 수 있다.
 _workspace/
+
+# 릴리스 업로드용 모델 번들 아카이브 (README 「모델 번들」의 tar 명령 산출물)
+spoter300-pilot.tar.gz

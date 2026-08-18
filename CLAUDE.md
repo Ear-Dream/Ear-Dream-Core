@@ -161,7 +161,9 @@ TypeScript는 Expo SDK 57이 고정한 `~6.0.3`에 맞춰 `core`와 `app` 양쪽
 
 - 번들 기본 경로: `var/models/spoter300-pilot/` (api 패키지 루트 기준.
   `EAR_DREAM_MODEL_BUNDLE_DIR`로 변경 — `app/core/config.py`). `var/`는 .gitignore이라
-  **모델 파일은 커밋하지 않는다**. 생성: `scripts/build_spoter300_bundle.py`
+  **모델 파일은 커밋하지 않는다**. 받기: `pnpm setup:model-bundle` (GitHub Release).
+  학습 산출물에서 생성: `scripts/build_spoter300_bundle.py` (산출물 위치는
+  `EAR_DREAM_BENCHMARKS_DIR` → 형제 디렉토리 → 홈 순으로 탐색)
 - 번들 구성 — `release.json`(기계 판독 핸드오프이자 **로더의 정본**),
   `model_torchscript.pt`, `live_debias.npy`
 - 로딩 실패 시 서버는 뜨되 `/recognize`가 503을 반환하고 `/health`의 `model_loaded`가 false다

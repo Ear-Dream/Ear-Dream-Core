@@ -9,6 +9,7 @@
     "dev:app": "pnpm --filter @ear-dream/app dev",
     "dev:web": "pnpm setup:mediapipe && pnpm --filter @ear-dream/app web",
     "setup:mediapipe": "node scripts/setup-mediapipe-assets.mjs",
+    "setup:model-bundle": "node scripts/setup-model-bundle.mjs",
     "setup:sign-sequences": "cd packages/ear-dream-api && uv run python scripts/build_sign_sequences.py",
     "dev:api": "cd packages/ear-dream-api && uv run fastapi dev app/main.py",
     "setup:https-cert": "node scripts/setup-https-cert.mjs",

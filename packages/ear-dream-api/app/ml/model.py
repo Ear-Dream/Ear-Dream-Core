@@ -232,7 +232,14 @@ def _load_state() -> ModelState:
         )
         return state
     except Exception as exc:  # noqa: BLE001 — 서버는 뜨되 /recognize 만 503
-        logger.warning("model load failed (%s): %s", bundle, exc)
+        # 번들 미설치가 가장 흔한 원인이라 받는 방법을 함께 찍는다 — 서버는 뜨고
+        # /recognize 만 503 이라 로그를 안 보면 "왜 인식이 안 되지" 로만 보인다.
+        logger.warning(
+            "model load failed (%s): %s — 번들이 없으면 `pnpm setup:model-bundle` "
+            "(README 「모델 번들」)",
+            bundle,
+            exc,
+        )
         return ModelState(loaded=False, error=str(exc))
 
 
