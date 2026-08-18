@@ -20,7 +20,7 @@
  *
  * ## 좌표계
  *
- * 자산은 **16:9 기준 정규화 좌표**(0~1)다. 세로 화면에 그대로 늘리면 사람이 옆으로
+ * 시퀀스는 **16:9 기준 정규화 좌표**(0~1)다. 세로 화면에 그대로 늘리면 사람이 옆으로
  * 퍼지므로, 담을 범위(`crop`)의 실제 종횡비를 지키는 상자를 만들어 그 안에 매핑한다.
  * 그래서 `at()` 이 돌려주는 픽셀 좌표는 **가로세로 비율이 실제와 같다** — 길이·각도를
  * 계산해도 왜곡되지 않는다(아바타 렌더러가 이 성질에 기댄다).
@@ -28,9 +28,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LayoutChangeEvent } from 'react-native';
 
-import type { SignSequence } from './sequenceAssets';
+import type { SignSequence } from './sequenceFiles';
 
-/** 자산 좌표계의 종횡비 — 정규화 좌표 1×1 이 실제로는 16:9 다. */
+/** 시퀀스 좌표계의 종횡비 — 정규화 좌표 1×1 이 실제로는 16:9 다. */
 export const SOURCE_ASPECT = 16 / 9;
 
 /**
@@ -66,7 +66,7 @@ export const DEFAULT_TRANSITION_FRAMES = 6;
  *
  * 상한을 두는 이유는 **길게 빈 것은 진짜 없는 것**이기 때문이다. 인물이 화면을
  * 벗어나거나 손이 완전히 가려진 구간까지 이어 버리면 없는 자세를 지어내게 된다.
- * 12프레임(400ms)은 실측 최대(11)를 막 덮는 값이라, 지금 자산에서는 전부 메워지고
+ * 12프레임(400ms)은 실측 최대(11)를 막 덮는 값이라, 지금 시퀀스에서는 전부 메워지고
  * 그보다 긴 결측이 생기면 그때는 안 메운다.
  *
  * ⚠️ 이것도 **표시 전용**이다. 이 좌표는 서버로도 모델로도 가지 않는다(모듈 상단
@@ -258,7 +258,7 @@ function resolveFrame(
         const [x1, y1] = sampleFrame(from, from.frameCount - 1, kp);
         const [x2, y2] = sampleFrame(to, 0, kp);
         // 한쪽이라도 미검출이면 보간하지 않는다 — 없는 자세를 지어내는 셈이 된다.
-        // x·y 를 모두 본다: 이 자산에서는 둘이 함께 결측이지만 그 가정에 기대지 않는다.
+        // x·y 를 모두 본다: 이 시퀀스에서는 둘이 함께 결측이지만 그 가정에 기대지 않는다.
         if (
           !Number.isFinite(x1) ||
           !Number.isFinite(y1) ||

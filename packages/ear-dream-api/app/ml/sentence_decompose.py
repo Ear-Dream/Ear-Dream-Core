@@ -126,7 +126,7 @@ def decompose(text: str) -> tuple[list[tuple[str, str | None]], str]:
 
     source ∈ {"template", "word_list"}. 어휘에 없는 조각은 word_id 가 None 이고,
     호출자가 `unknown_word` 로 보고한다. 시퀀스 보유 여부(`no_sequence`)는 여기서
-    보지 않는다 — 어휘 판정과 자산 판정은 서로 다른 실패라서 분리해 둔다.
+    보지 않는다 — 어휘 판정과 시퀀스 판정은 서로 다른 실패라서 분리해 둔다.
     """
     hit = _REVERSE.get(_key(text))
     if hit is not None:

@@ -2,7 +2,7 @@
  "bundle_version": "sign-seq-v2-2026-08-18",
  "vocab_version": "aihub300-pilot-v1-2026-08-11",
  "source_fps": 30.0,
- "asset_path": "sign-sequences",
+ "sequence_path": "sign-sequences",
  "selection": "단어별 대표 1클립. 정렬 키: 미검출비율(0.1%p 반올림) → n_frames 중앙값과의 거리 → clip_id. 근거는 scripts/build_sign_sequences.py choose_representative",
  "sequences": [
   {

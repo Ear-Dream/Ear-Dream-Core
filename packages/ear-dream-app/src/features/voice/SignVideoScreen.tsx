@@ -15,7 +15,7 @@ export interface SignVideoScreenProps {
   /**
    * 청인이 말한 문장 — 음성 인식(STT) 결과 또는 키보드 입력. 자막과 소스 영역에 그대로 쓴다.
    * 이 문장을 `POST /api/v1/sign-sequence` 로 보내 단어 열로 쪼개고, 각 단어의 좌표
-   * 시퀀스(빌트인 자산)를 아바타로 재생한다.
+   * 시퀀스(빌트인 시퀀스)를 아바타로 재생한다.
    */
   sentence: string;
   /** AppBar 뒤로가기 — 음성 입력 화면으로 복귀(다시 말하기는 이 경로로 해결, V2 시안 방침). */
@@ -44,11 +44,11 @@ const PLAYBACK_SPEEDS = [
  * 둘을 없앤 만큼 아바타가 커진다 — 이 화면에서 정보를 나르는 건 인물이다.
  *
  * 표시는 **임시 아바타**(`AvatarPlayer`)다 — 같은 좌표에 살을 붙이고 얼굴 78점으로
- * 표정까지 그린다. ⚠️ 자산이 xy 2D 라 실제 3D 리깅이 아니라 명암으로 입체감을 흉내 낸
+ * 표정까지 그린다. ⚠️ 시퀀스가 xy 2D 라 실제 3D 리깅이 아니라 명암으로 입체감을 흉내 낸
  * 것이고, **손바닥 방향은 표현할 수 없다**(2D 로는 전완 롤이 정해지지 않는다).
  *
  * 재생 불가 사유를 **두 종류로 나눠 보여준다** — 어휘에 없는 단어(unknown_word)와
- * 어휘엔 있으나 동작 자산이 없는 단어(no_sequence)는 사용자가 할 수 있는 일이 다르다.
+ * 어휘엔 있으나 동작 시퀀스가 없는 단어(no_sequence)는 사용자가 할 수 있는 일이 다르다.
  */
 export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
   const [speedIndex, setSpeedIndex] = useState(0); // 기본 1.0배
@@ -128,7 +128,7 @@ export function SignVideoScreen({ sentence, onBack }: SignVideoScreenProps) {
             />
           ) : (
             <Text style={[styles.caption, styles.captionWarning]} testID="sign-video-nothing">
-              {result ? strings.signVideo.nothingPlayable : strings.signVideo.assetsMissing}
+              {result ? strings.signVideo.nothingPlayable : strings.signVideo.sequencesMissing}
             </Text>
           )}
         </View>

@@ -6,7 +6,7 @@
 ## 이름에 대해
 
 `/compose-sentence` 와 대칭이면 `/decompose-sentence` 가 자연스럽지만, 이 엔드포인트가
-돌려주는 것은 "분해된 문장" 이 아니라 **재생 지시**(단어 순서 + 자산 키 + 재생 불가 사유)다.
+돌려주는 것은 "분해된 문장" 이 아니라 **재생 지시**(단어 순서 + 시퀀스 키 + 재생 불가 사유)다.
 클라이언트가 이걸 받아서 하는 일이 문장 분석이 아니라 시퀀스 재생이므로, 결과물을
 가리키는 `/sign-sequence` 를 골랐다.
 
@@ -15,7 +15,7 @@
 1. **문장 → 단어 ID** (`app/ml/sentence_decompose`) — 실패하면 `unknown_word`.
    지금은 규칙 mock 이다. 진짜 변환 모델이 붙으면 그 앞에 들어가고 이 규칙은 폴백으로
    남는다 (`/compose-sentence` 의 LLM → 규칙 구조와 같다).
-2. **단어 ID → 재생 자산** (`app/ml/sign_sequences`) — 실패하면 `no_sequence`.
+2. **단어 ID → 재생 시퀀스** (`app/ml/sign_sequences`) — 실패하면 `no_sequence`.
    현재 어휘 300 중 41단어만 시퀀스가 있어 대부분이 여기서 걸린다.
 
 두 실패를 **섞지 않는 것이 이 API 의 요점**이다 (schemas 의 SignSequenceIssue 주석).
@@ -36,8 +36,8 @@ from fastapi import APIRouter, Body
 from app.core.logging import get_logger
 from app.ml.sentence_decompose import DECOMPOSE_RULESET_VERSION, decompose
 from app.ml.sign_sequences import (
-    SEQUENCE_ASSET_PATH,
     SEQUENCE_BUNDLE_VERSION,
+    SEQUENCE_PATH,
     SEQUENCE_SOURCE_FPS,
     SEQUENCES,
 )
@@ -97,7 +97,7 @@ def build_sign_sequence(
     # 1단계: 문장 → 단어 ID (규칙 mock — 모듈 주석)
     decomposed, source = decompose(request.text)
 
-    # 2단계: 단어 ID → 재생 자산. 어휘 판정(1단계)이 항상 먼저다 —
+    # 2단계: 단어 ID → 재생 시퀀스. 어휘 판정(1단계)이 항상 먼저다 —
     # `/compose-sentence` 가 LLM 보다 어휘 검증을 먼저 하는 것과 같은 순서다.
     items: list[SignSequenceItem] = []
     for source_text, word_id in decomposed:
@@ -149,7 +149,7 @@ def build_sign_sequence(
         source=SignSequenceSource(source),
         items=items,
         playable=playable,
-        asset_path=SEQUENCE_ASSET_PATH,
+        sequence_path=SEQUENCE_PATH,
         source_fps=SEQUENCE_SOURCE_FPS,
         sequence_bundle_version=SEQUENCE_BUNDLE_VERSION,
         ruleset_version=DECOMPOSE_RULESET_VERSION,

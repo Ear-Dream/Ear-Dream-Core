@@ -12,7 +12,7 @@
  *      MediaPipe 의 POSE_CONNECTIONS·FACE_LANDMARKS_CONTOURS 인덱스는 여기에 대응하지 않는다.
  */
 
-/** 블록 경계. index.json 의 `format.blocks` 와 같은 값이며, 자산이 정본이다. */
+/** 블록 경계. index.json 의 `format.blocks` 와 같은 값이며, 시퀀스가 정본이다. */
 export const BLOCKS = {
   leftHand: [0, 21],
   rightHand: [21, 42],

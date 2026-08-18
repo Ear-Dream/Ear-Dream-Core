@@ -28,7 +28,7 @@ def get_vocabulary() -> VocabularyCatalog:
                     )
                 ],
                 has_avatar=e.id in SEQUENCES,
-                avatar_asset_id=(seq.sequence_key if (seq := SEQUENCES.get(e.id)) else None),
+                avatar_sequence_key=(seq.sequence_key if (seq := SEQUENCES.get(e.id)) else None),
             )
             for e in ENTRIES
         ],

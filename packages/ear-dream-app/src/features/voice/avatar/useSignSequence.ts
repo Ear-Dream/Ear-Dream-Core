@@ -1,8 +1,8 @@
 /**
  * `POST /api/v1/sign-sequence` 호출 + 빌트인 좌표 로딩.
  *
- * 서버는 **재생 지시**만 준다(순서 · 자산 키 · 불가 사유). 좌표는 앱에 실려 있으므로
- * 응답을 받은 뒤 필요한 단어의 자산만 읽는다.
+ * 서버는 **재생 지시**만 준다(순서 · 시퀀스 키 · 불가 사유). 좌표는 앱에 실려 있으므로
+ * 응답을 받은 뒤 필요한 단어의 시퀀스만 읽는다.
  *
  * 취소·늦은 응답 처리는 `features/recognition/api/useSentenceComposer` 와 같은 방식이다 —
  * 진행 중 요청은 abort 하고, 응답의 request_id 를 대조해 늦게 온 것은 버린다.
@@ -15,7 +15,7 @@ import { api } from '../../../api';
 import { RECOGNIZE_TIMEOUT_MS } from '../../recognition/api/config';
 import { createRequestId } from '../../recognition/api/createRequestId';
 import { isAbortError } from '../../recognition/api/isAbortError';
-import { loadManifest, loadSequence, type SignSequence } from './sequenceAssets';
+import { loadManifest, loadSequence, type SignSequence } from './sequenceFiles';
 
 export type SignSequencePhase =
   | { name: 'idle' }
@@ -27,7 +27,7 @@ export type SignSequencePhase =
 
 export interface UseSignSequenceResult {
   phase: SignSequencePhase;
-  /** 자산 번들과 서버가 서로 다른 판을 보고 있다. 조용히 틀린 걸 재생하면 안 된다. */
+  /** 시퀀스 번들과 서버가 서로 다른 판을 보고 있다. 조용히 틀린 걸 재생하면 안 된다. */
   bundleMismatch: boolean;
   request: (text: string) => void;
   retry: () => void;
@@ -68,8 +68,8 @@ export function useSignSequence(sessionId: string): UseSignSequenceResult {
         const manifest = await loadManifest();
         if (!owns()) return;
         if (!manifest) {
-          // 자산이 없다(생성 안 함 / 빌드 누락). 서버는 멀쩡하니 failed 가 아니라
-          // ready 로 두고, 화면이 "재생할 자산이 없다"로 안내하게 한다.
+          // 시퀀스가 없다(생성 안 함 / 빌드 누락). 서버는 멀쩡하니 failed 가 아니라
+          // ready 로 두고, 화면이 "재생할 시퀀스가 없다"로 안내하게 한다.
           setPhase({ name: 'ready', result: data, sequences: [] });
           return;
         }

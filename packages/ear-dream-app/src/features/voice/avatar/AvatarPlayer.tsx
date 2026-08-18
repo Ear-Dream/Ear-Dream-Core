@@ -10,7 +10,7 @@
  *
  * ## 이것은 3D 가 아니다
  *
- * 자산이 **xy 2D**(`index.json` 의 `channel_count: 2`)라 실제 3D 리깅이 아니라
+ * 시퀀스가 **xy 2D**(`index.json` 의 `channel_count: 2`)라 실제 3D 리깅이 아니라
  * 명암·굵기로 입체감을 흉내 낸 2.5D 다. 그래서 **손바닥이 어느 쪽을 보는지 표현할 수
  * 없다** — 2D 점만으로는 전완 롤이 유일하게 정해지지 않는다. 수어에서 손바닥 방향은
  * 의미를 바꾸므로, 이 아바타는 "그럴듯해 보이지만 손바닥 방향은 틀릴 수 있는" 상태다.
@@ -28,7 +28,7 @@ import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Stop } from 'react
 
 import { PAINT } from './avatarTuning';
 import { buildFigure, headBaselineOf, sequenceCrop } from './figure';
-import type { SignSequence } from './sequenceAssets';
+import type { SignSequence } from './sequenceFiles';
 import { useSequencePlayback } from './usePlayback';
 
 export interface AvatarPlayerProps {
