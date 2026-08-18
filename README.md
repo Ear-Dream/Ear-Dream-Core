@@ -263,25 +263,55 @@ API 문서는 서버 실행 후 http://localhost:8000/docs 에서 볼 수 있다
 ### 실기기(모바일 웹)
 
 실기기 브라우저는 localhost 밖에서 `getUserMedia`에 https를 요구한다. 웹과 API를 한
-오리진으로 묶어 서빙하므로 인증서는 하나면 되고 CORS도 없다.
+오리진으로 묶어 서빙하고, https는 터널이 씌운다 — 인증서를 폰에 설치할 필요가 없어
+링크만 보내면 된다. 한 오리진이라 mixed content도 CORS도 없다.
 
 ```bash
 pnpm build:web-mobile
 ```
 
+터미널 셋이다.
+
 ```bash
-pnpm dev:api          # 터미널 1 — API (8000)
-pnpm serve:mobile     # 터미널 2 — 웹 + API 프록시 (8443, https)
+pnpm dev:api          # API (8000)
 ```
 
-폰 브라우저에서 터미널 2가 출력하는 `실기기:` 주소를 연다.
-
-https 인증서는 `pnpm setup:https-cert`로 만든다(mkcert 필요, 폰에 루트 CA 설치 절차를
-함께 출력한다). 인증서 없이 화면만 확인하려면 평문으로 띄울 수 있다 — 이때 카메라는
-동작하지 않는다.
+```bash
+pnpm serve:mobile     # 웹 + API 프록시 (8080, 평문 — 터널이 https를 씌운다)
+```
 
 ```bash
-node scripts/serve-mobile.mjs --port 8080
+ngrok http 8080
+```
+
+ngrok이 출력하는 https 주소를 폰 브라우저에서 연다.
+
+#### 링크를 나눠 줄 때
+
+터널 주소는 인터넷에 노출된 상태다. 링크를 아는 사람만 들어오게 하려면 시크릿을 준다.
+
+```bash
+node scripts/serve-mobile.mjs --port 8080 --token $(openssl rand -hex 8)
+```
+
+공유할 주소는 `https://<ngrok 주소>/?k=<시크릿>`이다. 한 번 열면 쿠키로 바뀌고 주소에서
+시크릿이 지워지므로 이후 이동에는 붙일 필요가 없다. API 문서(`/docs`)는 기본으로
+프록시하지 않는다 — 폰에서 봐야 하면 `--docs`를 준다.
+
+무료 플랜은 재시작마다 주소가 바뀐다. 계정에 static domain을 하나 배정받아
+`ngrok http --url=<도메인> 8080`으로 띄우면 링크를 다시 뿌리지 않아도 된다.
+
+첫 방문은 약 19MB(폰트·WASM·모델)를 받고 그 뒤로는 캐시된다. 인식은 단어당 약 0.9MB를
+올린다 — 사람이 몇 명 붙는지에 따라 터널 대역폭 한도를 먼저 확인하는 게 좋다.
+
+#### 인터넷 없이 (LAN 폴백)
+
+현장 네트워크가 막혀 있으면 로컬 인증서로 직접 https를 띄운다. 이때는 폰에 루트 CA를
+설치해야 한다 — `pnpm setup:https-cert`가 mkcert로 인증서를 만들고 설치 절차를 함께
+출력한다.
+
+```bash
+node scripts/serve-mobile.mjs --https
 ```
 
 #### 실기기 개발 화면
@@ -405,7 +435,7 @@ const { data, error } = await api.GET('/api/v1/vocabulary');
 | `pnpm setup:model-bundle` | 수어 인식 모델 번들 내려받기 (`--force`로 재설치) |
 | `pnpm build:web-mobile` | 실기기용 웹 내보내기 (API를 상대경로로, gzip 사이드카 포함) |
 | `pnpm precompress:dist` | 내보낸 웹의 gzip 사이드카만 다시 생성 |
-| `pnpm serve:mobile` | 웹 + API 단일 오리진 서버 (https) |
+| `pnpm serve:mobile` | 웹 + API 단일 오리진 서버 (8080 평문 — 터널 전제) |
 | `pnpm setup:https-cert` | 실기기용 로컬 https 인증서 생성 |
 
 ## 인식 모델과 서빙 파이프라인

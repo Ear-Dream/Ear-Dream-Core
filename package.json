@@ -16,7 +16,7 @@
     "setup:https-cert": "node scripts/setup-https-cert.mjs",
     "build:web-mobile": "pnpm setup:mediapipe && pnpm setup:fonts && cd packages/ear-dream-app && EXPO_PUBLIC_API_URL= npx expo export --platform web && cd ../.. && pnpm precompress:dist",
     "precompress:dist": "node scripts/precompress-dist.mjs",
-    "serve:mobile": "node scripts/serve-mobile.mjs --https",
+    "serve:mobile": "node scripts/serve-mobile.mjs --port 8080",
     "typecheck": "pnpm -r --parallel typecheck",
     "lint:api": "cd packages/ear-dream-api && uv run ruff check .",
     "test:api": "cd packages/ear-dream-api && uv run pytest",

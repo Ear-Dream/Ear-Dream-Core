@@ -11,18 +11,18 @@
  *
  * 두 가지 방식을 지원한다. 둘 다 이 서버 하나 위에서 돈다.
  *
- *   [A] LAN + mkcert (기본, --https)
- *       현장 네트워크·외부 서비스에 의존하지 않는다. 폰에 루트 CA 를 한 번 설치해야 한다.
- *       CDN 직로드를 거부한 것과 같은 이유로 이쪽을 기본으로 둔다.
- *
- *   [B] 평문 http 로 띄우고 터널로 감싸기 (사용자에게 링크를 나눠 줄 때)
- *       `node scripts/serve-mobile.mjs --port 8080 --token <시크릿>` + `ngrok http 8080`
- *       인증서 설치가 필요 없는 대신 인터넷과 외부 서비스에 의존한다.
+ *   [A] 평문 http 로 띄우고 터널로 감싸기 (기본 — pnpm serve:mobile, 8080)
+ *       `node scripts/serve-mobile.mjs --port 8080` + `ngrok http 8080`
+ *       인증서를 폰에 설치할 필요가 없어 링크만 보내면 된다. 사용자에게 나눠 줄 때
+ *       이쪽을 쓴다.
  *       ⚠️ 이때는 주소가 인터넷에 노출된 상태다 — 문서 프록시는 기본으로 꺼져 있고
  *       `--token` 으로 링크를 아는 사람만 들어오게 막는다.
  *
+ *   [B] LAN + mkcert (--https, 8443) — 폴백
+ *       현장 네트워크가 막혀 인터넷을 못 쓸 때. 폰에 루트 CA 를 한 번 설치해야 한다.
+ *
  * 정적 자산은 gzip 사이드카(scripts/precompress-dist.mjs)와 캐시 헤더로 내보낸다.
- * 첫 로드가 약 28MB 라 터널 경유에서는 이게 곧 체감 속도이자 대역폭이다.
+ * 첫 로드가 약 19MB 라 터널 경유에서는 이게 곧 체감 속도이자 대역폭이다.
  *
  * 새 의존성을 쓰지 않는다 — node 내장 모듈만 쓴다 (setup-mediapipe-assets.mjs 와 같은 방침).
  */
@@ -346,8 +346,9 @@ server.listen(port, '0.0.0.0', () => {
   }
   if (!useHttps) {
     console.log(
-      `\n  ⚠️  평문 http 라 localhost 밖에서는 카메라(getUserMedia)가 막힙니다.\n` +
-        `     --https 로 띄우거나 터널로 감싸세요 (README 「실기기 모바일 웹」).`,
+      `\n  이 포트를 터널로 감싸 https 주소로 여세요:  ngrok http ${port}\n` +
+        `     위의 평문 주소로 직접 열면 localhost 밖에서는 카메라(getUserMedia)가 막힙니다.\n` +
+        `     인터넷을 못 쓰는 현장이면 --https (README 「실기기(모바일 웹)」).`,
     );
   }
   console.log('');
