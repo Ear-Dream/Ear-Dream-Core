@@ -147,6 +147,19 @@ class Settings(BaseSettings):
     # instruction 요청이 실패하면 텍스트만으로 재시도한다(감정은 빠지고 소리는 나온다).
     tts_text_only_fallback: bool = True
 
+    # ---- 응답 압축 (app/core/compression.py)
+    # 실측: /vocabulary 54KB → 5KB. 나머지 응답은 수백 바이트라 상한 아래로 떨어진다.
+    # /speech 의 WAV 는 경로로 제외한다 — 이득이 적고 첫 소리가 늦어진다.
+    response_gzip_min_bytes: int = 1024
+
+    # ---- 요청 크기 상한 (app/core/limits.py · app/core/compression.py)
+    # 공개 URL(터널)로 열면 인증 없는 /recognize 가 그대로 노출된다. 라우트가 검증
+    # 이전에 raw body 를 통째로 버퍼링해 아카이빙하므로 그 앞에서 끊어야 한다.
+    # ⚠️ 임시값 — 실측 최대 페이로드가 6.29MB(98프레임 3.47MB)이고 max_frames=300 이면
+    # 12MB 안팎이라, 여유를 두되 자릿수는 넘지 않게 잡았다. 실사용 분포로 재조정한다.
+    max_request_bytes: int = 32 * 1024 * 1024  # 전선 위 바이트 (압축 여부 무관)
+    max_decompressed_bytes: int = 48 * 1024 * 1024  # gzip 해제 후 (증폭 방어)
+
     # ---- /recognize 요청 아카이빙 (데이터셋 수집용)
     archive_enabled: bool = True
     archive_dir: str = "var/archive"  # api 패키지 루트 기준

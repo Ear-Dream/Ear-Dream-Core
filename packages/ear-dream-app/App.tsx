@@ -1,24 +1,16 @@
-// 패키지 루트가 아니라 **굵기별 서브패스**에서 가져온다.
-// 루트 index.js 는 9종 전부를 require 하므로 그대로 두면 쓰지도 않는 6종(약 35MB)이
-// 번들·export 에 실린다 (실측: dist 폰트 53.1MB → 서브패스로 17.7MB).
-import { NotoSansKR_400Regular } from '@expo-google-fonts/noto-sans-kr/400Regular';
-import { NotoSansKR_500Medium } from '@expo-google-fonts/noto-sans-kr/500Medium';
-import { NotoSansKR_700Bold } from '@expo-google-fonts/noto-sans-kr/700Bold';
 import { useFonts } from 'expo-font';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaView, StyleSheet } from 'react-native';
 
+import { fontAssets } from './src/constants/fonts';
 import { colors } from './src/constants/theme';
 import { AppNavigator } from './src/navigation/AppNavigator';
 
 export default function App() {
   // Noto Sans KR (피그마 지정 서체). CDN 이 아니라 앱에 번들해 로드한다 — 데모 현장 네트워크 비의존.
+  // 파일은 한국어 서브셋이다 (pnpm setup:fonts — 3종 합 전송 8.66MB → 1.60MB).
   // 반환값을 쓰지 않는 이유는 아래 주석 참고.
-  useFonts({
-    NotoSansKR_400Regular,
-    NotoSansKR_500Medium,
-    NotoSansKR_700Bold,
-  });
+  useFonts(fontAssets);
 
   // ⚠️ 폰트 로드를 **기다리지 않는다.**
   //
@@ -29,7 +21,10 @@ export default function App() {
   //
   // 그래서 시스템 폰트로 먼저 그리고 로드되면 교체한다(웹 표준 FOUT). 한글은 iOS·Android
   // 모두 기본 서체가 있어 읽는 데 지장이 없고, 서체가 바뀌는 편이 하얀 화면보다 낫다.
-  // 근본 해결(서브셋·woff2 로 용량 줄이기)은 별건이다 — 그때 이 결정을 재검토한다.
+  //
+  // 서브셋·woff2 는 그 뒤에 들어갔다 — 전송이 8.66MB → 1.60MB 라 기다려도 될 만한
+  // 수치가 됐지만, 느린 회선에서 FOUT 가 흰 화면보다 낫다는 판단 자체는 그대로다.
+  // 되돌리려면 실기기에서 교체 깜빡임과 대기 시간을 함께 재고 정하는 게 맞다.
 
   return (
     <SafeAreaView style={styles.container}>
