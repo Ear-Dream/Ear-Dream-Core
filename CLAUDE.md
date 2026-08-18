@@ -377,7 +377,7 @@ Metro 빌드가 실패한다. UMD 빌드를 로컬 `<script>`로 싣는 우회�
 "그냥 import하면 되는데"라며 되돌리지 말 것. 타입은 `import type`으로 유지된다.
 
 WASM·모델 파일(실측 약 50MB — WASM 약 34MB + 손 7.5MB + 얼굴 3.7MB + 포즈 5.5MB)은
-커밋하지 않는다. `pnpm setup:mediapipe`로 내려받으며 `pnpm dev:web`이 자동 실행한다.
+커밋하지 않는다. `pnpm dev:web`·`pnpm build:web-mobile` 이 자동으로 내려받는다.
 파일 단위로 존재를 확인하므로 기존 환경에서는 없는 모델만 추가로 받는다.
 CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않는다.
 
@@ -446,11 +446,10 @@ CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않
   어깨는 정규화 기준이라 안 잡히면 서버가 `low_quality`(`shoulders_not_visible`)로 거절한다
 - 그립손 엄지 도달성 — 단어당 "누르는 동안 캡처" 버튼을 한 손 그립으로 조작할 수 있는지
 - ~~https 서빙~~ — **해결됨**. `pnpm build:web-mobile` + `pnpm serve:mobile` 로 웹과 API 를
-  **한 오리진**에 묶어 서빙한다 (`scripts/serve-mobile.mjs` — dist 정적 + `/api` 프록시).
-  한 오리진이라 인증서가 하나로 끝나고 mixed content·CORS 가 사라진다. 인증서는
-  `pnpm setup:https-cert`(mkcert, LAN) 또는 터널. 절차는 README 「실기기 모바일 웹」.
-  ⚠️ `mkcert -install` 은 시스템 트러스트 스토어 변경이라 **사람이 직접 실행**해야 한다
-  (npm 에 동명의 다른 패키지가 있으니 `mkcert -CAROOT` 로 진짜인지 확인)
+  **한 오리진**에 묶어 서빙하고(`scripts/serve-mobile.mjs` — dist 정적 + `/api` 프록시),
+  https 는 터널(`ngrok http 8080`)이 씌운다. 한 오리진이라 mixed content·CORS 가 없다.
+  절차는 README 「실기기(모바일 웹)」. LAN + mkcert 경로는 **쓰지 않기로 하고 삭제했다**
+  (2026-08-18) — 필요하면 그 이전 커밋에서 `scripts/setup-https-cert.mjs` 를 가져온다
 - 라벨된 실사용 평가셋 확보 — **지금 가장 비싼 미지수다.** 아카이브에 정답 라벨이 없어
   실사용 정답률이 미지이고, 라이브 도메인 갭 개입 3종(`live_y_scale`·`debias_alpha`·
   `reject_threshold`)이 전부 n=45 수준의 데이터에 피팅돼 있다. feedback 엔드포인트(T-26)

@@ -6,20 +6,16 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev:app": "pnpm setup:fonts && pnpm --filter @ear-dream/app dev",
-    "dev:web": "pnpm setup:mediapipe && pnpm setup:fonts && pnpm --filter @ear-dream/app web",
-    "setup:mediapipe": "node scripts/setup-mediapipe-assets.mjs",
-    "setup:fonts": "node scripts/setup-fonts.mjs",
-    "setup:model-bundle": "node scripts/setup-model-bundle.mjs",
-    "setup:sign-sequences": "cd packages/ear-dream-api && uv run python scripts/build_sign_sequences.py",
+    "setup": "cd packages/ear-dream-api && uv sync && cd ../.. && pnpm generate:api-types && pnpm setup:model-bundle",
     "dev:api": "cd packages/ear-dream-api && uv run fastapi dev app/main.py",
-    "setup:https-cert": "node scripts/setup-https-cert.mjs",
-    "build:web-mobile": "pnpm setup:mediapipe && pnpm setup:fonts && cd packages/ear-dream-app && EXPO_PUBLIC_API_URL= npx expo export --platform web && cd ../.. && pnpm precompress:dist",
-    "precompress:dist": "node scripts/precompress-dist.mjs",
+    "dev:web": "node scripts/setup-mediapipe-assets.mjs && node scripts/setup-fonts.mjs && pnpm --filter @ear-dream/app web",
+    "dev:app": "node scripts/setup-fonts.mjs && pnpm --filter @ear-dream/app dev",
+    "build:web-mobile": "node scripts/setup-mediapipe-assets.mjs && node scripts/setup-fonts.mjs && cd packages/ear-dream-app && EXPO_PUBLIC_API_URL= npx expo export --platform web && cd ../.. && node scripts/precompress-dist.mjs",
     "serve:mobile": "node scripts/serve-mobile.mjs --port 8080",
+    "setup:model-bundle": "node scripts/setup-model-bundle.mjs",
+    "generate:api-types": "node scripts/generate-api-types.mjs",
     "typecheck": "pnpm -r --parallel typecheck",
-    "lint:api": "cd packages/ear-dream-api && uv run ruff check .",
     "test:api": "cd packages/ear-dream-api && uv run pytest",
-    "generate:api-types": "node scripts/generate-api-types.mjs"
+    "lint:api": "cd packages/ear-dream-api && uv run ruff check ."
   }
 }

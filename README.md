@@ -172,24 +172,23 @@ pnpm install
 ```
 
 ```bash
-cd packages/ear-dream-api && uv sync
+pnpm setup
 ```
 
-API 타입(`packages/core/src/generated/`)은 커밋하지 않으므로 클론 직후 한 번 생성한다.
-FastAPI 스키마에서 뽑으므로 위의 `uv sync`가 먼저 끝나 있어야 한다.
+`pnpm setup`이 세 가지를 한다 — 파이썬 의존성(`uv sync`), API 타입 생성, 모델 번들
+내려받기. 전부 커밋하지 않는 산출물이라 클론 직후 한 번 필요하다.
 
-```bash
-pnpm generate:api-types
-```
+API 타입(`packages/core/src/generated/`)을 건너뛰면 `pnpm typecheck`가
+`Cannot find module './generated/schema'`로 실패한다(타입은 번들 시점에 지워지므로
+`pnpm dev:web` 자체는 돈다). 자세한 흐름은 「API 타입 생성」 참고.
 
-이 단계를 건너뛰면 `pnpm typecheck`가 `Cannot find module './generated/schema'`로 실패한다
-(타입은 번들 시점에 지워지므로 `pnpm dev:web` 자체는 돈다). 자세한 흐름은
-「API 타입 생성」 참고.
+MediaPipe 자산과 폰트 서브셋은 `pnpm dev:web`·`pnpm build:web-mobile`이 알아서
+만든다 — 따로 칠 명령이 없다.
 
 ### 모델 번들
 
-수어 인식 모델은 대용량 바이너리라 커밋하지 않는다(`var/`는 .gitignore). MediaPipe
-자산처럼 스크립트로 받는다.
+수어 인식 모델은 대용량 바이너리라 커밋하지 않는다(`var/`는 .gitignore). `pnpm setup`이
+받아 두지만 따로 다시 받을 수도 있다.
 
 ```bash
 pnpm setup:model-bundle
@@ -304,16 +303,6 @@ node scripts/serve-mobile.mjs --port 8080 --token $(openssl rand -hex 8)
 첫 방문은 약 19MB(폰트·WASM·모델)를 받고 그 뒤로는 캐시된다. 인식은 단어당 약 0.9MB를
 올린다 — 사람이 몇 명 붙는지에 따라 터널 대역폭 한도를 먼저 확인하는 게 좋다.
 
-#### 인터넷 없이 (LAN 폴백)
-
-현장 네트워크가 막혀 있으면 로컬 인증서로 직접 https를 띄운다. 이때는 폰에 루트 CA를
-설치해야 한다 — `pnpm setup:https-cert`가 mkcert로 인증서를 만들고 설치 절차를 함께
-출력한다.
-
-```bash
-node scripts/serve-mobile.mjs --https
-```
-
 #### 실기기 개발 화면
 
 FPS·단계별 처리 시간·실제 delegate는 홈의 "개발용: 랜드마크 확인 화면"에서 볼 수 있다.
@@ -423,20 +412,21 @@ const { data, error } = await api.GET('/api/v1/vocabulary');
 
 | 명령어 | 설명 |
 | --- | --- |
+| `pnpm setup` | 클론 직후 1회 — uv sync + API 타입 + 모델 번들 |
 | `pnpm dev:api` | API 서버 |
-| `pnpm dev:app` | 앱 (QR / 시뮬레이터 / 에뮬레이터) |
 | `pnpm dev:web` | 앱 (브라우저) |
+| `pnpm dev:app` | 앱 (QR / 시뮬레이터 / 에뮬레이터) |
+| `pnpm build:web-mobile` | 실기기용 웹 내보내기 (API를 상대경로로, gzip 사이드카 포함) |
+| `pnpm serve:mobile` | 웹 + API 단일 오리진 서버 (8080 평문 — 터널 전제) |
 | `pnpm typecheck` | TypeScript 타입 검사 |
 | `pnpm test:api` | API 테스트 |
 | `pnpm lint:api` | API 린트 |
-| `pnpm generate:api-types` | API 타입 생성 |
-| `pnpm setup:mediapipe` | MediaPipe WASM·모델(손·얼굴·포즈) 내려받기 |
-| `pnpm setup:fonts` | Noto Sans KR 한국어 서브셋 생성 (uv 필요) |
-| `pnpm setup:model-bundle` | 수어 인식 모델 번들 내려받기 (`--force`로 재설치) |
-| `pnpm build:web-mobile` | 실기기용 웹 내보내기 (API를 상대경로로, gzip 사이드카 포함) |
-| `pnpm precompress:dist` | 내보낸 웹의 gzip 사이드카만 다시 생성 |
-| `pnpm serve:mobile` | 웹 + API 단일 오리진 서버 (8080 평문 — 터널 전제) |
-| `pnpm setup:https-cert` | 실기기용 로컬 https 인증서 생성 |
+| `pnpm generate:api-types` | API 타입 재생성 (스키마·라우트 변경 후) |
+| `pnpm setup:model-bundle` | 모델 번들 다시 받기 (`--force`로 재설치) |
+
+MediaPipe 자산·폰트 서브셋·gzip 사이드카는 위 명령들이 알아서 만든다. 아바타 시퀀스를
+원본 영상에서 다시 뽑는 일은 드물어서 스크립트를 직접 부른다 —
+`cd packages/ear-dream-api && uv run python scripts/build_sign_sequences.py`.
 
 ## 인식 모델과 서빙 파이프라인
 

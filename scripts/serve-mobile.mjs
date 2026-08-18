@@ -9,17 +9,13 @@
  *      둘을 한 오리진에 묶으면 인증서가 하나로 끝나고 API 는 상대경로가 된다.
  *   2. 상대경로가 되면 CORS 도 사라진다.
  *
- * 두 가지 방식을 지원한다. 둘 다 이 서버 하나 위에서 돈다.
+ * 평문 http 로 띄우고 **터널로 감싼다**.
  *
- *   [A] 평문 http 로 띄우고 터널로 감싸기 (기본 — pnpm serve:mobile, 8080)
- *       `node scripts/serve-mobile.mjs --port 8080` + `ngrok http 8080`
- *       인증서를 폰에 설치할 필요가 없어 링크만 보내면 된다. 사용자에게 나눠 줄 때
- *       이쪽을 쓴다.
- *       ⚠️ 이때는 주소가 인터넷에 노출된 상태다 — 문서 프록시는 기본으로 꺼져 있고
- *       `--token` 으로 링크를 아는 사람만 들어오게 막는다.
+ *   `pnpm serve:mobile` (8080) + `ngrok http 8080`
  *
- *   [B] LAN + mkcert (--https, 8443) — 폴백
- *       현장 네트워크가 막혀 인터넷을 못 쓸 때. 폰에 루트 CA 를 한 번 설치해야 한다.
+ * https 는 터널이 씌우므로 인증서를 폰에 설치할 필요가 없다 — 링크만 보내면 된다.
+ * ⚠️ 그만큼 주소가 인터넷에 노출된 상태다: 문서 프록시는 기본으로 꺼져 있고
+ * `--token` 으로 링크를 아는 사람만 들어오게 막는다.
  *
  * 정적 자산은 gzip 사이드카(scripts/precompress-dist.mjs)와 캐시 헤더로 내보낸다.
  * 첫 로드가 약 19MB 라 터널 경유에서는 이게 곧 체감 속도이자 대역폭이다.
@@ -29,9 +25,8 @@
 
 import { timingSafeEqual } from 'node:crypto';
 import { createReadStream } from 'node:fs';
-import { readFile, stat } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
 import http from 'node:http';
-import https from 'node:https';
 import { networkInterfaces } from 'node:os';
 import { dirname, extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -41,15 +36,15 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const webRoot = join(root, 'packages', 'ear-dream-app', 'dist');
 
 const args = process.argv.slice(2);
+// lastIndexOf 다 — `pnpm serve:mobile --port 8081` 은 스크립트에 이미 있는 `--port 8080`
+// **뒤에** 인자를 붙이므로, 나중 값이 이겨야 사용자가 준 포트가 먹는다.
 const flag = (name, fallback) => {
-  const i = args.indexOf(`--${name}`);
+  const i = args.lastIndexOf(`--${name}`);
   return i >= 0 && args[i + 1] && !args[i + 1].startsWith('--') ? args[i + 1] : fallback;
 };
 
-const port = Number(flag('port', process.env.PORT ?? 8443));
+const port = Number(flag('port', process.env.PORT ?? 8080));
 const apiTarget = new URL(flag('api', 'http://127.0.0.1:8000'));
-const useHttps = args.includes('--https');
-const certDir = flag('cert-dir', join(root, 'var', 'certs'));
 
 /**
  * 공유 시크릿. 주면 링크를 아는 사람만 들어올 수 있다 (`--token abc` 또는 SERVE_TOKEN).
@@ -315,41 +310,34 @@ const lanIp =
     .flat()
     .find((n) => n && n.family === 'IPv4' && !n.internal)?.address ?? 'localhost';
 
-let server;
-if (useHttps) {
-  let key, cert;
-  try {
-    key = await readFile(join(certDir, 'key.pem'));
-    cert = await readFile(join(certDir, 'cert.pem'));
-  } catch {
+const server = http.createServer(handler);
+
+// 8080 은 가장 흔하게 점유되는 포트다. 기본값이 문서에 박혀 있으므로 충돌 시
+// 스택 트레이스 대신 다음에 뭘 하면 되는지 알려 준다.
+server.on('error', (error) => {
+  if (error.code === 'EADDRINUSE') {
     console.error(
-      `인증서를 찾지 못했습니다: ${certDir}\n\n` +
-        `먼저 만드세요 (mkcert 필요):\n` +
-        `  pnpm setup:https-cert\n`,
+      `\n  포트 ${port} 가 이미 쓰이고 있습니다.\n` +
+        `     다른 포트로 띄우세요:  pnpm serve:mobile --port ${port + 1}\n` +
+        `     (터널도 같은 포트로 맞춥니다: ngrok http ${port + 1})\n`,
     );
     process.exit(1);
   }
-  server = https.createServer({ key, cert }, handler);
-} else {
-  server = http.createServer(handler);
-}
+  throw error;
+});
 
 server.listen(port, '0.0.0.0', () => {
-  const scheme = useHttps ? 'https' : 'http';
   console.log(`\n  웹 + API 단일 오리진 서버\n`);
-  console.log(`    이 기계:  ${scheme}://localhost:${port}`);
-  console.log(`    실기기:   ${scheme}://${lanIp}:${port}`);
+  console.log(`    이 기계:  http://localhost:${port}`);
+  console.log(`    LAN:      http://${lanIp}:${port}`);
   console.log(`    API 프록시 → ${apiTarget.origin}${proxyDocs ? ' (문서 포함)' : ''}`);
   if (accessToken) {
     console.log(`\n  접근 게이트 켜짐 — 이 주소로 한 번 열어야 합니다:`);
-    console.log(`    ${scheme}://${lanIp}:${port}/?k=${encodeURIComponent(accessToken)}`);
+    console.log(`    http://${lanIp}:${port}/?k=${encodeURIComponent(accessToken)}  (터널 주소에도 같은 ?k= 를 붙입니다)`);
   }
-  if (!useHttps) {
-    console.log(
-      `\n  이 포트를 터널로 감싸 https 주소로 여세요:  ngrok http ${port}\n` +
-        `     위의 평문 주소로 직접 열면 localhost 밖에서는 카메라(getUserMedia)가 막힙니다.\n` +
-        `     인터넷을 못 쓰는 현장이면 --https (README 「실기기(모바일 웹)」).`,
-    );
-  }
+  console.log(
+    `\n  이 포트를 터널로 감싸 https 주소로 여세요:  ngrok http ${port}\n` +
+      `     위의 평문 주소로 직접 열면 localhost 밖에서는 카메라(getUserMedia)가 막힙니다.`,
+  );
   console.log('');
 });
