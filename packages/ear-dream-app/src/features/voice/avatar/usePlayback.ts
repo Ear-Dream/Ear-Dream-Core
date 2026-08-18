@@ -4,12 +4,15 @@
  * 렌더러(`AvatarPlayer`)와 분리해 둔 이유는 **전환 보간이 두 벌이 되는 것**을 막기
  * 위해서다 — 보간 규칙이 갈리면 같은 문장이 그리는 방식마다 다르게 움직인다.
  *
- * ## 단어 사이 전환 보간
+ * ## 표시 시점 보간 둘
  *
- * 단어마다 끝 자세와 다음 단어의 시작 자세가 달라 그냥 이어 붙이면 뚝뚝 끊긴다.
- * 그래서 경계에 **짧은 전환 구간**을 넣어 두 자세 사이를 부드럽게 잇는다.
+ * **단어 사이 전환** — 단어마다 끝 자세와 다음 단어의 시작 자세가 달라 그냥 이어
+ * 붙이면 뚝뚝 끊긴다. 경계에 짧은 전환 구간을 넣어 두 자세 사이를 잇는다.
  *
- * ⚠️ 이것은 CLAUDE.md 「전처리 정본은 한 곳」이 금지하는 클라이언트 보간이 **아니다.**
+ * **짧은 결측 메우기** — 검출기가 한두 프레임씩 부위를 놓쳐서 손·머리가 깜빡인다.
+ * 앞뒤 관측 사이를 이어 메운다 (`MAX_FILL_FRAMES`).
+ *
+ * ⚠️ 둘 다 CLAUDE.md 「전처리 정본은 한 곳」이 금지하는 클라이언트 보간이 **아니다.**
  * 그 규칙은 **모델로 가는 데이터**를 두 곳에서 가공하면 train/serve skew 가 난다는
  * 이야기다. 여기 좌표는 화면에 그려질 뿐 서버로도 모델로도 가지 않는다 — 화면 크기에
  * 맞춰 스케일하는 것과 같은 층위의 표시 처리다. **원본 시퀀스는 건드리지 않고**
@@ -53,6 +56,23 @@ const FULL_FRAME: Crop = { x0: 0, y0: 0, x1: 1, y1: 1 };
  * 길이가 얼마인지는 이 레포에 실측이 없다 — 사용자 확인 후 조정한다.
  */
 export const DEFAULT_TRANSITION_FRAMES = 6;
+
+/**
+ * 짧은 결측 구간을 앞뒤로 이어 메울 최대 길이(프레임).
+ *
+ * 검출기는 한두 프레임씩 부위를 놓친다. 그대로 그리면 손이나 머리가 **깜빡인다** —
+ * 300단어 실측: 손 결측 구간 157개가 전부 1프레임, 얼굴 19개 구간의 중앙값 2 ·
+ * 최대 11프레임이다. 사람이 그 사이 사라졌을 리 없으니 메우는 게 사실에 가깝다.
+ *
+ * 상한을 두는 이유는 **길게 빈 것은 진짜 없는 것**이기 때문이다. 인물이 화면을
+ * 벗어나거나 손이 완전히 가려진 구간까지 이어 버리면 없는 자세를 지어내게 된다.
+ * 12프레임(400ms)은 실측 최대(11)를 막 덮는 값이라, 지금 자산에서는 전부 메워지고
+ * 그보다 긴 결측이 생기면 그때는 안 메운다.
+ *
+ * ⚠️ 이것도 **표시 전용**이다. 이 좌표는 서버로도 모델로도 가지 않는다(모듈 상단
+ * 「단어 사이 전환 보간」의 같은 논거). 원본 시퀀스는 건드리지 않는다.
+ */
+const MAX_FILL_FRAMES = 12;
 
 /** 재생 타임라인의 한 구간. 단어 재생과 전환이 번갈아 놓인다. */
 type Segment =
@@ -224,7 +244,7 @@ function resolveFrame(
       if (!sequence) return null;
       return {
         wordIndex: segment.index,
-        sample: (kp) => readFrame(sequence, remaining, kp),
+        sample: (kp) => sampleFrame(sequence, remaining, kp),
       };
     }
     const from = sequences[segment.from];
@@ -235,8 +255,8 @@ function resolveFrame(
     return {
       wordIndex: segment.to,
       sample: (kp) => {
-        const [x1, y1] = readFrame(from, from.frameCount - 1, kp);
-        const [x2, y2] = readFrame(to, 0, kp);
+        const [x1, y1] = sampleFrame(from, from.frameCount - 1, kp);
+        const [x2, y2] = sampleFrame(to, 0, kp);
         // 한쪽이라도 미검출이면 보간하지 않는다 — 없는 자세를 지어내는 셈이 된다.
         // x·y 를 모두 본다: 이 자산에서는 둘이 함께 결측이지만 그 가정에 기대지 않는다.
         if (
@@ -257,6 +277,42 @@ function resolveFrame(
 function readFrame(sequence: SignSequence, frame: number, kp: number): [number, number] {
   const base = (frame * sequence.keypointCount + kp) * 2;
   return [sequence.xy[base], sequence.xy[base + 1]];
+}
+
+/**
+ * 결측이면 앞뒤에서 관측된 값을 찾아 선형 보간한다. 못 찾으면 결측 그대로 둔다.
+ *
+ * **양쪽이 다 있어야 메운다.** 한쪽만으로 이으면 보간이 아니라 외삽이고, 클립의 처음·
+ * 끝에서 있지도 않은 자세를 만들어 낸다. 상한(`MAX_FILL_FRAMES`)을 넘는 구간도 그대로 둔다.
+ */
+function sampleFrame(sequence: SignSequence, frame: number, kp: number): [number, number] {
+  const direct = readFrame(sequence, frame, kp);
+  if (Number.isFinite(direct[0]) && Number.isFinite(direct[1])) return direct;
+
+  let before: { frame: number; xy: [number, number] } | null = null;
+  for (let step = 1; step <= MAX_FILL_FRAMES && frame - step >= 0; step += 1) {
+    const xy = readFrame(sequence, frame - step, kp);
+    if (Number.isFinite(xy[0]) && Number.isFinite(xy[1])) {
+      before = { frame: frame - step, xy };
+      break;
+    }
+  }
+  if (!before) return direct;
+
+  for (let step = 1; step <= MAX_FILL_FRAMES && frame + step < sequence.frameCount; step += 1) {
+    const xy = readFrame(sequence, frame + step, kp);
+    if (Number.isFinite(xy[0]) && Number.isFinite(xy[1])) {
+      // 두 관측 사이가 상한보다 길면 메우지 않는다 — 가운데를 지어내는 셈이 된다.
+      const span = frame + step - before.frame;
+      if (span > MAX_FILL_FRAMES) break;
+      const t = (frame - before.frame) / span;
+      return [
+        before.xy[0] + (xy[0] - before.xy[0]) * t,
+        before.xy[1] + (xy[1] - before.xy[1]) * t,
+      ];
+    }
+  }
+  return direct;
 }
 
 function smoothstep(t: number): number {
