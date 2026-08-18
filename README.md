@@ -213,10 +213,11 @@ pnpm setup:model-bundle
 #### 번들을 새로 올릴 때
 
 학습 산출물(별도 레포)을 가진 사람이 한다. 릴리스 태그와 파일명은
-`scripts/setup-model-bundle.mjs`의 상수와 맞춘다.
+`scripts/setup-model-bundle.mjs`의 상수와 맞춘다. **세 명령 모두 레포 루트에서** 돌린다
+— 빌드만 하위 디렉토리를 쓰므로 서브셸로 감싸 현재 위치가 바뀌지 않게 했다.
 
 ```bash
-cd packages/ear-dream-api && uv run python scripts/build_spoter300_bundle.py
+(cd packages/ear-dream-api && uv run python scripts/build_spoter300_bundle.py)
 ```
 
 ```bash
