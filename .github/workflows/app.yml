@@ -4,7 +4,7 @@ name: App
 # API 를 고쳐도 앱 타입이 깨질 수 있다. 그래서 API 변경에도 이 워크플로가 돈다.
 on:
   push:
-    branches: [main]
+    branches: [develop]
     paths:
       - "packages/**"
       - "package.json"
