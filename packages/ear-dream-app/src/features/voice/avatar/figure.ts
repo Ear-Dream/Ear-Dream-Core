@@ -21,7 +21,7 @@ import { CROP_MARGIN, EYE, HAND, HEAD, LIMB, MOUTH, OUTLINE_WIDTH } from './avat
 import { FACE_POINTS, LEFT_BROW, LIPS_INNER_RING, RIGHT_BROW } from './faceLayout';
 import type { At, Point } from './geometry';
 import { convexHull, median, ok, pt, smoothRing, span, taper } from './geometry';
-import type { SignSequence } from './sequenceAssets';
+import type { SignSequence } from './sequenceFiles';
 import type { Crop } from './usePlayback';
 import { SOURCE_ASPECT } from './usePlayback';
 
@@ -366,7 +366,7 @@ export function headBaselineOf(sequences: readonly SignSequence[]): HeadBaseline
       const rxv = xy[base + FACE_POINTS.rightEyeOuter * 2];
       const ryv = xy[base + FACE_POINTS.rightEyeOuter * 2 + 1];
       if (![lx, ly, rxv, ryv].every(Number.isFinite)) continue;
-      // 자산은 16:9 정규화 좌표라 x 를 펴야 길이·각도가 실제와 같아진다.
+      // 시퀀스는 16:9 정규화 좌표라 x 를 펴야 길이·각도가 실제와 같아진다.
       const dx = (lx - rxv) * SOURCE_ASPECT;
       const dy = ly - ryv;
       const length = Math.hypot(dx, dy);
@@ -382,7 +382,7 @@ export function headBaselineOf(sequences: readonly SignSequence[]): HeadBaseline
 /**
  * 시퀀스 전체가 차지하는 좌표 범위 + 여백.
  *
- * 미검출(NaN)은 건너뛴다. 좌표가 하나도 없으면 원본 화각 전체로 물러난다 — 자산이
+ * 미검출(NaN)은 건너뛴다. 좌표가 하나도 없으면 원본 화각 전체로 물러난다 — 시퀀스가
  * 깨졌을 때 0 으로 나눠 화면이 사라지는 것보다 낫다.
  */
 export function sequenceCrop(sequences: readonly SignSequence[]): Crop {

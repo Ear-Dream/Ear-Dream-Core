@@ -13,7 +13,7 @@ export interface LogoMarkProps {
 }
 
 /**
- * 로고(구름+달) — 확정 자산 전 placeholder. 시안의 검은 원 2개 구성을 도형으로 근사한다.
+ * 로고(구름+달) — 확정 애셋 전 placeholder. 시안의 검은 원 2개 구성을 도형으로 근사한다.
  *
  * 움직임 세 겹:
  * 1. 구름에서 소리처럼 물결이 퍼진다(`Ripple`) — 첫 화면에서 가장 먼저 눈에 걸리는 요소.
@@ -23,7 +23,7 @@ export interface LogoMarkProps {
  * 세 주기를 서로 배수가 아니게 잡아서 위상이 계속 어긋난다 — 같은 포즈가 반복되지 않는다.
  *
  * 장식이라 스크린리더에는 노출하지 않는다 — 라벨은 이 컴포넌트를 감싸는 hero 가 갖는다.
- * 실제 로고 자산이 확정되면 도형 대신 이미지로 갈아끼우되 이 움직임은 유지한다.
+ * 실제 로고 애셋이 확정되면 도형 대신 이미지로 갈아끼우되 이 움직임은 유지한다.
  */
 export function LogoMark({ animating = true, testID }: LogoMarkProps) {
   const reduceMotion = useReducedMotion();
@@ -129,7 +129,7 @@ export function LogoMark({ animating = true, testID }: LogoMarkProps) {
 }
 
 /**
- * 장식용 값이다. 실제 로고 자산이 확정되기 전 임시 도형에 붙인 움직임이라 별도 근거는 없다 —
+ * 장식용 값이다. 실제 로고 애셋이 확정되기 전 임시 도형에 붙인 움직임이라 별도 근거는 없다 —
  * 눈에 띄되 산만하지 않은 선에서 맞췄다. 세 주기는 서로 배수가 아니어야 위상이 계속 어긋난다
  * (물결 주기는 Ripple 안에 있다).
  */

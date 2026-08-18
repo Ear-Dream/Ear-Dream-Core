@@ -18,9 +18,9 @@ class VocabularyEntry(BaseModel):
         description="아바타 재생 시퀀스 보유 여부. 어휘에 있어도 시퀀스가 없을 수 있다 "
         "(현재 300단어 전부 보유)"
     )
-    avatar_asset_id: str | None = Field(
+    avatar_sequence_key: str | None = Field(
         default=None,
-        description="클라이언트 빌트인 자산 키 (= sign_sequences 의 sequence_key). "
+        description="클라이언트 빌트인 시퀀스 키 (= sign_sequences 의 sequence_key). "
         "word_id 로 파일명을 조립하지 말고 이 값을 쓴다. has_avatar=false 면 null",
     )
 

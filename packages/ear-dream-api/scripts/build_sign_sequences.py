@@ -1,4 +1,4 @@
-"""아바타 재생용 수어 시퀀스 번들 빌드 — 모델 레포 키포인트 → 앱 빌트인 자산 + 서버 매니페스트.
+"""아바타 재생용 수어 시퀀스 번들 빌드 — 모델 레포 키포인트 → 앱 빌트인 시퀀스 + 서버 매니페스트.
 
 청인→농인 방향(문장 → 단어열 → 아바타 재생)의 **데이터 절반**이다. 인식(`/recognize`)과
 달리 모델이 관여하지 않는다 — 사람이 실제로 수어를 한 클립의 좌표를 그대로 재생한다.
@@ -12,7 +12,7 @@
     packages/ear-dream-app/public/sign-sequences/index.json      클라이언트 인덱스 (커밋 대상)
     packages/ear-dream-api/app/ml/data/sign_sequences.json       서버 매니페스트 (커밋 대상)
 
-셋 다 커밋한다. **클론만으로 앱이 바로 돌아야 한다**는 것이 이 자산의 요구사항이다 —
+셋 다 커밋한다. **클론만으로 앱이 바로 돌아야 한다**는 것이 이 시퀀스의 요구사항이다 —
 좌표는 클라이언트 빌트인이고(서버가 매번 내려보내면 ngrok 대역폭을 먹는다), 원천 영상은
 레포 밖에 있어서 별도 내려받기를 두면 클론한 사람이 재생을 못 본다. 300단어 17 MiB 는
 그 대가로 받아들인 값이다.
@@ -98,13 +98,13 @@ REPO_ROOT = API_ROOT.parents[1]
 # 모델 레포는 이 레포의 형제 디렉토리에 있다 (CLAUDE.md). **읽기만** 한다.
 DEFAULT_SOURCE = REPO_ROOT.parent / "Ear-Dream-Model"
 
-# 앱 자산은 public/mediapipe 선례를 따른다 — 스크립트로 재생성 + .gitignore + 정적 서빙.
+# 앱 시퀀스는 public/mediapipe 선례를 따른다 — 스크립트로 재생성 + .gitignore + 정적 서빙.
 APP_OUT = REPO_ROOT / "packages/ear-dream-app/public/sign-sequences"
 SERVER_MANIFEST = API_ROOT / "app/ml/data/sign_sequences.json"
 
 # v2: 좌표 출처가 바뀌었다 — 모델 레포의 Holistic 추출본(41단어) → 이 레포의
 # `extract_sign_videos.py` tasks API 추출본(300단어). 판본을 올리지 않으면 서버
-# 매니페스트와 앱 자산이 어긋나도 감지되지 않는다.
+# 매니페스트와 앱 시퀀스가 어긋나도 감지되지 않는다.
 BUNDLE_VERSION = "sign-seq-v2-2026-08-18"
 
 # 전처리 계약 문서 인용값 — 이 레포 실측 아님 (모듈 docstring 「fps」 절)
@@ -209,7 +209,7 @@ def main() -> int:
     parser.add_argument(
         "--source", type=Path, default=DEFAULT_SOURCE, help="모델 레포 경로 (읽기 전용)"
     )
-    parser.add_argument("--out", type=Path, default=APP_OUT, help="앱 자산 출력 디렉토리")
+    parser.add_argument("--out", type=Path, default=APP_OUT, help="앱 시퀀스 출력 디렉토리")
     parser.add_argument(
         "--strict-aihub-id",
         action="store_true",
@@ -341,7 +341,7 @@ def main() -> int:
                 "bundle_version": BUNDLE_VERSION,
                 "vocab_version": VOCAB_VERSION,
                 "source_fps": SOURCE_FPS,
-                "asset_path": "sign-sequences",
+                "sequence_path": "sign-sequences",
                 "selection": (
                     "단어별 대표 1클립. 정렬 키: 미검출비율(0.1%p 반올림) → n_frames 중앙값과의 "
                     "거리 → clip_id. 근거는 scripts/build_sign_sequences.py choose_representative"
@@ -365,7 +365,7 @@ def main() -> int:
         print(
             f"단어당 평균  : {per_word / 1024:.1f} KiB → 300단어 환산 {per_word * 300 / 1024**2:.1f} MiB"
         )
-    print(f"앱 자산      : {out_dir}")
+    print(f"앱 시퀀스      : {out_dir}")
     print(f"서버 매니페스트: {SERVER_MANIFEST}")
     if skipped_status:
         print(f"status != ok 제외: {skipped_status}건")

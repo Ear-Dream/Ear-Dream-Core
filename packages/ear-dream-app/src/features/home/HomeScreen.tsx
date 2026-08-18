@@ -59,12 +59,12 @@ export function HomeScreen({ onStartSign, onStartVoice, onOpenLandmarkDev }: Hom
   );
 }
 
-/** "손으로 말하기" 좌측 아이콘 자리 — 확정 자산 전 placeholder 도형(시안: 흰 라운드 사각). */
+/** "손으로 말하기" 좌측 아이콘 자리 — 확정 애셋 전 placeholder 도형(시안: 흰 라운드 사각). */
 function SignTrackIcon() {
   return <View style={styles.signIcon} />;
 }
 
-/** "입으로 말하기" 좌측 아이콘 자리 — 확정 자산 전 placeholder 도형(시안: 인디고 원). */
+/** "입으로 말하기" 좌측 아이콘 자리 — 확정 애셋 전 placeholder 도형(시안: 인디고 원). */
 function VoiceTrackIcon() {
   return (
     <View style={styles.voiceIconRing}>

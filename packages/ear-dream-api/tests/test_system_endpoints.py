@@ -29,11 +29,11 @@ def test_vocabulary_avatar_fields_match_sequence_manifest(client):
     assert len(with_avatar) == SEQUENCE_COUNT
     assert {e["id"] for e in with_avatar} == set(SEQUENCES)
 
-    # 보유 항목은 자산 키를 싣고, 미보유 항목은 null 이다 (클라이언트가 word_id 로
+    # 보유 항목은 시퀀스 키를 싣고, 미보유 항목은 null 이다 (클라이언트가 word_id 로
     # 파일명을 조립하지 않도록 키를 명시적으로 내려준다)
     for e in with_avatar:
-        assert e["avatar_asset_id"] == SEQUENCES[e["id"]].sequence_key
-    assert all(e["avatar_asset_id"] is None for e in data["entries"] if not e["has_avatar"])
+        assert e["avatar_sequence_key"] == SEQUENCES[e["id"]].sequence_key
+    assert all(e["avatar_sequence_key"] is None for e in data["entries"] if not e["has_avatar"])
 
 
 def test_vocabulary_ids_unique_and_labels_unique(client):

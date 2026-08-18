@@ -1,7 +1,7 @@
 """수어 영상 → kp130 키포인트 (.npy + manifest.csv).
 
 `build_sign_sequences.py` 가 먹는 형태로 떨어뜨린다. 즉 이 스크립트는 **모델 레포가
-하던 추출 단계를 대신**할 뿐이고, 자산 번들을 만드는 것은 여전히 빌드 스크립트다.
+하던 추출 단계를 대신**할 뿐이고, 시퀀스 번들을 만드는 것은 여전히 빌드 스크립트다.
 두 단계를 합치지 않는 이유: 클립 선정·양자화·매니페스트 규칙이 이미 그쪽에 있고
 검증돼 있다. 여기서 다시 구현하면 규칙이 두 벌이 된다.
 
@@ -17,7 +17,7 @@ solutions 가 통째로 사라졌다**. 대신 tasks API 의 Pose/Hand/Face Land
 모델 파일을 그대로 쓴다**(`packages/ear-dream-app/public/mediapipe/models/`). 오프라인
 추출과 앱의 실시간 추출이 같은 모델 계열이 된다.
 
-⚠️ 그래서 이 스크립트로 다시 뽑은 좌표는 **기존 41단어 자산(Holistic 추출)과 같지
+⚠️ 그래서 이 스크립트로 다시 뽑은 좌표는 **기존 41단어 시퀀스(Holistic 추출)과 같지
 않다.** 섞어 쓰면 안 되고, 300단어를 통째로 다시 뽑아 번들을 갈아끼우는 것이 전제다.
 z 는 이 레포가 신뢰하지 않기로 한 값이지만(CLAUDE.md) .npy 에는 남겨 둔다 — 버리는
 건 빌드 스크립트가 하고, 나중에 3D 로 갈 때 재추출을 면한다.
@@ -103,7 +103,7 @@ def build_landmarkers():
             # CPU 고정 — macOS 에서 기본 GPU(Metal) 위임이 초기화 중 죽는다.
             # 오프라인 배치라 속도보다 돌아가는 게 우선이다.
             base_options=mp_python.BaseOptions(
-                model_asset_path=str(path),
+                model_sequence_path=str(path),
                 delegate=mp_python.BaseOptions.Delegate.CPU,
             ),
             running_mode=vision.RunningMode.VIDEO,
@@ -114,7 +114,7 @@ def build_landmarkers():
         path = MODEL_DIR / "face_landmarker.task"
         return vision.FaceLandmarkerOptions(
             base_options=mp_python.BaseOptions(
-                model_asset_path=str(path),
+                model_sequence_path=str(path),
                 delegate=mp_python.BaseOptions.Delegate.CPU,
             ),
             running_mode=vision.RunningMode.IMAGE,
@@ -283,7 +283,7 @@ def extract_video(path: Path) -> tuple[np.ndarray, float]:
 
     VIDEO 모드는 타임스탬프가 단조 증가해야 해서 클립을 넘어 재사용할 수 없고,
     재사용하면 앞 단어의 추적 상태가 다음 단어 첫 프레임에 샌다 — 단어별로 독립인
-    자산을 만드는 중이라 그건 조용한 오염이다.
+    시퀀스를 만드는 중이라 그건 조용한 오염이다.
     """
     import cv2
     import mediapipe as mp

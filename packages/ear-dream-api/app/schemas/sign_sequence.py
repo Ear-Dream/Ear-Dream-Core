@@ -2,9 +2,9 @@
 
 `/compose-sentence`(단어열 → 문장)의 역방향이자 `/recognize`(동작 → 단어)의 역방향이다.
 
-**좌표는 응답에 없다.** 클라이언트가 시퀀스를 빌트인 자산으로 갖고 있고
+**좌표는 응답에 없다.** 클라이언트가 시퀀스를 빌트인 시퀀스로 갖고 있고
 (`packages/ear-dream-app/public/sign-sequences/`), 응답은 "무엇을 어떤 순서로 재생하라" 는
-지시와 자산을 찾아갈 키만 싣는다. 단어당 좌표가 60 KiB 라 응답에 넣으면 문장 하나에
+지시와 시퀀스를 찾아갈 키만 싣는다. 단어당 좌표가 60 KiB 라 응답에 넣으면 문장 하나에
 수백 KiB 가 매번 흐른다.
 """
 
@@ -48,7 +48,7 @@ class SignSequenceIssue(str, Enum):
     """
 
     unknown_word = "unknown_word"  # 어휘 300에 없다 → 변환 불가
-    no_sequence = "no_sequence"  # 어휘엔 있으나 아바타 시퀀스 자산이 없다
+    no_sequence = "no_sequence"  # 어휘엔 있으나 아바타 시퀀스가 없다
 
 
 class SignSequenceItem(BaseModel):
@@ -66,7 +66,7 @@ class SignSequenceItem(BaseModel):
     sequence_key: str | None = Field(
         default=None,
         description=(
-            "빌트인 시퀀스 자산 조회 키. 재생 불가(issue != null)이면 null. "
+            "빌트인 시퀀스 조회 키. 재생 불가(issue != null)이면 null. "
             "클라이언트는 word_id 로 파일명을 조립하지 말고 이 키를 쓴다 "
             "— 조음 변형이 생기면 키만 갈라진다."
         ),
@@ -90,8 +90,8 @@ class SignSequenceResult(BaseModel):
     playable: bool = Field(
         description="전 항목이 재생 가능하면 true. 하나라도 issue 가 있으면 false"
     )
-    asset_path: str = Field(
-        description='빌트인 자산 디렉토리명 (앱 public/ 기준). 예: "sign-sequences"'
+    sequence_path: str = Field(
+        description='빌트인 시퀀스 디렉토리명 (앱 public/ 기준). 예: "sign-sequences"'
     )
     source_fps: float = Field(
         description="시퀀스 원본 영상 fps — 클라이언트 재생 속도 기준. "
@@ -99,6 +99,6 @@ class SignSequenceResult(BaseModel):
     )
     sequence_bundle_version: str = Field(
         description="시퀀스 번들 판본. 클라이언트 index.json 의 bundle_version 과 다르면 "
-        "서버 매니페스트와 빌트인 자산이 어긋난 것이다"
+        "서버 매니페스트와 빌트인 시퀀스가 어긋난 것이다"
     )
     ruleset_version: str = Field(description="문장 분해 규칙 판본 (모델 도입 전 임시 경로)")

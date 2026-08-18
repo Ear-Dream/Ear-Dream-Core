@@ -1,7 +1,7 @@
 /**
  * 수어 인식 모델 번들을 GitHub Release 에서 받아 `var/models/` 아래에 푼다.
  *
- * 번들을 커밋하지 않는 이유는 MediaPipe 자산과 같다 — 재생성이 가능한 대용량
+ * 번들을 커밋하지 않는 이유는 MediaPipe 애셋과 같다 — 재생성이 가능한 대용량
  * 바이너리다. 다만 MediaPipe 와 달리 **이건 공개 CDN 에 없다.** 학습 레포
  * (Ear-Dream-Benchmarks) 산출물이라, 그 레포 접근권이 없는 사람은 릴리스로만 받는다.
  *

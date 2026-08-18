@@ -157,7 +157,7 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
               {listening ? (
                 <View style={styles.stopSquare} />
               ) : (
-                // 마이크 아이콘 — 확정 자산 전 placeholder 도형(캡슐 + 받침).
+                // 마이크 아이콘 — 확정 애셋 전 placeholder 도형(캡슐 + 받침).
                 <View style={styles.micShape}>
                   <View style={styles.micCapsule} />
                   <View style={styles.micStand} />

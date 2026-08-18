@@ -2,7 +2,7 @@
 
 핵심은 **두 실패의 구분**이다 (schemas/sign_sequence.py SignSequenceIssue 주석):
   - unknown_word : 어휘 300에 없다
-  - no_sequence  : 어휘엔 있으나 아바타 시퀀스 자산이 없다
+  - no_sequence  : 어휘엔 있으나 아바타 시퀀스가 없다
 이 둘이 섞이면 진짜 변환 모델이 붙었을 때 "변환은 됐는데 재생할 게 없는" 상태를
 구분할 수 없다.
 
@@ -57,7 +57,7 @@ def test_multi_word_template_is_playable(client):
         assert item["sequence_key"] == item["word_id"]  # 현재 키 체계 (별도 필드로 유지)
         assert item["frame_count"] > 0
     assert data["sequence_bundle_version"] == SEQUENCE_BUNDLE_VERSION
-    assert data["asset_path"]
+    assert data["sequence_path"]
     assert data["source_fps"] > 0
     assert data["text"] == "밥을 부탁해요"
 
@@ -229,8 +229,8 @@ def test_unknown_word_keeps_position_among_playable_items(client):
 def missing_sequence(monkeypatch) -> tuple[str, str]:
     """시퀀스가 없는 단어 상황을 **만들어서** 돌려준다 (label, id).
 
-    sign-seq-v2 부터 어휘 300 이 전부 자산을 갖게 돼서 실제로 비어 있는 단어가
-    없다. 그렇다고 no_sequence 테스트를 지우면, **어휘가 자산보다 먼저 늘어나는
+    sign-seq-v2 부터 어휘 300 이 전부 시퀀스를 갖게 돼서 실제로 비어 있는 단어가
+    없다. 그렇다고 no_sequence 테스트를 지우면, **어휘가 시퀀스보다 먼저 늘어나는
     순간**(정상적인 작업 순서다) 이 경로가 아무도 모르게 깨진다. 그래서 매니페스트에서
     한 단어를 빼고 검사한다.
     """
@@ -240,7 +240,7 @@ def missing_sequence(monkeypatch) -> tuple[str, str]:
 
 
 def test_no_sequence(client, missing_sequence):
-    """어휘엔 있으나 아바타 시퀀스 자산이 없는 단어 → no_sequence.
+    """어휘엔 있으나 아바타 시퀀스가 없는 단어 → no_sequence.
 
     unknown_word 와 달리 word_id·label 은 채워지고 sequence_key 만 null 이다.
     "변환은 됐는데 재생할 게 없다" 를 그대로 드러내는 형태다.

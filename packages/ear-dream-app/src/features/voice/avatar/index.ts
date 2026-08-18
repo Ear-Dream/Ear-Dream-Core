@@ -1,11 +1,11 @@
 /**
  * 수어 아바타 재생 — 청인 문장을 아바타 동작으로 보여준다.
  *
- * 쓰는 쪽은 이 배럴만 본다. 좌표가 빌트인 자산에서 오는지 서버에서 오는지,
+ * 쓰는 쪽은 이 배럴만 본다. 좌표가 빌트인 시퀀스에서 오는지 서버에서 오는지,
  * 어떻게 디코딩하는지는 화면이 알 필요가 없다.
  */
 export { AvatarPlayer } from './AvatarPlayer';
 export type { AvatarPlayerProps } from './AvatarPlayer';
 export { useSignSequence } from './useSignSequence';
 export type { SignSequencePhase, UseSignSequenceResult } from './useSignSequence';
-export type { SignSequence } from './sequenceAssets';
+export type { SignSequence } from './sequenceFiles';
