@@ -62,6 +62,17 @@ import type {
 
 export function useSpeechToText(options?: UseSpeechToTextOptions): UseSpeechToTextResult {
   // 콜백 신원이 매 렌더 바뀌어도 세션이 흔들리지 않게 ref 로 들고 최신 것을 부른다.
+  /**
+   * 엔진 이벤트 순서 (진단용, 최근 것만).
+   *
+   * 화면에 그대로 노출한다 — 실기기에서 콘솔을 못 보는 상태로 "결과가 안 온다" 를 고치려면
+   * 어디까지 왔는지가 유일한 단서다. 제품 동작에는 쓰지 않는다.
+   */
+  const [trace, setTrace] = useState<string[]>([]);
+  const pushTrace = useCallback((event: string) => {
+    setTrace((previous) => [...previous.slice(-15), event]);
+  }, []);
+
   const onResultRef = useRef(options?.onResult);
   onResultRef.current = options?.onResult;
 
@@ -153,17 +164,20 @@ export function useSpeechToText(options?: UseSpeechToTextOptions): UseSpeechToTe
   const openSession = useCallback(
     function open() {
       const session = startBrowserRecognition({
+        onTrace: pushTrace,
         onStart: () => {
           if (!listeningRef.current) return;
           setStatus('listening');
         },
         onInterim: (text) => {
+          pushTrace(`interim(${text.trim().length})`);
           if (!listeningRef.current) return;
           interimRef.current = text;
           setInterimTranscript(text);
           if (text.trim().length > 0) noteSpeech();
         },
         onFinal: (text) => {
+          pushTrace(`final(${text.trim().length})`);
           if (!listeningRef.current) return;
           finalPartsRef.current.push(text.trim());
           interimRef.current = '';
@@ -172,12 +186,14 @@ export function useSpeechToText(options?: UseSpeechToTextOptions): UseSpeechToTe
           noteSpeech();
         },
         onFailure: (failure) => {
+          pushTrace(`error:${failure}`);
           if (!listeningRef.current) return;
           // 아직 말소리를 못 찾았을 뿐이다. 바로 뒤에 onEnd 가 따라오고 거기서 다시 연다.
           if (failure === 'no-speech') return;
           fail(failure);
         },
         onEnd: (reason) => {
+          pushTrace(`end:${reason}`);
           sessionRef.current = null;
           // cancel() 은 이미 정리를 끝냈고, 실패로 끝난 경우 listeningRef 가 내려가 있다.
           if (reason === 'canceled' || !listeningRef.current) return;
@@ -206,7 +222,7 @@ export function useSpeechToText(options?: UseSpeechToTextOptions): UseSpeechToTe
       }
       sessionRef.current = session;
     },
-    [clearTimers, fail, finish, noteSpeech],
+    [clearTimers, fail, finish, noteSpeech, pushTrace],
   );
 
   const cancel = useCallback(() => {
@@ -276,7 +292,7 @@ export function useSpeechToText(options?: UseSpeechToTextOptions): UseSpeechToTe
   // 화면을 벗어나면 마이크를 놓는다. 결과는 쓰지 않는다.
   useEffect(() => cancel, [cancel]);
 
-  return { status, engine, transcript, interimTranscript, start, stop, cancel, error };
+  return { status, engine, transcript, interimTranscript, start, stop, cancel, error, trace };
 }
 
 function unavailableMessage(availability: BrowserRecognitionAvailability): string {
