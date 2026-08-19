@@ -77,6 +77,34 @@ export const SANE_COORD_LIMIT = 10;
  * 갈아 끼울 수단이 없었다. 자동 폴백(useLandmarker)이 이 상황을 스스로 처리하지만,
  * 원인을 사람이 확인하려면 강제 스위치가 따로 있어야 한다.
  */
+/**
+ * 이 기기의 WebGL 이 MediaPipe GPU 추론을 감당하는가.
+ *
+ * MediaPipe 의 GPU 경로는 **32비트 float 렌더 타깃**에 텐서를 쓰고 되읽는다. WebGL2 에서
+ * 그걸 허용하는 게 `EXT_color_buffer_float` 인데, 이게 없는 기기에서는 프레임버퍼가
+ * incomplete 가 되어 추론은 도는 듯하면서 **읽어 온 값이 쓰레기**가 된다
+ * (실측 2026-08-19, 삼성 안드로이드: 좌표 2.47e+35 · NaN, 명시 캔버스 경로에서는 값 고정.
+ *  같은 증상이 mediapipe#5190 · #2141 에 보고돼 있고 아직 미해결이다).
+ *
+ * 런타임 오염 감지(useLandmarker)가 이 상황을 결국 잡아내지만, 그때는 이미 초기화를 두 번
+ * 돌린 뒤다 — 카메라 준비가 그만큼 길어지고 나쁜 좌표가 잠깐 흐른다. 미리 걸러 그 창을 없앤다.
+ *
+ * ⚠️ 이 확장이 없다고 GPU 가 반드시 깨진다고 단정할 근거는 우리 실측 한 대뿐이다. 그래서
+ * 이건 **기본 경로의 지름길**일 뿐이고, `?delegate=gpu` 로는 여전히 강제로 시험할 수 있다.
+ */
+export function webglSupportsMediapipeGpu(): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    if (!gl) return false;
+    const supported = gl.getExtension('EXT_color_buffer_float') !== null;
+    gl.getExtension('WEBGL_lose_context')?.loseContext(); // 판정용 컨텍스트를 남기지 않는다
+    return supported;
+  } catch {
+    return false; // 판정 자체가 안 되면 안전한 쪽(CPU)으로 간다
+  }
+}
+
 const CORRUPT_VERDICT_KEY = 'ear-dream.gpu-corrupted';
 
 /**

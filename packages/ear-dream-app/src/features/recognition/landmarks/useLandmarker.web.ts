@@ -32,6 +32,7 @@ import {
   delegateStartFromUrl,
   forgetGpuCorruptedVerdict,
   readGpuCorruptedVerdict,
+  webglSupportsMediapipeGpu,
   rememberGpuCorruptedVerdict,
   MAX_FACES,
   MAX_HANDS,
@@ -252,7 +253,9 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
   const [attempt, setAttempt] = useState<'gpu' | 'gpu-canvas' | 'cpu'>(() => {
     if (urlStart === 'GPU_CANVAS') return 'gpu-canvas';
     if (urlStart !== null) return urlStart === 'CPU' ? 'cpu' : 'gpu';
-    return readGpuCorruptedVerdict() ? 'cpu' : 'gpu';
+    if (readGpuCorruptedVerdict()) return 'cpu';
+    // float 렌더 타깃이 없으면 GPU 추론 결과를 읽어 올 수 없다 — 시도 자체를 건너뛴다.
+    return webglSupportsMediapipeGpu() ? 'gpu' : 'cpu';
   });
 
   // 우선순위: URL 강제 > 오염 단계 > 호출자 지정 > 기본값
