@@ -191,8 +191,12 @@ export function drawSnapshot(
 
   if (snapshot.sourceWidth === 0 || snapshot.sourceHeight === 0) return;
 
-  // cover: 짧은 쪽을 채우고 넘치는 축을 가운데 기준으로 자른다 (video 의 object-fit: cover 와 같은 규칙).
-  const scale = Math.max(
+  // contain: 프레임 전체가 들어가도록 긴 쪽에 맞춘다 (video 의 object-fit: contain 과 같은 규칙).
+  //
+  // cover 였을 때는 가로 소스(1280x720)를 세로 카드에 넣느라 **좌우 절반이 잘렸다** — 화면에
+  // 안 보이는 영역의 손·얼굴까지 검출 대상이 되고, 사용자는 자기 손이 잡히는지 알 수 없었다.
+  // 보이는 것과 검출되는 것을 일치시키는 쪽이 이 서비스에서는 더 중요하다.
+  const scale = Math.min(
     bufferWidth / snapshot.sourceWidth,
     bufferHeight / snapshot.sourceHeight,
   );

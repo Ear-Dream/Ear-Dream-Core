@@ -269,7 +269,8 @@ const styles: Record<string, React.CSSProperties> = {
     inset: 0,
     width: '100%',
     height: '100%',
-    objectFit: 'cover',
+    // contain 이다. 가로 프레임을 세로 카드에 cover 로 넣으면 좌우가 잘려 나간다.
+    objectFit: 'contain',
   },
   // 오버레이 캔버스는 object-fit 을 쓰지 않는다 — cover 매핑을 overlay.web.ts 가 직접 계산한다.
   overlayLayer: {
