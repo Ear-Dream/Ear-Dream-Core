@@ -64,6 +64,15 @@ export interface BrowserRecognitionCallbacks {
   onFailure: (failure: BrowserRecognitionFailure) => void;
   /** 세션 종료. 어떤 경로로 끝나든 마지막에 정확히 한 번 온다. */
   onEnd: (reason: BrowserRecognitionEndReason) => void;
+  /**
+   * 엔진 이벤트를 그대로 흘려보낸다 (진단용, 선택).
+   *
+   * 안드로이드에서 "마이크는 잡히는데 결과가 하나도 안 온다" 를 두 번 추측으로 고치려다
+   * 빗나갔다. 어디까지 오고 어디서 끊기는지는 이벤트 순서로만 알 수 있다 —
+   * audiostart 가 안 오면 오디오 자체가 안 붙은 것이고, speechstart 까지 오는데 result 가
+   * 없으면 인식 서비스가 빈손으로 돌려주는 것이다. 판정 지점이 완전히 다르다.
+   */
+  onTrace?: (event: string) => void;
 }
 
 export interface BrowserRecognitionSession {
@@ -94,6 +103,12 @@ export function getBrowserRecognitionAvailability(): BrowserRecognitionAvailabil
  *
  * @returns 엔진이 없거나 시작하지 못했으면 null. (그 경우 콜백은 하나도 호출되지 않는다.)
  */
+/** 안드로이드인가. 연속 인식 분기에만 쓴다 (crbug 40324711). */
+function isAndroid(): boolean {
+  if (typeof navigator === 'undefined') return false;
+  return /Android/i.test(navigator.userAgent);
+}
+
 export function startBrowserRecognition(
   callbacks: BrowserRecognitionCallbacks,
 ): BrowserRecognitionSession | null {
@@ -104,7 +119,17 @@ export function startBrowserRecognition(
   recognition.lang = RECOGNITION_LANG;
   // 브라우저 기본값(false)은 한 문장만 받고 끝낸다. 사용자가 정지를 누를 때까지 이어 받도록
   // 켜지만, 이걸 켜도 무음이 길어지면 스스로 끝내는 브라우저가 있다 — 그 뒤처리는 훅에 있다.
-  recognition.continuous = true;
+  //
+  // ⚠️ **안드로이드에서는 켜지 않는다.** Chrome for Android 의 연속 인식은 깨져 있다
+  // (crbug 40324711) — 결과를 한 건만 주거나 무음 3~4초에 스스로 끝낸다.
+  //
+  // 기능 탐지로는 가릴 수 없어("연속 인식이 실제로 되는가" 를 묻는 API 가 없다) 플랫폼으로
+  // 가른다. 알려진 플랫폼 버그라 판정 기준도 플랫폼인 것이 맞다.
+  //
+  // 참고: 2026-08-19 안드로이드에서 "말해도 결과가 하나도 안 온다" 를 겪었을 때 이 옵션을
+  // 먼저 의심했지만 **원인이 아니었다** — 진짜 원인은 파형용 마이크 스트림과의 충돌이었다
+  // (VoiceInputScreen 주석). 이 분기는 그와 별개로 유효한 플랫폼 대응이라 남긴다.
+  recognition.continuous = !isAndroid();
   // 중간 결과를 켠다. 폰을 든 사람은 **농인이라 상대의 말소리를 듣지 못하므로**, 말이 글자로
   // 실시간으로 쌓이는 것이 "지금 잘 잡히고 있다"를 알 수 있는 유일한 신호다(파형은 소리가
   // 났다는 것만 알려준다). 흔들리는 값이라 확정 결과로는 쓰지 않고 표시에만 쓴다.
@@ -133,7 +158,20 @@ export function startBrowserRecognition(
     recognition.onend = null;
   };
 
-  recognition.onstart = () => callbacks.onStart();
+  const trace = (event: string) => callbacks.onTrace?.(event);
+  // 진단용 핸들러. 우리 로직은 여기에 의존하지 않는다 — 순서만 기록한다.
+  recognition.onaudiostart = () => trace('audiostart');
+  recognition.onaudioend = () => trace('audioend');
+  recognition.onsoundstart = () => trace('soundstart');
+  recognition.onsoundend = () => trace('soundend');
+  recognition.onspeechstart = () => trace('speechstart');
+  recognition.onspeechend = () => trace('speechend');
+  recognition.onnomatch = () => trace('nomatch');
+
+  recognition.onstart = () => {
+    trace('start');
+    callbacks.onStart();
+  };
 
   recognition.onresult = (event) => {
     // resultIndex 부터가 이번에 바뀐 구간이다. 그 앞은 이미 확정으로 넘긴 것들이라 다시 읽으면
@@ -205,6 +243,13 @@ interface SpeechRecognitionLike {
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
   onend: ((event: Event) => void) | null;
+  onaudiostart: ((event: Event) => void) | null;
+  onaudioend: ((event: Event) => void) | null;
+  onsoundstart: ((event: Event) => void) | null;
+  onsoundend: ((event: Event) => void) | null;
+  onspeechstart: ((event: Event) => void) | null;
+  onspeechend: ((event: Event) => void) | null;
+  onnomatch: ((event: Event) => void) | null;
 }
 
 type SpeechRecognitionCtor = new () => SpeechRecognitionLike;

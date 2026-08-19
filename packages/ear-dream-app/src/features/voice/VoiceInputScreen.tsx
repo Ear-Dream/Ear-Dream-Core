@@ -7,9 +7,19 @@ import { CircleIconButton } from '../../components/CircleIconButton';
 import { Ripple } from '../../components/Ripple';
 import { ScreenFrame } from '../../components/ScreenFrame';
 import { Waveform, WAVEFORM_BAR_COUNT } from '../../components/Waveform';
+import { LANDMARK_DEV_ENABLED } from '../../constants/devFlags';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
 import { useMicLevels } from './audio';
+
+/**
+ * 파형용 마이크 스트림과 음성 인식이 마이크를 두고 부딪히는 플랫폼인가.
+ *
+ * 안드로이드에서 확인됐다 — 두 주체가 동시에 마이크를 열면 인식 엔진 쪽에 무음이 들어간다.
+ * 기능 탐지로는 가릴 수 없어(부딪혔는지 물어보는 API 가 없다) 플랫폼으로 가른다.
+ */
+const MIC_CONFLICTS_WITH_RECOGNITION =
+  typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
 import { useSpeechToText } from './stt';
 
 export interface VoiceInputScreenProps {
@@ -66,15 +76,21 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
     ⚠️ 마이크를 여는 주체가 둘이다. `useMicLevels` 는 파형을 그리려고 getUserMedia 로 스트림을
     잡고, 음성 인식 엔진은 자기 마이크를 따로 연다. 같은 `listening` 하나로 둘이 동시에 켜진다.
 
-    데스크톱 Chrome 에서 둘이 부딪히는 것은 관측하지 못했지만 **실기기에서 확인되지 않았다** —
-    부딪히면 STT 가 'audio-capture'(= 마이크 없음)로 실패하거나 파형이 멈춘다. 둘 중 무엇이
-    죽든 사용자에게는 "고장"으로 보인다.
+    **2026-08-19 안드로이드 실기기에서 부딪히는 것이 확인됐다.** 예상한 'audio-capture' 실패가
+    아니라 더 조용한 형태였다 — 엔진 이벤트가
+    `start → audiostart → audioend → nomatch → end` 로, 오디오는 붙는데 `soundstart` 가
+    한 번도 오지 않았다. 즉 인식 엔진에는 **무음**이 들어간다. 파형 스트림이 마이크를 잡고
+    있어서다. iOS 에서는 둘이 공존해 정상 동작한다.
 
-    부딪히는 것이 확인되면 잘라낼 곳은 여기다: 파형은 장식이고 인식이 기능이므로,
-    `useMicLevels` 의 active 인자를 false 로 두어 **파형을 포기하고 인식을 살린다**.
-    (반대로 하지 말 것 — 파형만 남으면 아무것도 못 한다.) 확인 전에 미리 자르지는 않는다.
+    그래서 위 주석이 예고한 대로 잘라낸다 — 파형은 장식이고 인식이 기능이다. 안드로이드에서만
+    파형을 포기한다(반대로 하지 말 것 — 파형만 남으면 아무것도 못 한다). iOS·데스크톱은
+    부딪히지 않으므로 그대로 둔다: 폰을 든 사람은 농인이라 소리가 들어오고 있다는 신호가
+    파형뿐인 경우가 있다.
   */
-  const { amplitudes, status: micStatus } = useMicLevels(listening, WAVEFORM_BAR_COUNT);
+  const { amplitudes, status: micStatus } = useMicLevels(
+    listening && !MIC_CONFLICTS_WITH_RECOGNITION,
+    WAVEFORM_BAR_COUNT,
+  );
   const micUnavailable =
     micStatus === 'denied' || micStatus === 'unsupported' || micStatus === 'error';
 
@@ -209,6 +225,19 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
           </Text>
         ) : null}
 
+        {/*
+          엔진 이벤트 순서 (개발 화면 플래그에서만).
+
+          실기기에서 콘솔을 못 보는 상태로 "말해도 아무것도 안 잡힌다" 를 고치려면 어디까지
+          왔는지가 유일한 단서다. audiostart 가 없으면 오디오가 안 붙은 것이고, speechstart
+          까지 오는데 final 이 없으면 인식 서비스가 빈손으로 돌려주는 것이다.
+        */}
+        {LANDMARK_DEV_ENABLED && stt.trace.length > 0 ? (
+          <Text style={styles.sttTrace} testID="voice-stt-trace">
+            {stt.trace.join(' → ')}
+          </Text>
+        ) : null}
+
         <Waveform amplitudes={amplitudes} testID="voice-waveform" />
       </View>
 
@@ -237,6 +266,15 @@ const POND_SIZE = 156;
 const RIPPLE_SIZE = 216;
 
 const styles = StyleSheet.create({
+  // 진단용 표시. 제품 화면에서는 플래그가 꺼져 있어 렌더되지 않는다.
+  sttTrace: {
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md,
+    fontFamily: 'monospace',
+    fontSize: 11,
+    lineHeight: 15,
+    color: colors.text.secondary,
+  },
   center: {
     flex: 1,
     alignItems: 'center',

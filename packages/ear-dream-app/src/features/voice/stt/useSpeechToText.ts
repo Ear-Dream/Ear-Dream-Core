@@ -33,6 +33,7 @@ export function useSpeechToText(_options?: UseSpeechToTextOptions): UseSpeechToT
     engine: null,
     transcript: '',
     interimTranscript: '',
+    trace: [],
     start: noop,
     stop: noop,
     cancel: noop,

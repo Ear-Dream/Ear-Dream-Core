@@ -68,6 +68,8 @@ export interface UseSpeechToTextResult {
    * 표시 전용이다 — 흔들리는 값이라 확정 결과로 쓰지 않는다.
    */
   interimTranscript: string;
+  /** 엔진 이벤트 순서 (진단용). 개발 화면에서만 노출한다 — 제품 동작에는 쓰지 않는다. */
+  trace: string[];
   /** 듣기 시작. 이전 세션의 텍스트는 지워진다. */
   start: () => void;
   /** 정상 종료 — 지금까지 인식한 것을 확정해 onResult 로 넘긴다. */
