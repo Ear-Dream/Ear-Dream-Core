@@ -165,7 +165,7 @@ export function CameraLandmarkView() {
         {gpuCanvasFallback ? (
           <div style={styles.hudRow}>
             <strong>GPU 캔버스 워크어라운드</strong>
-            <span>적용됨 (기본 GPU 생성 실패)</span>
+            <span>적용됨</span>
           </div>
         ) : null}
         <div style={styles.hudRow}>

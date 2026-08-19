@@ -60,6 +60,73 @@ export const FACE_DETECT_EVERY_N_FRAMES = 1;
 export const LANDMARKER_DELEGATE = 'GPU' as const;
 
 /**
+ * 정규화 좌표로 인정할 절댓값 상한.
+ *
+ * MediaPipe 정규화 좌표는 0~1 이지만 랜드마크가 프레임 밖으로 나가면 조금 넘거나 음수가
+ * 될 수 있다. 그래서 딱 0~1 로 자르지 않고 여유를 크게 둔다 — 여기서 가려내려는 것은
+ * "살짝 벗어난 값" 이 아니라 **초기화되지 않은 메모리를 float 으로 읽은 값**이다
+ * (실기기 실측: 2.47e+35, NaN). 둘은 자릿수가 달라 헷갈릴 일이 없다.
+ */
+export const SANE_COORD_LIMIT = 10;
+
+/**
+ * `?delegate=cpu` 로 추론 백엔드를 강제한다 (웹 전용, 없으면 null).
+ *
+ * 실기기에서 GPU/CPU 를 가르는 데 재빌드가 필요하면 A/B 를 안 하게 된다. 2026-08-19
+ * 실기기 테스트에서 GPU 가 쓰레기 좌표를 내는 기기가 실제로 나왔고, 그때 폰에서 즉시
+ * 갈아 끼울 수단이 없었다. 자동 폴백(useLandmarker)이 이 상황을 스스로 처리하지만,
+ * 원인을 사람이 확인하려면 강제 스위치가 따로 있어야 한다.
+ */
+const CORRUPT_VERDICT_KEY = 'ear-dream.gpu-corrupted';
+
+/**
+ * "이 기기의 GPU 는 쓰레기 좌표를 낸다" 는 판정을 기기에 남긴다.
+ *
+ * 남기지 않으면 페이지를 열 때마다 GPU 로 시작했다가 오염을 확인하고 다시 만든다 —
+ * landmarker 3개 생성과 카메라 협상이 두 번 도니까 "카메라 준비중" 이 그만큼 길어진다.
+ * 한 번 겪은 기기는 다음부터 바로 CPU 로 연다. `?delegate=gpu` 로 언제든 다시 시험할 수 있다.
+ */
+export function readGpuCorruptedVerdict(): boolean {
+  try {
+    return window.localStorage.getItem(CORRUPT_VERDICT_KEY) === '1';
+  } catch {
+    return false; // 프라이빗 모드 등에서 접근이 막힐 수 있다 — 없으면 없는 대로 동작한다
+  }
+}
+
+export function rememberGpuCorruptedVerdict(): void {
+  try {
+    window.localStorage.setItem(CORRUPT_VERDICT_KEY, '1');
+  } catch {
+    // 저장 못 해도 동작에는 지장이 없다. 매번 다시 판정할 뿐이다.
+  }
+}
+
+export function forgetGpuCorruptedVerdict(): void {
+  try {
+    window.localStorage.removeItem(CORRUPT_VERDICT_KEY);
+  } catch {
+    // 지우지 못해도 이번 세션 동작에는 영향이 없다.
+  }
+}
+
+/**
+ * `?delegate=` 로 시작 지점을 지정한다 — `cpu` · `gpu` · `gpu-canvas`.
+ *
+ * `gpu-canvas` 가 따로 있는 이유: 명시 캔버스 워크어라운드(mediapipe#4499)는 자동 경로에서
+ * GPU 가 깨진 **다음** 단계인데, 한 번 CPU 판정이 저장되면 다음 로드부터 그 단계를 건너뛰어
+ * 영영 시험되지 않는다. 사람이 직접 그 지점부터 시작할 수 있어야 한다.
+ */
+export function delegateStartFromUrl(): 'GPU' | 'CPU' | 'GPU_CANVAS' | null {
+  if (typeof window === 'undefined' || typeof window.location === 'undefined') return null;
+  const match = /[?&]delegate=(gpu-canvas|gpu|cpu)/i.exec(window.location.search);
+  if (!match) return null;
+  const value = match[1].toLowerCase();
+  if (value === 'gpu-canvas') return 'GPU_CANVAS';
+  return value === 'cpu' ? 'CPU' : 'GPU';
+}
+
+/**
  * 검출 신뢰도 임계값은 의도적으로 지정하지 않는다.
  *
  * min{Hand,Face}DetectionConfidence / min...PresenceConfidence / minTrackingConfidence 는
