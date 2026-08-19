@@ -28,6 +28,12 @@ import {
   HAND_LANDMARKER_MODEL_PATH,
   HUD_UPDATE_INTERVAL_MS,
   LANDMARKER_DELEGATE,
+  SANE_COORD_LIMIT,
+  delegateStartFromUrl,
+  forgetGpuCorruptedVerdict,
+  readGpuCorruptedVerdict,
+  webglSupportsMediapipeGpu,
+  rememberGpuCorruptedVerdict,
   MAX_FACES,
   MAX_HANDS,
   MAX_POSES,
@@ -160,6 +166,58 @@ function describeStartupError(cause: unknown): string {
 }
 
 /** 최근 FPS_SAMPLE_WINDOW 개의 이동평균. 표본이 없으면 0. */
+/**
+ * 이 프레임의 좌표가 정규화 좌표로 말이 되는가.
+ *
+ * **생성 성공 = 정상 동작이 아니다.** 2026-08-19 실기기에서 GPU delegate 가 예외 없이
+ * 만들어진 뒤 NaN 과 2.47e+35 를 뱉었다. 기존 폴백은 `createFromOptions` 가 던질 때만
+ * 걸리므로 이 경우 아무것도 잡지 못했고, 쓰레기 좌표가 그대로 서버까지 갔다(422).
+ *
+ * 검출이 하나도 없는 프레임은 판단하지 않는다 — 손이 화면에 없는 정상 상황과 구분되지 않는다.
+ */
+function looksCorrupted(snapshot: LandmarkSnapshot): boolean {
+  const points = [
+    ...snapshot.hands.flatMap((hand) => hand.landmarks),
+    ...(snapshot.face?.landmarks ?? []),
+    ...(snapshot.pose?.landmarks ?? []),
+  ];
+  if (points.length === 0) return false;
+  return points.some(
+    (point) =>
+      !Number.isFinite(point.x) ||
+      !Number.isFinite(point.y) ||
+      Math.abs(point.x) > SANE_COORD_LIMIT ||
+      Math.abs(point.y) > SANE_COORD_LIMIT,
+  );
+}
+
+/**
+ * 이 프레임의 좌표를 한 줄로 요약한다 (정지 감지용). 검출이 없으면 null.
+ *
+ * 실기기에서 GPU 가 **같은 프레임을 계속 추론하는** 상태가 관측됐다 — 카메라를 돌려도
+ * 어깨점 두 개가 허공에 붙박이고, 좌표는 0~1 범위의 멀쩡한 값이라 범위 검사로는 안 걸린다.
+ * 그래서 "값이 변하는가" 를 따로 본다.
+ */
+function snapshotSignature(snapshot: LandmarkSnapshot): string | null {
+  const parts: number[] = [];
+  const first = snapshot.hands[0]?.landmarks[0];
+  if (first) parts.push(first.x, first.y);
+  const pose = snapshot.pose?.landmarks[0];
+  if (pose) parts.push(pose.x, pose.y);
+  const face = snapshot.face?.landmarks[0];
+  if (face) parts.push(face.x, face.y);
+  return parts.length === 0 ? null : parts.join(',');
+}
+
+/**
+ * 이만큼의 프레임이 **완전히 같은 좌표**로 이어지면 백엔드가 멈춘 것으로 본다.
+ *
+ * 실제 카메라 입력에는 센서 노이즈가 있어 부동소수점 좌표가 연속으로 정확히 일치하는 일은
+ * 사실상 없다. 사람이 가만히 있어도 마지막 자리가 흔들린다. 30 프레임(이 기기 기준 3초)은
+ * 그 여유를 크게 잡은 값이다.
+ */
+const STUCK_FRAME_LIMIT = 30;
+
 function pushSample(samples: number[], value: number): number {
   samples.push(value);
   if (samples.length > FPS_SAMPLE_WINDOW) samples.shift();
@@ -171,9 +229,39 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     enabled = true,
     faceEnabled = true,
     faceDetectEveryNFrames = FACE_DETECT_EVERY_N_FRAMES,
-    delegate: requestedDelegate = LANDMARKER_DELEGATE,
+    delegate: optionDelegate = LANDMARKER_DELEGATE,
     onFrame,
   } = options;
+
+  const urlStart = delegateStartFromUrl();
+  // URL 로 지정했다는 건 사람이 직접 시험한다는 뜻이다. 저장된 판정이 그걸 가로막으면 안 된다.
+  if (urlStart !== null) forgetGpuCorruptedVerdict();
+  const urlDelegate: LandmarkerDelegate | null =
+    urlStart === null ? null : urlStart === 'CPU' ? 'CPU' : 'GPU';
+
+  /**
+   * 쓰레기 좌표가 나왔을 때 밟는 단계.
+   *
+   * 'gpu' → 'gpu-canvas' → 'cpu' 순으로 내려간다. **중간 단계가 중요하다** — 기존 코드의
+   * 명시 캔버스 워크어라운드(mediapipe#4499)는 `createFromOptions` 가 던질 때만 시도되는데,
+   * 이 기기는 생성에 성공하고 출력만 깨지므로 한 번도 시도되지 않았다. 폰 CPU 로 3모델은
+   * 느리니, CPU 로 내려가기 전에 그 워크어라운드를 한 번은 써 본다.
+   *
+   * 이미 판정이 남아 있는 기기는 처음부터 CPU 로 연다(초기화를 두 번 하지 않는다).
+   * 단 `?delegate=` 를 준 경우에는 사람이 직접 시험하는 것이므로 판정을 무시한다.
+   */
+  const [attempt, setAttempt] = useState<'gpu' | 'gpu-canvas' | 'cpu'>(() => {
+    if (urlStart === 'GPU_CANVAS') return 'gpu-canvas';
+    if (urlStart !== null) return urlStart === 'CPU' ? 'cpu' : 'gpu';
+    if (readGpuCorruptedVerdict()) return 'cpu';
+    // float 렌더 타깃이 없으면 GPU 추론 결과를 읽어 올 수 없다 — 시도 자체를 건너뛴다.
+    return webglSupportsMediapipeGpu() ? 'gpu' : 'cpu';
+  });
+
+  // 우선순위: URL 강제 > 오염 단계 > 호출자 지정 > 기본값
+  const requestedDelegate: LandmarkerDelegate =
+    urlDelegate ?? (attempt === 'cpu' ? 'CPU' : optionDelegate);
+  const forceCanvas = attempt === 'gpu-canvas';
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
 
@@ -248,6 +336,17 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     // 화면 표시 전용으로 들고 있는 직전 얼굴. 스냅샷의 face(관측값)와 절대 섞지 않는다.
     let heldFace: DetectedFace | null = null;
     let processedFrames = 0;
+    // 추론 입력 프레임. <video> 를 직접 넘기지 않고 **우리가 그린 캔버스**를 넘긴다.
+    //
+    // 실기기 실측(2026-08-19): <video> 를 그대로 넘기면 돌아오는 정규화 좌표가 화면에 보이는
+    // 영상과 다른 사각형을 기준으로 나왔다(오차 실측 x +0.069, y -0.053). 어떤 사각형을
+    // 기준으로 정규화하는지는 브라우저 구현에 달려 있어 이쪽에서 통제할 수 없다.
+    // 프레임을 직접 그려 넘기면 기준 사각형이 **우리가 정한 크기**로 확정된다 —
+    // 그 크기를 그대로 sourceWidth/Height 로 싣고 오버레이도 같은 값으로 매핑한다.
+    const inputCanvas = document.createElement('canvas');
+    const inputContext = inputCanvas.getContext('2d', { willReadFrequently: false });
+    let lastSignature: string | null = null;
+    let stuckFrames = 0;
     // 실제로 적용된 백엔드(GPU 폴백 반영). 스냅샷마다 실어 캡처 메타로 흘러간다.
     let appliedDelegate: LandmarkerDelegate = requestedDelegate;
 
@@ -306,12 +405,13 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       // 환경(데스크톱 Chrome 등)의 동작은 이 변경 전과 완전히 동일하다. 안 되는 환경에서는
       // 어차피 다음 단계가 CPU 였고, 폰 CPU 로 3모델은 실용성이 의심스러우니 시도할 값이 있다.
       let delegate: LandmarkerDelegate = requestedDelegate;
-      let canvasFallback = false;
+      let canvasFallback = forceCanvas;
       try {
         [handLandmarker, faceLandmarker, poseLandmarker] = await createLandmarkerTrio(
           vision,
           fileset,
           delegate,
+          forceCanvas,
         );
       } catch (cause) {
         // WebGL 을 못 쓰는 환경이 있을 수 있다. 백엔드 때문에 전체가 죽는 것보다 느려도 도는 게 낫다.
@@ -356,6 +456,14 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       if (!handLandmarker || !faceLandmarker || !poseLandmarker || !video || video.readyState < 2)
         return;
       if (video.videoWidth === 0) return;
+      if (!inputContext) return;
+
+      // 이 프레임을 추론 입력 캔버스로 복사한다. 이후 모든 좌표의 기준은 이 캔버스다.
+      if (inputCanvas.width !== video.videoWidth || inputCanvas.height !== video.videoHeight) {
+        inputCanvas.width = video.videoWidth;
+        inputCanvas.height = video.videoHeight;
+      }
+      inputContext.drawImage(video, 0, 0, inputCanvas.width, inputCanvas.height);
 
       // 카메라가 아직 새 프레임을 주지 않았으면 같은 프레임을 다시 처리하지 않는다.
       if (video.currentTime === lastVideoTime) return;
@@ -367,7 +475,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       lastTimestamp = timestampMs;
 
       const handStartedAt = performance.now();
-      const handResult = handLandmarker.detectForVideo(video, timestampMs);
+      const handResult = handLandmarker.detectForVideo(inputCanvas, timestampMs);
       handDetectMs = pushSample(handDurations, performance.now() - handStartedAt);
 
       const hands: DetectedHand[] = handResult.landmarks.map((landmarks, index) => {
@@ -397,7 +505,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
         faceDetectMs = 0;
       } else if (faceDue) {
         const faceStartedAt = performance.now();
-        const faceResult = faceLandmarker.detectForVideo(video, timestampMs);
+        const faceResult = faceLandmarker.detectForVideo(inputCanvas, timestampMs);
         faceDetectMs = pushSample(faceDurations, performance.now() - faceStartedAt);
 
         const landmarks = faceResult.faceLandmarks[0];
@@ -415,7 +523,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       // 포즈는 손·얼굴과 같은 프레임 · 같은 타임스탬프로 매번 처리한다. 시점이 어긋나면
       // 세그먼트를 만들 때 손 동작과 어깨 위치가 어긋난 채로 쌓인다.
       const poseStartedAt = performance.now();
-      const poseResult = poseLandmarker.detectForVideo(video, timestampMs);
+      const poseResult = poseLandmarker.detectForVideo(inputCanvas, timestampMs);
       poseDetectMs = pushSample(poseDurations, performance.now() - poseStartedAt);
 
       // 이 프레임의 관측값. 검출 실패면 null 로 남긴다 — 직전 값으로 메우지 않는다(face 와 같은 원칙).
@@ -448,10 +556,34 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
         // 통째로 어긋난다. 그래서 방향 전환을 여기서 "처리" 하지 않고, 그냥 그 프레임의 실측값을
         // 그대로 싣는다. 세그먼트 안에서 이 값이 바뀌는 경우(= 프레임마다 좌표계가 다른 경우)는
         // useSegmentRecorder 가 감지해 그 세그먼트를 폐기한다.
-        sourceWidth: video.videoWidth,
-        sourceHeight: video.videoHeight,
+        // 추론 입력 캔버스 크기 = 좌표의 기준 프레임. video.videoWidth 와 같은 값이지만
+        // "좌표가 무엇을 기준으로 정규화됐는가" 를 싣는 것이므로 캔버스에서 읽는다.
+        sourceWidth: inputCanvas.width,
+        sourceHeight: inputCanvas.height,
         delegate: appliedDelegate,
       };
+
+      // 백엔드가 쓰레기를 내고 있으면 여기서 끊는다. 아래로 흘려보내면 오버레이가 화면 밖에
+      // 그려지고 세그먼트가 그대로 서버로 간다.
+      // 정지 감지 — 값이 전혀 변하지 않으면 같은 이미지를 반복 추론하고 있는 것이다.
+      const signature = snapshotSignature(snapshot);
+      if (signature !== null && signature === lastSignature) stuckFrames += 1;
+      else stuckFrames = 0;
+      lastSignature = signature;
+
+      const stuck = stuckFrames >= STUCK_FRAME_LIMIT;
+      if (appliedDelegate !== 'CPU' && urlDelegate === null && (stuck || looksCorrupted(snapshot))) {
+        const next = attempt === 'gpu' ? 'gpu-canvas' : 'cpu';
+        console.warn(
+          stuck
+            ? `GPU delegate 가 ${STUCK_FRAME_LIMIT} 프레임 동안 같은 좌표만 냈습니다 (${attempt}) — ${next} 로 다시 만듭니다.`
+            : `GPU delegate 가 정규화 범위를 벗어난 좌표를 냈습니다 (${attempt}) — ${next} 로 다시 만듭니다.`,
+        );
+        if (next === 'cpu') rememberGpuCorruptedVerdict();
+        cancelAnimationFrame(rafId);
+        setAttempt(next);
+        return;
+      }
 
       onFrameRef.current?.(snapshot);
 
@@ -492,7 +624,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     };
     // delegate 는 모델 생성 시점에만 쓰이므로 바꾸려면 재시작이 필요하다.
     // faceEnabled / faceDetectEveryNFrames 와 달리 여기 들어가 있는 이유다.
-  }, [enabled, requestedDelegate]);
+  }, [enabled, requestedDelegate, forceCanvas, attempt, urlDelegate]);
 
   return {
     status,

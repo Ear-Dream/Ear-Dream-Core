@@ -60,6 +60,101 @@ export const FACE_DETECT_EVERY_N_FRAMES = 1;
 export const LANDMARKER_DELEGATE = 'GPU' as const;
 
 /**
+ * 정규화 좌표로 인정할 절댓값 상한.
+ *
+ * MediaPipe 정규화 좌표는 0~1 이지만 랜드마크가 프레임 밖으로 나가면 조금 넘거나 음수가
+ * 될 수 있다. 그래서 딱 0~1 로 자르지 않고 여유를 크게 둔다 — 여기서 가려내려는 것은
+ * "살짝 벗어난 값" 이 아니라 **초기화되지 않은 메모리를 float 으로 읽은 값**이다
+ * (실기기 실측: 2.47e+35, NaN). 둘은 자릿수가 달라 헷갈릴 일이 없다.
+ */
+export const SANE_COORD_LIMIT = 10;
+
+/**
+ * `?delegate=cpu` 로 추론 백엔드를 강제한다 (웹 전용, 없으면 null).
+ *
+ * 실기기에서 GPU/CPU 를 가르는 데 재빌드가 필요하면 A/B 를 안 하게 된다. 2026-08-19
+ * 실기기 테스트에서 GPU 가 쓰레기 좌표를 내는 기기가 실제로 나왔고, 그때 폰에서 즉시
+ * 갈아 끼울 수단이 없었다. 자동 폴백(useLandmarker)이 이 상황을 스스로 처리하지만,
+ * 원인을 사람이 확인하려면 강제 스위치가 따로 있어야 한다.
+ */
+/**
+ * 이 기기의 WebGL 이 MediaPipe GPU 추론을 감당하는가.
+ *
+ * MediaPipe 의 GPU 경로는 **32비트 float 렌더 타깃**에 텐서를 쓰고 되읽는다. WebGL2 에서
+ * 그걸 허용하는 게 `EXT_color_buffer_float` 인데, 이게 없는 기기에서는 프레임버퍼가
+ * incomplete 가 되어 추론은 도는 듯하면서 **읽어 온 값이 쓰레기**가 된다
+ * (실측 2026-08-19, 삼성 안드로이드: 좌표 2.47e+35 · NaN, 명시 캔버스 경로에서는 값 고정.
+ *  같은 증상이 mediapipe#5190 · #2141 에 보고돼 있고 아직 미해결이다).
+ *
+ * 런타임 오염 감지(useLandmarker)가 이 상황을 결국 잡아내지만, 그때는 이미 초기화를 두 번
+ * 돌린 뒤다 — 카메라 준비가 그만큼 길어지고 나쁜 좌표가 잠깐 흐른다. 미리 걸러 그 창을 없앤다.
+ *
+ * ⚠️ 이 확장이 없다고 GPU 가 반드시 깨진다고 단정할 근거는 우리 실측 한 대뿐이다. 그래서
+ * 이건 **기본 경로의 지름길**일 뿐이고, `?delegate=gpu` 로는 여전히 강제로 시험할 수 있다.
+ */
+export function webglSupportsMediapipeGpu(): boolean {
+  if (typeof document === 'undefined') return false;
+  try {
+    const gl = document.createElement('canvas').getContext('webgl2');
+    if (!gl) return false;
+    const supported = gl.getExtension('EXT_color_buffer_float') !== null;
+    gl.getExtension('WEBGL_lose_context')?.loseContext(); // 판정용 컨텍스트를 남기지 않는다
+    return supported;
+  } catch {
+    return false; // 판정 자체가 안 되면 안전한 쪽(CPU)으로 간다
+  }
+}
+
+const CORRUPT_VERDICT_KEY = 'ear-dream.gpu-corrupted';
+
+/**
+ * "이 기기의 GPU 는 쓰레기 좌표를 낸다" 는 판정을 기기에 남긴다.
+ *
+ * 남기지 않으면 페이지를 열 때마다 GPU 로 시작했다가 오염을 확인하고 다시 만든다 —
+ * landmarker 3개 생성과 카메라 협상이 두 번 도니까 "카메라 준비중" 이 그만큼 길어진다.
+ * 한 번 겪은 기기는 다음부터 바로 CPU 로 연다. `?delegate=gpu` 로 언제든 다시 시험할 수 있다.
+ */
+export function readGpuCorruptedVerdict(): boolean {
+  try {
+    return window.localStorage.getItem(CORRUPT_VERDICT_KEY) === '1';
+  } catch {
+    return false; // 프라이빗 모드 등에서 접근이 막힐 수 있다 — 없으면 없는 대로 동작한다
+  }
+}
+
+export function rememberGpuCorruptedVerdict(): void {
+  try {
+    window.localStorage.setItem(CORRUPT_VERDICT_KEY, '1');
+  } catch {
+    // 저장 못 해도 동작에는 지장이 없다. 매번 다시 판정할 뿐이다.
+  }
+}
+
+export function forgetGpuCorruptedVerdict(): void {
+  try {
+    window.localStorage.removeItem(CORRUPT_VERDICT_KEY);
+  } catch {
+    // 지우지 못해도 이번 세션 동작에는 영향이 없다.
+  }
+}
+
+/**
+ * `?delegate=` 로 시작 지점을 지정한다 — `cpu` · `gpu` · `gpu-canvas`.
+ *
+ * `gpu-canvas` 가 따로 있는 이유: 명시 캔버스 워크어라운드(mediapipe#4499)는 자동 경로에서
+ * GPU 가 깨진 **다음** 단계인데, 한 번 CPU 판정이 저장되면 다음 로드부터 그 단계를 건너뛰어
+ * 영영 시험되지 않는다. 사람이 직접 그 지점부터 시작할 수 있어야 한다.
+ */
+export function delegateStartFromUrl(): 'GPU' | 'CPU' | 'GPU_CANVAS' | null {
+  if (typeof window === 'undefined' || typeof window.location === 'undefined') return null;
+  const match = /[?&]delegate=(gpu-canvas|gpu|cpu)/i.exec(window.location.search);
+  if (!match) return null;
+  const value = match[1].toLowerCase();
+  if (value === 'gpu-canvas') return 'GPU_CANVAS';
+  return value === 'cpu' ? 'CPU' : 'GPU';
+}
+
+/**
  * 검출 신뢰도 임계값은 의도적으로 지정하지 않는다.
  *
  * min{Hand,Face}DetectionConfidence / min...PresenceConfidence / minTrackingConfidence 는

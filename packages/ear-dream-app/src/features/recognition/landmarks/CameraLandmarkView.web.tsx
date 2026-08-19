@@ -92,7 +92,7 @@ export function CameraLandmarkView() {
     <div style={styles.root}>
       <div style={{ ...styles.stage, ...mirrorStyle }}>
         <video ref={videoRef} autoPlay playsInline muted style={styles.layer} />
-        <canvas ref={canvasRef} style={styles.layer} />
+        <canvas ref={canvasRef} style={styles.overlayLayer} />
       </div>
 
       <div style={styles.controls}>
@@ -165,7 +165,7 @@ export function CameraLandmarkView() {
         {gpuCanvasFallback ? (
           <div style={styles.hudRow}>
             <strong>GPU 캔버스 워크어라운드</strong>
-            <span>적용됨 (기본 GPU 생성 실패)</span>
+            <span>적용됨</span>
           </div>
         ) : null}
         <div style={styles.hudRow}>
@@ -270,6 +270,13 @@ const styles: Record<string, React.CSSProperties> = {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
+  },
+  // 오버레이 캔버스는 object-fit 을 쓰지 않는다 — cover 매핑을 overlay.web.ts 가 직접 계산한다.
+  overlayLayer: {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
   },
   controls: {
     display: 'flex',
