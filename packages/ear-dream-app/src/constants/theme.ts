@@ -7,6 +7,8 @@
  * 시안은 Light/Dark 양쪽 토큰을 정의하지만 현재는 Light 만 구현한다.
  * Dark 값이 확정되면 `darkTheme: ThemeColors` 를 추가하고 선택 로직을 붙인다.
  */
+import { Platform, type TextStyle } from 'react-native';
+
 export interface ThemeColors {
   text: {
     primary: string;
@@ -35,10 +37,17 @@ export interface ThemeColors {
   status: {
     success: string;
     /**
+     * 다크 뷰파인더 위의 초록 (확정 디자인 `status/success-on-dark`).
+     * `success`(#137a43)는 밝은 면 기준이라 bg/video 위에서는 거의 안 읽힌다.
+     */
+    successOnDark: string;
+    /**
      * 빨강 계열(녹화 중 배지 · 정지 버튼 · 인식 실패)은 피그마 변수 실측값이 없어
      * 시안 스크린샷 관측 근사값이다. 변수 값이 확인되면 여기만 교체한다.
      */
     error: string;
+    /** 다크 뷰파인더 위의 빨강 (확정 디자인 「2-1. 인식 실패」 실측 하드코드값). */
+    errorOnDark: string;
     /** 인식 실패 예외 카드의 연빨강 배경 */
     errorSubtle: string;
     /** 듣는 중 상태의 연빨강 링 등 중간 톤 */
@@ -69,7 +78,9 @@ export const lightTheme: ThemeColors = {
   },
   status: {
     success: '#137a43',
+    successOnDark: '#4ade80',
     error: '#dc2626',
+    errorOnDark: '#c62828',
     errorSubtle: '#fdeeed',
     errorSoft: '#f2b8b5',
   },
@@ -95,6 +106,20 @@ export const radius = { sm: 8, md: 12, lg: 16, xl: 24, pill: 999 } as const;
 
 /** 한 손(엄지) 조작 기준 최소 터치 타겟. iOS 44pt / Android 48dp 이상. */
 export const touchTarget = { minHeight: 48 } as const;
+
+/**
+ * 한국어 큰 글자용 줄바꿈 규칙 — **어절 단위로만 끊는다**.
+ *
+ * 브라우저 기본값은 한글을 글자 단위로 끊어서, 큰 글자일수록 "반갑습 / 니다." 처럼
+ * 한 단어가 두 줄에 걸린다. 시안의 줄바꿈(「안녕하세요, / 반갑습니다.」)은 어절 기준이라
+ * 이걸 맞춰야 같은 그림이 된다. 읽기 난이도 문제이기도 하다 — 이 문장은 청인이 처음
+ * 보는 문장이라 한 번에 읽혀야 한다.
+ *
+ * 웹 전용 CSS 라 RN 스타일 타입에 없다. 네이티브에서는 빈 객체가 되어 무시된다.
+ */
+export const koreanWordBreak = (
+  Platform.OS === 'web' ? { wordBreak: 'keep-all' } : {}
+) as TextStyle;
 
 /**
  * 화면 콘텐츠 최대 폭. 피그마 시안이 세로 430pt 기준이라, 웹 브라우저에서

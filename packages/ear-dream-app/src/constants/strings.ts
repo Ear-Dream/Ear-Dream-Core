@@ -1,16 +1,18 @@
 import type { QualityIssue } from '@ear-dream/core';
 
 /**
- * 화면 문자열 모음 — 피그마 「UI v2 (MVP)」 시안 카피 기준.
+ * 화면 문자열 모음 — 피그마 「확정 디자인」 카피 기준.
  *
  * 시안에 있는 문구는 그대로 옮겼다. 시안에 프레임이 없어 앱에서 보충한 문구는
  * 주석으로 "시안 외 임시 카피" 라고 표시했다 — 확정 카피가 아니라는 뜻이다.
  */
 export const strings = {
   common: {
-    appName: 'Ear Dream',
-    logoAlt: 'Ear Dream 로고',
+    /** 워드마크는 이미지(components/Wordmark)라 스크린 리더가 읽을 글자가 여기뿐이다. */
+    logoAlt: '이어 드림',
     back: '뒤로 가기',
+    /** AppBar 우측 홈 버튼 — 세션을 끝내고 첫 화면으로. */
+    goHome: '처음으로',
   },
 
   home: {
@@ -27,6 +29,8 @@ export const strings = {
   signInput: {
     appBarTitle: '수어 입력',
     recordingBadge: '녹화 중',
+    /** 인식 실패 배지(확정 디자인 2-1) — 뷰파인더 우상단. 카드 테두리가 함께 빨강이 된다. */
+    failedBadge: '인식 실패',
     captureAlt: '단어 기록 버튼. 누르는 동안 수어 한 단어를 기록합니다',
     captureHint: '버튼을 누른 채 한 단어를 동작해 주세요',
     cameraLoading: '카메라 준비 중...',
@@ -160,7 +164,6 @@ export const strings = {
     composeFailedTitle: '문장을 만들지 못했어요',
     composeFailedBody: '입력한 단어는 그대로 있어요. 연결을 확인한 뒤 다시 보내주세요.',
     retryCompose: '다시 보내기',
-    backToStart: '처음으로 돌아가기',
   },
 
   voiceInput: {
@@ -239,10 +242,9 @@ export const strings = {
     sequencesMissing: '수어 동작 시퀀스가 없습니다. pnpm setup:sign-sequences 로 생성하세요.',
     /** 서버와 시퀀스 번들 판이 다름 — 조용히 틀린 걸 재생하면 안 된다. */
     bundleMismatch: '서버와 수어 동작 시퀀스의 판본이 다릅니다. 시퀀스를 다시 생성하세요.',
-    playedWordsLabel: '재생한 단어',
-    /** 시안에 없는 소스 영역 라벨 — 사용자 확정 범위에 따라 추가. 시안 외 임시 카피. */
-    sourceLabel: '상대방이 말한 내용',
     speedLabel: '재생 속도',
-    replay: '다시 보기',
+    replay: '다시보기',
+    /** 하단 primary — 농인 트랙(수어 입력)으로 넘어간다. 확정 디자인 카피. */
+    reply: '답장하기',
   },
 } as const;

@@ -7,7 +7,7 @@ export type BadgeVariant =
   | 'recording'
   /** 흰 배경 + 초록 dot ("● 재생 중") */
   | 'playing'
-  /** 배경 없음, 빨간 dot + 빨간 텍스트 ("● 인식 실패") */
+  /** 흰 말풍선 + 빨간 dot + 빨간 텍스트 ("● 인식 실패") — 다크 뷰파인더 위에 얹힌다 */
   | 'error'
   /** 흰 말풍선 + 인디고 dot ("● 듣고 있어요") */
   | 'listening';
@@ -18,7 +18,7 @@ export interface BadgeProps {
   testID?: string;
 }
 
-/** 공통 상태 배지 (V2 시안 4종). dot + 라벨 구성. */
+/** 공통 상태 배지 (확정 디자인 4종). dot + 라벨 구성. */
 export function Badge({ label, variant, testID }: BadgeProps) {
   const preset = presets[variant];
   return (
@@ -46,7 +46,7 @@ const presets = {
     textColor: colors.text.primary,
   },
   error: {
-    container: { backgroundColor: 'transparent', paddingHorizontal: 0 },
+    container: { backgroundColor: colors.bg.canvas },
     dotColor: colors.status.error,
     textColor: colors.status.error,
   },
@@ -66,9 +66,10 @@ const styles = StyleSheet.create({
     // 정렬(좌상단/중앙)은 배치하는 쪽이 정한다 — 여기서 alignSelf 를 강제하지 않는다.
     flexDirection: 'row',
     alignItems: 'center',
+    // 확정 디자인 실측: 높이 32 · 좌우 패딩 12/14 · dot 간격 6.
     gap: spacing.sm - 2,
-    paddingVertical: spacing.xs + 2,
-    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs + 3,
+    paddingHorizontal: spacing.md + 1,
     borderRadius: radius.pill,
   },
   dot: {

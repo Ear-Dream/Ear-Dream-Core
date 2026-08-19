@@ -8,7 +8,7 @@ import { Chevron } from '../../components/Chevron';
 import { ScreenFrame } from '../../components/ScreenFrame';
 import { DETECTION_GUIDE_DELAY_MS, RESULT_NOTICE_AUTO_DISMISS_MS } from '../../constants/mock';
 import { strings } from '../../constants/strings';
-import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
+import { colors, fonts, koreanWordBreak, radius, spacing, touchTarget } from '../../constants/theme';
 import { useHandheldLandscape } from '../../hooks/useHandheldLandscape';
 import type {
   QueueNotice,
@@ -47,8 +47,9 @@ export interface SignInputScreenProps {
 const CAPTURE_BUTTON_SIZE = 88;
 
 /**
- * 수어 입력 화면 — V2 시안의 비주얼(다크 뷰파인더 카드 + 녹화 배지 + 가이드 박스 +
- * 하단 단어 스트립)에 pill 큐(태그 입력) UX(2026-08-10 사용자 확정)를 배선한 화면.
+ * 수어 입력 화면 — 확정 디자인의 비주얼(다크 뷰파인더 카드 + 녹화/인식 실패 배지 +
+ * 가이드 박스 + 하단 단어 스트립)에 pill 큐(태그 입력) UX(2026-08-10 사용자 확정)를
+ * 배선한 화면.
  *
  * 하단 대형 버튼을 **누르는 동안** 한 단어를 기록하고(boundary_mode: manual), 떼는 즉시
  * 스트립 끝에 대기 pill(···)이 붙는다. 사용자는 응답을 기다리지 않고 바로 다음 단어를 찍을 수
@@ -77,6 +78,13 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
 
   const chipsScrollRef = useRef<ScrollView | null>(null);
   const { entries, notice, dismissNotice } = queue;
+
+  // 확정 디자인 「2-1. 인식 실패」 상태 — 카드가 통째로 빨강으로 바뀌는 조건.
+  // 두 가지가 여기로 모인다: 손이 계속 안 잡히거나(guide.kind === 'hands'), 방금 보낸
+  // 단어가 rejected/low_quality 로 돌아왔거나. 둘 다 "지금 이 프레임으로는 안 된다" 는
+  // 같은 뜻이라 사용자가 할 일도 같다 — 손을 화면에 넣고 다시 동작하는 것.
+  const recognitionFailed = notice?.kind === 'result';
+  const cardAlert = guide.kind === 'hands' || recognitionFailed;
 
   const pendingCount = entries.filter((entry) => entry.state === 'pending').length;
   const failedCount = entries.filter((entry) => entry.state === 'failed').length;
@@ -285,7 +293,7 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
         </>
       }
     >
-      <View style={styles.card}>
+      <View style={[styles.card, cardAlert && styles.cardAlert]}>
         <SignCameraView onDetectionChange={setDetection} onFrame={recorder.onFrame} />
 
         <View style={styles.cardOverlay} pointerEvents="none">
@@ -294,20 +302,46 @@ export function SignInputScreen({ queue, onCompose, modelReady, onBack }: SignIn
               {strings.signInput.modelNotReady}
             </Text>
           ) : null}
-          {recorder.recording ? (
-            <View style={styles.recordBadge}>
+
+          {/* 상단 배지 줄 — 왼쪽 녹화 중 / 오른쪽 인식 실패 (확정 디자인 2-1 배치). */}
+          <View style={styles.badgeRow}>
+            {recorder.recording ? (
               <Badge
                 label={`${strings.signInput.recordingBadge} ${formatSeconds(recordSeconds)}`}
                 variant="recording"
                 testID="sign-input-recording"
               />
-            </View>
-          ) : null}
-          {/* 프레이밍 가이드 박스(V2 시안) — 얼굴·양어깨·손이 들어올 자리를 시각화한다. */}
-          <View style={styles.guideBox} />
+            ) : null}
+            {recognitionFailed ? (
+              <Badge
+                label={strings.signInput.failedBadge}
+                variant="error"
+                testID="sign-input-failed-badge"
+              />
+            ) : null}
+          </View>
+
+          {/*
+            프레이밍 가이드 박스(확정 디자인) — 얼굴·양어깨·손이 들어올 자리를 시각화한다.
+            잘 잡히는 동안은 초록, 손이 안 잡히거나 방금 인식이 실패하면 빨강으로 바뀐다.
+            안쪽의 큰 「!」 는 색만으로 구분하지 않기 위한 도형 신호다.
+          */}
+          <View style={[styles.guideBox, cardAlert && styles.guideBoxAlert]}>
+            {cardAlert ? (
+              <View style={styles.alertMark} testID="sign-input-alert-mark">
+                <Text style={styles.alertGlyph}>!</Text>
+              </View>
+            ) : null}
+          </View>
+
           {detection.status === 'running' && !landscape ? (
             <Text
-              style={[styles.guideText, guide.kind !== 'ok' && styles.guideTextWarn]}
+              style={[
+                styles.guideText,
+                guide.kind !== 'ok' && styles.guideTextWarn,
+                cardAlert && styles.guideTextAlert,
+                koreanWordBreak,
+              ]}
               testID="sign-input-guide"
             >
               {guide.message}
@@ -435,7 +469,13 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     overflow: 'hidden',
     position: 'relative',
+    borderWidth: 3,
+    borderColor: 'transparent',
     backgroundColor: colors.bg.video,
+  },
+  /** 확정 디자인 「2-1. 인식 실패」 — 카드 테두리가 빨강으로 바뀐다. */
+  cardAlert: {
+    borderColor: colors.status.error,
   },
   cardOverlay: {
     position: 'absolute',
@@ -457,32 +497,69 @@ const styles = StyleSheet.create({
     color: colors.text.onVideo,
     textAlign: 'center',
   },
-  recordBadge: {
-    alignSelf: 'flex-start',
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    // 배지가 하나뿐일 때도 자리가 흔들리지 않게 최소 높이를 준다.
+    minHeight: 30,
   },
-  // V2 시안의 프레이밍 가이드 — 초록 라운드 프레임. 검출과 무관한 정적 가이드다.
+  // 확정 디자인의 프레이밍 가이드 — 초록 라운드 프레임.
+  // 다크 면 위라 `success`(밝은 면용)가 아니라 `successOnDark` 다.
   guideBox: {
     flex: 1,
     marginTop: spacing.lg,
     marginHorizontal: spacing.xl,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 2,
-    borderColor: colors.status.success,
+    borderColor: colors.status.successOnDark,
     borderRadius: radius.xl,
   },
+  guideBoxAlert: {
+    borderColor: colors.status.error,
+  },
+  /** 인식 실패 상태의 큰 「!」 — 색에만 기대지 않는 도형 신호(확정 디자인 2-1). */
+  alertMark: {
+    width: 132,
+    height: 132,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: radius.pill,
+    // 다크 뷰파인더 위에 얹히는 흐린 빨강 원.
+    backgroundColor: 'rgba(220, 38, 38, 0.22)',
+  },
+  alertGlyph: {
+    fontFamily: fonts.bold,
+    fontSize: 64,
+    lineHeight: 76,
+    color: colors.status.error,
+  },
+
   // 검출 안내 — 비차단 문구. 잘 보일 때는 초록, 조정이 필요하면 흰색으로 갈린다.
+  // 확정 디자인 실측: Medium 32 / 행간 145% / status-success-on-dark (430pt 폭 기준).
+  // 좁은 화면에 맞춰 한 단계 줄였다.
   guideText: {
     marginTop: spacing.lg,
     marginBottom: spacing.sm,
-    fontFamily: fonts.bold,
-    fontSize: 22,
-    lineHeight: 30,
+    fontFamily: fonts.medium,
+    fontSize: 28,
+    lineHeight: 41,
+    letterSpacing: -0.4,
     textAlign: 'center',
-    color: colors.status.success,
+    color: colors.status.successOnDark,
   },
   guideTextWarn: {
-    fontSize: 17,
-    lineHeight: 24,
+    fontSize: 20,
+    lineHeight: 28,
     color: colors.text.onVideo,
+  },
+  // 확정 디자인 「2-1. 인식 실패」 실측: Bold 40 / 행간 135% / #c62828.
+  guideTextAlert: {
+    fontFamily: fonts.bold,
+    fontSize: 34,
+    lineHeight: 46,
+    color: colors.status.errorOnDark,
   },
   // 가로 안내 — 프리뷰 위 전면 스크림. 시안에 없는 화면이라 배색·치수는 임시값이다.
   // ⚠️ 이 안내가 뜨는 상황은 정의상 **가로**라 카드 높이가 매우 낮다(실측: 375x812 기준
