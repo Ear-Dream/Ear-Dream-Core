@@ -216,7 +216,19 @@ function snapshotSignature(snapshot: LandmarkSnapshot): string | null {
  * 사실상 없다. 사람이 가만히 있어도 마지막 자리가 흔들린다. 30 프레임(이 기기 기준 3초)은
  * 그 여유를 크게 잡은 값이다.
  */
-const STUCK_FRAME_LIMIT = 30;
+const STUCK_FRAME_LIMIT = 12;
+
+/**
+ * 명시 캔버스 워크어라운드를 시도할 가치가 있는 플랫폼인가.
+ *
+ * 그 워크어라운드(mediapipe#4499)는 iOS WebView 대상이다. 안드로이드에서는 실측 결과
+ * 좌표가 얼어붙기만 했고(2026-08-19), 그 단계를 거치는 동안 틀어진 좌표가 화면과 서버로
+ * 나간다. 이득이 확인되지 않은 단계 때문에 나쁜 프레임 창을 늘릴 이유가 없다.
+ */
+function canvasWorkaroundWorthTrying(): boolean {
+  if (typeof navigator === 'undefined') return true;
+  return !/Android/i.test(navigator.userAgent);
+}
 
 function pushSample(samples: number[], value: number): number {
   samples.push(value);
@@ -573,7 +585,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
 
       const stuck = stuckFrames >= STUCK_FRAME_LIMIT;
       if (appliedDelegate !== 'CPU' && urlDelegate === null && (stuck || looksCorrupted(snapshot))) {
-        const next = attempt === 'gpu' ? 'gpu-canvas' : 'cpu';
+        const next = attempt === 'gpu' && canvasWorkaroundWorthTrying() ? 'gpu-canvas' : 'cpu';
         console.warn(
           stuck
             ? `GPU delegate 가 ${STUCK_FRAME_LIMIT} 프레임 동안 같은 좌표만 냈습니다 (${attempt}) — ${next} 로 다시 만듭니다.`
