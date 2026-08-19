@@ -17,7 +17,11 @@ export interface ButtonProps {
 }
 
 /**
- * 공통 버튼 (V2 시안). 한 손 조작 기준 최소 터치 타겟을 base 스타일에서 강제한다.
+ * 공통 버튼 (확정 디자인 `Button` 컴포넌트).
+ *
+ * 시안이 컴포넌트 설명에 규칙을 적어 두었다 — **높이 60pt(최소 터치 타깃 48pt 초과),
+ * Primary 는 화면당 1개만.** 화면마다 primary 가 여럿이면 "지금 할 일"이 흐려지므로,
+ * 이탈 경로(처음으로 등)는 AppBar 의 홈 버튼이나 outline 으로 내린다.
  */
 export function Button({
   label,
@@ -50,14 +54,14 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: 52,
+    minHeight: 60,
     alignSelf: 'stretch',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: spacing.md,
     paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
+    borderRadius: radius.pill,
   },
   pressed: {
     opacity: 0.75,
@@ -70,8 +74,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
+    fontFamily: fonts.bold,
+    // 시안은 430pt 폭 기준 25pt 다. 좁은 화면에서 긴 라벨이 접히지 않게 한 단계 줄였다.
+    fontSize: 20,
+    letterSpacing: -0.3,
     color: colors.text.onBrand,
   },
   outlineLabel: {
@@ -85,7 +91,7 @@ const variantStyles = StyleSheet.create({
   },
   outline: {
     backgroundColor: colors.bg.canvas,
-    borderWidth: 1.5,
+    borderWidth: 2,
     borderColor: colors.brand.primary,
   },
 });

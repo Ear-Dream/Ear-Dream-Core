@@ -4,14 +4,17 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SentenceCandidate } from '@ear-dream/core';
 
 import { Button } from '../../components/Button';
+import { HomeAction } from '../../components/HomeAction';
 import { ScreenFrame } from '../../components/ScreenFrame';
 import { SpinnerRing } from '../../components/SpinnerRing';
+import { Waveform } from '../../components/Waveform';
 import { strings } from '../../constants/strings';
-import { colors, fonts, radius, spacing } from '../../constants/theme';
+import { colors, fonts, koreanWordBreak, radius, spacing } from '../../constants/theme';
 import type { ComposerPhase } from '../recognition/api/useSentenceComposer';
 import type { SessionWord } from '../recognition/session';
 import { useSpeech } from './speech';
 import { SpeakerButton, type SpeakerStatus } from './SpeakerButton';
+import { useSpeakingWaveform } from './useSpeakingWaveform';
 
 export interface ResultScreenProps {
   /** 문장을 만든 입력 단어 열 — 문장과 병기해 무엇에서 나온 문장인지 보여준다. */
@@ -22,14 +25,15 @@ export interface ResultScreenProps {
   onRetry: () => void;
   /** "답장하기" — 청인 트랙(음성 입력)으로. 세션 종료(칩 비움)를 겸한다. */
   onReply: () => void;
-  /** "처음으로 돌아가기" — 세션 종료(칩 비움). */
+  /** AppBar 홈 버튼 — 세션 종료(칩 비움) 후 첫 화면으로. */
   onGoHome: () => void;
   /** AppBar 뒤로가기 — 입력 화면으로 복귀(칩 유지, 단어 추가·수정 가능). */
   onBack: () => void;
 }
 
 /**
- * 음성 전달 화면 (V2 시안 "음성 전달"): brand/subtle 카드 — 스피커 아이콘 + 문장 + 캡션.
+ * 음성 전달 화면 (확정 디자인 「5. 농인 입력 — 결과(음성/텍스트)」): 본문을 채우는
+ * brand/subtle 카드 — 스피커 + 파형 + 문장 + 캡션.
  * 문장은 /compose-sentence 결과다(입력 단어 병기 · word_list 구분 · 실패 시 재전송 포함).
  *
  * 문장이 완성되면 실제로 읽는다. 폰을 든 사람은 그 소리를 듣지 못하므로 "지금 말하고
@@ -38,11 +42,12 @@ export interface ResultScreenProps {
  *
  * 재생 조작은 스피커 아이콘 자체가 맡는다(SpeakerButton). 아이콘이 소리를 뜻하는 자리에
  * 있으면서 장식이기만 하면, 눌러본 사람은 고장으로 받아들인다. 하단 버튼 자리는
- * "답장하기"(청인 트랙으로 넘어가기)가 가져갔다 — 문장을 들려준 다음의 실제 다음 행동이다.
+ * "답장하기"(청인 트랙으로 넘어가기) 하나다 — 문장을 들려준 다음의 실제 다음 행동이고,
+ * 세션을 끝내는 "처음으로"는 AppBar 홈 버튼으로 올렸다(확정 디자인 배치).
  *
- * 시안에 있던 파형은 뺐다(마스터 결정 유지). 재생 엔진이 오디오 레벨을 노출하지 않아
- * 재생 중인 소리의 파형을 진짜로 그릴 수 없다. 아무 관계 없는 움직임을 파형인 척
- * 흔드느니, 소리가 나가는 중이라는 사실만 물결로 표시한다.
+ * 파형은 확정 디자인(2026-08-19)에 맞춰 되살렸다. 재생 엔진이 오디오 레벨을 노출하지
+ * 않는 사정은 그대로여서 **실측 파형이 아니고**, 그래서 모양은 시안의 고정 프로필을 쓰고
+ * 움직임만 재생 중에 준다 — 근거와 지키는 선은 `useSpeakingWaveform` 주석에 있다.
  *
  * source 구분: `word_list` 는 서버가 문장으로 다듬지 못하고 단어를 그대로 나열한 것이다.
  * 문장처럼 보이면 안 되므로 안내 문구 + 점선 테두리로 시각 구분한다(색에만 의존하지 않는다).
@@ -76,6 +81,7 @@ export function ResultScreen({
   // 훅 상태를 표현용 union 으로 받는다. 화면은 다섯 상태를 모두 그려야 하고,
   // 훅이 그중 일부만 내보내더라도(부분집합) 그대로 대입된다.
   const speechStatus: SpeakerStatus = status;
+  const waveformLevels = useSpeakingWaveform(speechStatus === 'speaking');
   const unavailable = speechStatus === 'unsupported' || speechStatus === 'error';
 
   useEffect(() => {
@@ -92,25 +98,17 @@ export function ResultScreen({
     <ScreenFrame
       title={strings.result.appBarTitle}
       onBack={onBack}
+      // 세션 종료는 AppBar 홈 버튼이 맡는다 — 하단을 primary 하나로 비워 두기 위해서다
+      // (확정 디자인 Button 규칙 「Primary 는 화면당 1개」).
+      headerRight={<HomeAction onPress={onGoHome} testID="result-home" />}
       footer={
         phase.name === 'failed' ? (
           <Button label={strings.result.retryCompose} onPress={onRetry} testID="result-retry" />
-        ) : (
-          // 아래쪽일수록 엄지에 가깝다. 문장을 전달한 다음의 주 행동인 "답장하기"를 맨 아래
-          // primary 로 두고, 세션을 끝내는 "처음으로"는 그 위 outline 으로 내린다.
-          // 답장하기는 문장이 나온 뒤에만 뜬다 — 만드는 중에는 아직 전달된 게 없다.
-          <>
-            <Button
-              label={strings.result.backToStart}
-              variant="outline"
-              onPress={onGoHome}
-              testID="result-home"
-            />
-            {selected ? (
-              <Button label={strings.result.reply} onPress={onReply} testID="result-reply" />
-            ) : null}
-          </>
-        )
+        ) : selected ? (
+          // 문장을 전달한 다음의 주 행동. 문장이 나온 뒤에만 뜬다 —
+          // 만드는 중에는 아직 전달된 게 없다.
+          <Button label={strings.result.reply} onPress={onReply} testID="result-reply" />
+        ) : null
       }
     >
       {phase.name === 'pending' ? (
@@ -153,7 +151,10 @@ export function ResultScreen({
               testID="result-speaker"
             />
 
-            <Text style={styles.sentence}>{selected.text}</Text>
+            {/* 파형 — 장식이다(useSpeakingWaveform 주석). 재생 중에만 움직인다. */}
+            <Waveform amplitudes={waveformLevels} testID="result-waveform" />
+
+            <Text style={[styles.sentence, koreanWordBreak]}>{selected.text}</Text>
 
             {/*
               캡션은 스피커 상태를 글로도 말해 준다. 특히 준비 중(수 초)은 링만으로 두면
@@ -216,7 +217,9 @@ const COMPOSING_SPINNER_SIZE = 56;
 const COMPOSING_SPINNER_THICKNESS = 6;
 
 const styles = StyleSheet.create({
+  // 확정 디자인에서 이 카드는 본문을 거의 다 채운다(430x932 프레임 기준 398x683).
   card: {
+    flex: 1,
     marginTop: spacing.sm,
     alignItems: 'center',
     justifyContent: 'center',
@@ -243,15 +246,20 @@ const styles = StyleSheet.create({
   },
   sentence: {
     // 청인에게 보여주는 텍스트 — 큰 글자 · 고대비.
+    // 시안은 430pt 폭 기준 48pt(행간 140%)다. 좁은 화면에서 두세 줄을 넘기지 않게 줄였다.
     fontFamily: fonts.bold,
-    fontSize: 28,
-    lineHeight: 40,
+    fontSize: 36,
+    lineHeight: 50,
+    letterSpacing: -0.5,
     color: colors.text.primary,
     textAlign: 'center',
   },
+  // 확정 디자인 실측: Regular 20 / 행간 145% (430pt 폭 기준).
   caption: {
     fontFamily: fonts.regular,
-    fontSize: 14,
+    fontSize: 17,
+    lineHeight: 25,
+    letterSpacing: -0.3,
     color: colors.text.secondary,
     textAlign: 'center',
   },
@@ -259,7 +267,7 @@ const styles = StyleSheet.create({
     color: colors.status.error,
   },
   wordsRow: {
-    marginTop: spacing.lg,
+    marginTop: spacing.md,
     gap: spacing.xs,
   },
   wordsLabel: {

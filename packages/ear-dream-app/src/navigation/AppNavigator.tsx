@@ -79,7 +79,15 @@ export function AppNavigator() {
         />
       );
     case 'signVideo':
-      return <SignVideoScreen sentence={screen.text} onBack={goVoiceInput} />;
+      // 답장하기 = 대화 턴을 되돌려 받는다 — 농인 트랙(수어 입력)을 새 세션으로 연다.
+      return (
+        <SignVideoScreen
+          sentence={screen.text}
+          onBack={goVoiceInput}
+          onReply={goSignFlow}
+          onGoHome={goHome}
+        />
+      );
     case 'landmarkDev':
       return <LandmarkDevWrapper onBack={goHome} />;
   }

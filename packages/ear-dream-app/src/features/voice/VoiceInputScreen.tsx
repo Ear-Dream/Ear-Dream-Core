@@ -9,7 +9,7 @@ import { ScreenFrame } from '../../components/ScreenFrame';
 import { Waveform, WAVEFORM_BAR_COUNT } from '../../components/Waveform';
 import { LANDMARK_DEV_ENABLED } from '../../constants/devFlags';
 import { strings } from '../../constants/strings';
-import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
+import { colors, fonts, koreanWordBreak, radius, spacing, touchTarget } from '../../constants/theme';
 import { useMicLevels } from './audio';
 
 /**
@@ -32,7 +32,8 @@ export interface VoiceInputScreenProps {
 }
 
 /**
- * 음성 입력 화면 (V2 시안 "음성 입력"): 동심원 + 마이크 버튼 + 파형 + 키보드 폴백.
+ * 음성 입력 화면 (확정 디자인 「2. 청인 입력 — 음성」): 동심원 + 마이크 버튼 + 파형 +
+ * 키보드 폴백.
  *
  * - idle ↔ 듣는 중: 마이크 탭으로 전환. 듣는 중에는 버튼이 빨간 정지 사각형으로 바뀌고
  *   "● 듣고 있어요" 배지가 붙고 물결이 퍼진다. 정지 탭 → 인식된 문장을 다음 화면으로 넘긴다.
@@ -149,16 +150,18 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
       }
     >
       <View style={styles.center}>
-        <Text style={styles.title}>{strings.voiceInput.title}</Text>
+        <Text style={[styles.title, koreanWordBreak]}>{strings.voiceInput.title}</Text>
         <Text style={styles.subtitle}>{strings.voiceInput.subtitle}</Text>
 
         {/*
-          시안의 겹친 정적 동심원 대신, 듣는 중일 때만 마이크 버튼을 중심으로 물결이 퍼진다.
-          idle 에서는 멈춰 있어서 물결 자체가 "지금 듣고 있다"는 시각 신호가 된다.
+          시안의 정적 동심원(halo + pond)은 그대로 두고, 듣는 중일 때만 그 위로 물결이
+          퍼진다. idle 에서는 멈춰 있어서 물결 자체가 "지금 듣고 있다"는 시각 신호가 된다.
           연한 원(pond)은 물결이 퍼지는 수면 자리이자 버튼 배경이고, 듣는 중에는 여기에
-          빨간 링이 붙는다(원래 최외곽 링이 하던 역할).
+          빨간 링이 붙는다.
         */}
         <View style={styles.micStage}>
+          {/* 확정 디자인의 동심원 — 바깥 옅은 원 · 가운데 연보라 원 · 안쪽 인디고 버튼. */}
+          <View style={styles.halo} />
           <View style={[styles.pond, listening && styles.pondListening]}>
             <CircleIconButton
               onPress={listening ? stt.stop : stt.start}
@@ -262,6 +265,8 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
 const MIC_BUTTON_SIZE = 104;
 /** 물결이 퍼지는 수면 겸 버튼 배경. */
 const POND_SIZE = 156;
+/** 동심원 바깥 고리의 지름 (확정 디자인). */
+const HALO_SIZE = 200;
 /** 물결이 가장 멀리 퍼졌을 때의 지름 — 수면 밖까지 번져나간다. */
 const RIPPLE_SIZE = 216;
 
@@ -283,13 +288,14 @@ const styles = StyleSheet.create({
   },
   title: {
     fontFamily: fonts.bold,
-    fontSize: 26,
+    fontSize: 30,
+    letterSpacing: -0.4,
     color: colors.text.primary,
     textAlign: 'center',
   },
   subtitle: {
     fontFamily: fonts.regular,
-    fontSize: 15,
+    fontSize: 16,
     color: colors.text.secondary,
     textAlign: 'center',
     marginBottom: spacing.lg,
@@ -316,6 +322,15 @@ const styles = StyleSheet.create({
     height: RIPPLE_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  /** 동심원 바깥 고리 — 시안의 가장 옅은 원. 정적이라 물결(Ripple)과 역할이 겹치지 않는다. */
+  halo: {
+    position: 'absolute',
+    width: HALO_SIZE,
+    height: HALO_SIZE,
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.subtle,
+    opacity: 0.55,
   },
   pond: {
     width: POND_SIZE,
@@ -361,9 +376,12 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: colors.status.error,
   },
+  // 확정 디자인 실측: Regular 20 / 행간 150% (430pt 폭 기준).
   noiseCaption: {
     fontFamily: fonts.regular,
-    fontSize: 13,
+    fontSize: 17,
+    lineHeight: 26,
+    letterSpacing: -0.3,
     color: colors.text.secondary,
     textAlign: 'center',
   },
