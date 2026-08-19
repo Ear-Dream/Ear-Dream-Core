@@ -169,17 +169,40 @@ export function drawSnapshot(
   const context = canvas.getContext('2d');
   if (!context) return;
 
-  // 입력 해상도에 맞춰 캔버스 버퍼 크기를 맞춘다. CSS 크기와는 별개다.
-  if (canvas.width !== snapshot.sourceWidth || canvas.height !== snapshot.sourceHeight) {
-    canvas.width = snapshot.sourceWidth;
-    canvas.height = snapshot.sourceHeight;
+  // 버퍼를 **표시 박스** 크기에 맞춘다 (입력 해상도가 아니다).
+  //
+  // 예전에는 버퍼를 소스 해상도로 잡고 배치를 CSS `object-fit: cover` 에 맡겼다. 그러면
+  // <video> 와 <canvas> 가 **각자** 레이아웃을 계산하게 되고, 둘의 계산이 어긋나는 순간
+  // 오버레이가 통째로 밀린다 (실기기 실측 2026-08-19: 가로 1280x720 소스를 세로 카드에
+  // 넣었을 때 점들이 실제 위치보다 밀려 그려졌다). object-fit 을 replaced element 인
+  // <canvas> 에 적용하는 것은 브라우저 구현 차이도 있는 지점이라, 여기서는 아예 기대지 않고
+  // cover 매핑을 직접 계산한다 — 그러면 두 요소가 어긋날 여지가 없다.
+  const box = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  const bufferWidth = Math.max(1, Math.round(box.width * dpr));
+  const bufferHeight = Math.max(1, Math.round(box.height * dpr));
+  if (canvas.width !== bufferWidth || canvas.height !== bufferHeight) {
+    canvas.width = bufferWidth;
+    canvas.height = bufferHeight;
   }
 
-  const { width, height } = canvas;
-  context.clearRect(0, 0, width, height);
+  context.setTransform(1, 0, 0, 1, 0, 0);
+  context.clearRect(0, 0, bufferWidth, bufferHeight);
+
+  if (snapshot.sourceWidth === 0 || snapshot.sourceHeight === 0) return;
+
+  // cover: 짧은 쪽을 채우고 넘치는 축을 가운데 기준으로 자른다 (video 의 object-fit: cover 와 같은 규칙).
+  const scale = Math.max(
+    bufferWidth / snapshot.sourceWidth,
+    bufferHeight / snapshot.sourceHeight,
+  );
+  const drawWidth = snapshot.sourceWidth * scale;
+  const drawHeight = snapshot.sourceHeight * scale;
+  context.translate((bufferWidth - drawWidth) / 2, (bufferHeight - drawHeight) / 2);
 
   // 어깨 → 얼굴 → 손 순으로 그린다. 손이 얼굴·어깨 앞을 지날 때 손이 위에 오는 게 자연스럽다.
-  drawPose(context, snapshot, width, height, colors);
-  drawFace(context, snapshot, width, height, colors);
-  drawHands(context, snapshot, width, height, colors);
+  drawPose(context, snapshot, drawWidth, drawHeight, colors);
+  drawFace(context, snapshot, drawWidth, drawHeight, colors);
+  drawHands(context, snapshot, drawWidth, drawHeight, colors);
+  context.setTransform(1, 0, 0, 1, 0, 0);
 }

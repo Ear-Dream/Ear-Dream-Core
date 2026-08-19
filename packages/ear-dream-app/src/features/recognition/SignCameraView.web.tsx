@@ -67,7 +67,7 @@ export function SignCameraView({ onDetectionChange, onFrame }: SignCameraViewPro
     <div style={webStyles.root} data-testid="sign-camera-web">
       <div style={{ ...webStyles.stage, ...mirrorStyle }}>
         <video ref={videoRef} autoPlay playsInline muted style={webStyles.layer} />
-        <canvas ref={canvasRef} style={webStyles.layer} />
+        <canvas ref={canvasRef} style={webStyles.overlayLayer} />
       </div>
       {/* 상태 안내는 반전되면 안 되므로 mirror 래퍼 바깥에 둔다. */}
       {status === 'loading' ? (
@@ -97,6 +97,13 @@ const webStyles: Record<string, React.CSSProperties> = {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
+  },
+  // 오버레이 캔버스는 object-fit 을 쓰지 않는다 — cover 매핑을 overlay.web.ts 가 직접 계산한다.
+  overlayLayer: {
+    position: 'absolute',
+    inset: 0,
+    width: '100%',
+    height: '100%',
   },
   statusOverlay: {
     position: 'absolute',

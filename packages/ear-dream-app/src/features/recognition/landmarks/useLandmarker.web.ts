@@ -333,6 +333,15 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     // 화면 표시 전용으로 들고 있는 직전 얼굴. 스냅샷의 face(관측값)와 절대 섞지 않는다.
     let heldFace: DetectedFace | null = null;
     let processedFrames = 0;
+    // 추론 입력 프레임. <video> 를 직접 넘기지 않고 **우리가 그린 캔버스**를 넘긴다.
+    //
+    // 실기기 실측(2026-08-19): <video> 를 그대로 넘기면 돌아오는 정규화 좌표가 화면에 보이는
+    // 영상과 다른 사각형을 기준으로 나왔다(오차 실측 x +0.069, y -0.053). 어떤 사각형을
+    // 기준으로 정규화하는지는 브라우저 구현에 달려 있어 이쪽에서 통제할 수 없다.
+    // 프레임을 직접 그려 넘기면 기준 사각형이 **우리가 정한 크기**로 확정된다 —
+    // 그 크기를 그대로 sourceWidth/Height 로 싣고 오버레이도 같은 값으로 매핑한다.
+    const inputCanvas = document.createElement('canvas');
+    const inputContext = inputCanvas.getContext('2d', { willReadFrequently: false });
     let lastSignature: string | null = null;
     let stuckFrames = 0;
     // 실제로 적용된 백엔드(GPU 폴백 반영). 스냅샷마다 실어 캡처 메타로 흘러간다.
@@ -444,6 +453,14 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       if (!handLandmarker || !faceLandmarker || !poseLandmarker || !video || video.readyState < 2)
         return;
       if (video.videoWidth === 0) return;
+      if (!inputContext) return;
+
+      // 이 프레임을 추론 입력 캔버스로 복사한다. 이후 모든 좌표의 기준은 이 캔버스다.
+      if (inputCanvas.width !== video.videoWidth || inputCanvas.height !== video.videoHeight) {
+        inputCanvas.width = video.videoWidth;
+        inputCanvas.height = video.videoHeight;
+      }
+      inputContext.drawImage(video, 0, 0, inputCanvas.width, inputCanvas.height);
 
       // 카메라가 아직 새 프레임을 주지 않았으면 같은 프레임을 다시 처리하지 않는다.
       if (video.currentTime === lastVideoTime) return;
@@ -455,7 +472,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       lastTimestamp = timestampMs;
 
       const handStartedAt = performance.now();
-      const handResult = handLandmarker.detectForVideo(video, timestampMs);
+      const handResult = handLandmarker.detectForVideo(inputCanvas, timestampMs);
       handDetectMs = pushSample(handDurations, performance.now() - handStartedAt);
 
       const hands: DetectedHand[] = handResult.landmarks.map((landmarks, index) => {
@@ -485,7 +502,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
         faceDetectMs = 0;
       } else if (faceDue) {
         const faceStartedAt = performance.now();
-        const faceResult = faceLandmarker.detectForVideo(video, timestampMs);
+        const faceResult = faceLandmarker.detectForVideo(inputCanvas, timestampMs);
         faceDetectMs = pushSample(faceDurations, performance.now() - faceStartedAt);
 
         const landmarks = faceResult.faceLandmarks[0];
@@ -503,7 +520,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       // 포즈는 손·얼굴과 같은 프레임 · 같은 타임스탬프로 매번 처리한다. 시점이 어긋나면
       // 세그먼트를 만들 때 손 동작과 어깨 위치가 어긋난 채로 쌓인다.
       const poseStartedAt = performance.now();
-      const poseResult = poseLandmarker.detectForVideo(video, timestampMs);
+      const poseResult = poseLandmarker.detectForVideo(inputCanvas, timestampMs);
       poseDetectMs = pushSample(poseDurations, performance.now() - poseStartedAt);
 
       // 이 프레임의 관측값. 검출 실패면 null 로 남긴다 — 직전 값으로 메우지 않는다(face 와 같은 원칙).
@@ -536,8 +553,10 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
         // 통째로 어긋난다. 그래서 방향 전환을 여기서 "처리" 하지 않고, 그냥 그 프레임의 실측값을
         // 그대로 싣는다. 세그먼트 안에서 이 값이 바뀌는 경우(= 프레임마다 좌표계가 다른 경우)는
         // useSegmentRecorder 가 감지해 그 세그먼트를 폐기한다.
-        sourceWidth: video.videoWidth,
-        sourceHeight: video.videoHeight,
+        // 추론 입력 캔버스 크기 = 좌표의 기준 프레임. video.videoWidth 와 같은 값이지만
+        // "좌표가 무엇을 기준으로 정규화됐는가" 를 싣는 것이므로 캔버스에서 읽는다.
+        sourceWidth: inputCanvas.width,
+        sourceHeight: inputCanvas.height,
         delegate: appliedDelegate,
       };
 
