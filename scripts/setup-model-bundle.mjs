@@ -22,15 +22,16 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // 릴리스 규약. 번들을 새로 만들어 올릴 때 태그와 파일명을 여기와 맞춘다.
 const REPO = 'Ear-Dream/Ear-Dream-Core';
-const TAG = 'model-spoter300-pilot';
-const ASSET = 'spoter300-pilot.tar.gz';
+const BUNDLE = 'hybrid300-h1b';
+const TAG = `model-${BUNDLE}`;
+const ASSET = `${BUNDLE}.tar.gz`;
 const ASSET_URL = `https://github.com/${REPO}/releases/download/${TAG}/${ASSET}`;
 
 // config.py 의 model_bundle_dir 기본값과 같은 위치여야 한다.
-const BUNDLE_DIR = join(root, 'packages', 'ear-dream-api', 'var', 'models', 'spoter300-pilot');
+const BUNDLE_DIR = join(root, 'packages', 'ear-dream-api', 'var', 'models', BUNDLE);
 
-// 로더(app/ml/model.py)가 반드시 읽는 파일. live_debias.npy 는 없어도 동작한다
-// (α=0 항등 + 경고 1회) — 그래서 필수 목록에 넣지 않고 경고만 한다.
+// 로더(app/ml/model.py)가 반드시 읽는 파일. live_debias.npy 는 번들에 따라 있고 없다
+// (편향 벡터는 모델별이라 추정하지 않은 번들은 싣지 않는다 — hybrid300-h1b 가 그렇다).
 const REQUIRED = ['release.json', 'model_torchscript.pt'];
 const OPTIONAL = ['live_debias.npy'];
 
@@ -60,7 +61,7 @@ async function main() {
         ? `릴리스 ${TAG} 또는 첨부 ${ASSET} 가 아직 없습니다.\n` +
           `번들을 가진 팀원이 README 「모델 번들」의 업로드 절차를 한 번 실행해야 합니다.\n` +
           `학습 산출물이 로컬에 있다면 직접 만들 수도 있습니다:\n` +
-          `  cd packages/ear-dream-api && uv run python scripts/build_spoter300_bundle.py`
+          `  cd packages/ear-dream-api && uv run python scripts/build_hybrid300_bundle.py`
         : `잠시 후 다시 시도하세요.`;
     console.error(`\n다운로드 실패 (HTTP ${response.status})\n${ASSET_URL}\n\n${hint}\n`);
     process.exit(1);
@@ -74,7 +75,7 @@ async function main() {
     console.log('==> 압축 해제 중');
     await mkdir(BUNDLE_DIR, { recursive: true });
     // tar 는 macOS/Linux 기본 제공이고 Windows 10+ 에도 bsdtar 가 들어 있다.
-    // --strip-components=1: 아카이브가 spoter300-pilot/ 디렉토리를 품고 있어도 평탄화한다.
+    // --strip-components=1: 아카이브가 번들 이름 디렉토리를 품고 있어도 평탄화한다.
     await run('tar', ['-xzf', archive, '-C', BUNDLE_DIR, '--strip-components=1']);
 
     const missing = [];
@@ -90,7 +91,7 @@ async function main() {
     }
     for (const name of OPTIONAL) {
       if (!(await exists(join(BUNDLE_DIR, name)))) {
-        console.warn(`경고: ${name} 이 없습니다 — 라이브 편향 제거 없이 동작합니다(α=0).`);
+        console.log(`참고: ${name} 이 없습니다 — 로짓 편향 제거 없이 동작합니다(α=0).`);
       }
     }
 

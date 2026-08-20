@@ -169,14 +169,18 @@ const { data, error } = await api.GET('/api/v1/vocabulary');
 pnpm setup:model-bundle
 ```
 
-`packages/ear-dream-api/var/models/spoter300-pilot/`에 풀린다. 이미 있으면 건너뛰고,
+`packages/ear-dream-api/var/models/hybrid300-h1b/`에 풀린다. 이미 있으면 건너뛰고,
 다시 받으려면 `--force`를 붙인다.
 
 - 구성: `model_torchscript.pt`(TorchScript 가중치) + `release.json`(계약·캘리브레이션
-  메타) + `live_debias.npy`(라이브 편향 벡터 — 없으면 경고 후 보정 없이 동작)
+  메타). `live_debias.npy`(라이브 편향 벡터)는 **번들에 따라 있고 없다** — 편향은
+  모델별로 추정하는 값이라 추정하지 않은 번들은 싣지 않는다(현재 번들이 그렇다)
 - 로드 게이트: `release.json`의 `feature_version`이 서버 전처리 계약과 다르거나,
-  `class_labels`가 어휘 데이터와 어긋나면 로드를 거부한다 — 구모델+신전처리 조합이나
-  조용한 전량 오답을 막는 장치다
+  `class_labels`가 어휘 데이터와 어긋나거나, `serving.interface`가 서버가 모르는
+  값이면 로드를 거부한다 — 구모델+신전처리 조합, 조용한 전량 오답, 모르는 호출
+  규약으로의 추론을 막는 장치다
+- `serving.interface`가 **forward 호출 규약을 밝힌다**(`hybrid_v1` / `spoter_v1`).
+  모델 세대를 되돌릴 때 `EAR_DREAM_MODEL_BUNDLE_DIR`만 바꾸면 되는 이유다
 - 다른 위치는 환경변수 `EAR_DREAM_MODEL_BUNDLE_DIR`로 지정한다
   (상대경로는 `packages/ear-dream-api` 기준)
 
@@ -191,17 +195,22 @@ pnpm setup:model-bundle
 — 빌드만 하위 디렉토리를 쓰므로 서브셸로 감싸 현재 위치가 바뀌지 않게 했다.
 
 ```bash
-(cd packages/ear-dream-api && uv run python scripts/build_spoter300_bundle.py)
+(cd packages/ear-dream-api && uv run python scripts/build_hybrid300_bundle.py)
 ```
 
 ```bash
-tar -czf spoter300-pilot.tar.gz -C packages/ear-dream-api/var/models spoter300-pilot
+tar -czf hybrid300-h1b.tar.gz -C packages/ear-dream-api/var/models hybrid300-h1b
 ```
 
 ```bash
-gh release create model-spoter300-pilot spoter300-pilot.tar.gz --notes "SPOTER-208 300단어 서빙 번들"
+gh release create model-hybrid300-h1b hybrid300-h1b.tar.gz --notes "Hybrid H1b 300단어 서빙 번들"
 ```
 
 빌드 스크립트는 학습 산출물 위치를 환경변수 `EAR_DREAM_BENCHMARKS_DIR` → 이 레포의
 형제 디렉토리 → `~/Documents` 순으로 찾는다. 다른 곳이면 `--source`로 넘긴다.
-`vocab300.json`도 함께 갱신되며 이쪽은 커밋 대상이다.
+
+`vocab300.json`은 **이 스크립트가 쓰지 않는다** — 300 클래스 인덱스 체계가 베이스라인과
+같아서, 학습 쪽 `word_partition_report.json`과 라벨·`word_id`가 전부 일치하는지 확인만
+하고 어긋나면 빌드를 중단한다. 어휘 자체를 새로 만드는 것은 베이스라인 빌드
+(`scripts/build_spoter300_bundle.py`)의 몫이고, 그쪽 산출물인 `vocab300.json`이
+커밋 대상이다.

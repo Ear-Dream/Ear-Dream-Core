@@ -18,8 +18,8 @@ def get_model_info() -> ModelInfo:
     state = get_model_state()
     return ModelInfo(
         model_loaded=state.loaded,
-        model_name=state.model_name,  # spoter_208 (release.json)
-        model_version=state.model_version,  # 번들 이름 (예: spoter300-pilot)
+        model_name=state.model_name,  # release.json (예: hybrid_208_h1b)
+        model_version=state.model_version,  # 번들 이름 (예: hybrid300-h1b)
         num_classes=state.num_classes,
         top_k=settings.recognize_top_k,  # 임시값 — 실측 후 확정
         # 로드 시 확정된 임계 (release.json 권장값 또는 설정 오버라이드) — 임시값

@@ -19,26 +19,31 @@ class Settings(BaseSettings):
     # ear_dream 네임스페이스 로거 레벨 (app/core/logging.py). 요청 처리 로그는 INFO.
     log_level: str = "INFO"
 
-    # ---- 모델 서빙 — SPOTER-208 300단어 (develop 실험 브랜치: v2 30단어에서 전환)
+    # ---- 모델 서빙 — Hybrid H1b 208D 300단어 (one_hand_hybrid — SPOTER-208 후속)
     # 번들 디렉토리 하나만 가리킨다 (release.json + model_torchscript.pt).
     # 상대경로는 api 패키지 루트 기준 (model.resolve_bundle_dir). var/ 는 .gitignore —
-    # 모델 파일은 레포에 커밋하지 않는다. 번들 생성: scripts/build_spoter300_bundle.py.
-    model_bundle_dir: str = "var/models/spoter300-pilot"
+    # 모델 파일은 레포에 커밋하지 않는다. 번들 생성: scripts/build_hybrid300_bundle.py.
+    # 전처리 계약(spoter2_mp_xy_v1)과 300 클래스 인덱스는 베이스라인과 동일하므로
+    # 이 값만 var/models/spoter300-pilot 으로 되돌리면 SPOTER-208 로 롤백된다
+    # (forward 호출 규약은 번들의 release.json serving.interface 가 밝힌다).
+    # ⚠️ 롤백 시 debias_alpha 도 함께 되돌려야 한다 — 아래 주석 참조.
+    model_bundle_dir: str = "var/models/hybrid300-h1b"
 
     # ⚠️ 아래 수치는 전부 **프로토타입용 임시값**이다. 사용자 검증·실측 후 확정한다.
     recognize_top_k: int = (
         4  # 후보 개수 N — 임시값, 실측 후 확정. 4는 후보 시트 2×2 그리드에 맞춘 값
     )
     # 최고 confidence(temperature 적용 후) 미달 시 rejected.
-    # None = release.json serving.recommended_reject_threshold 채택 (spoter300-pilot 은
-    # 0.5 — calibration.json threshold_sweep 의 val coverage 94.8% / kept acc 95.3% 지점).
-    # ⚠️ 0.15 는 라이브 분포용 임시 오버라이드다 (2026-08-11). 번들 권장값 0.5 는 스튜디오
-    # val 기준이라 라이브에서는 정답 top-1 조차 거의 전량 거부한다 (실측: live_eval 45클립
-    # 통과 2건, "생각" 10회 세션에서 top-1 정답 7회 중 통과 1회 — conf 가 도메인 갭으로
-    # 눌려 0.05~0.56 에 분포). 0.15 는 live_eval 임계 곡선의 통과분 top-4 극대점(68.2%)
-    # 이지만 n=45·화자 2 명 위에서 고른 과적합 위험 값이다 — 증강 재학습 후 라벨된 라이브
-    # 셋으로 temperature 와 함께 재피팅할 것 (모델 레포 _workspace/16 문서 참조).
-    reject_threshold: float | None = 0.15
+    # None = release.json serving.recommended_reject_threshold 채택.
+    # ⚠️ **hybrid300-h1b 에는 이 임계의 근거가 없다.** 이 모델은 temperature 가
+    # 미캘리브레이션(1.0 항등)이고 편향 제거도 꺼져 있어 confidence 분포가 베이스라인과
+    # 다르다 — 과거 오버라이드 0.15(SPOTER-208 의 편향 제거 후 분포에 live_eval n=45 로
+    # 피팅한 값)와 번들 권장 0.5(스튜디오 val 기준)는 **둘 다 이 모델에 적용되지 않는다**.
+    # 그래서 None 으로 두고 번들 권장값(0.0 = 거부 없음)을 따른다: 근거 없는 임계로
+    # 조용히 거부하느니 전부 후보를 내보내고, 라벨된 라이브 평가셋 확보 후
+    # temperature 와 함께 재피팅한다.
+    # spoter300-pilot 으로 롤백할 때는 0.15 로 되돌릴 것 (git log 에 근거 주석이 있다).
+    reject_threshold: float | None = None
     # ---- 라이브 도메인 갭 개입 2종 (2026-08-11 실측 검증 — 모델 레포
     # _workspace/17_hypothesis_ledger.md. 수식 정본은 scripts/live_eval.py 러너였고
     # 지금은 서빙 코드가 정본이다: y 는 preprocess_spoter, 편향 제거는 app/ml/model)
@@ -53,16 +58,18 @@ class Settings(BaseSettings):
     live_y_scale: float = 1.205
     # 로짓 편향 제거 강도 α — log_softmax(logits/T) 에서 α·(bias − bias.mean()) 을 뺀 뒤
     # softmax 재정규화 (app/ml/model.predict_probs). bias 는 번들의 live_debias.npy
-    # (도메인 이동이 만든 클래스 편향 — 실망·퇴원·요리사 과호출 — 의 평균 log-softmax).
-    # ⚠️ 임시값 — bias 는 라벨 없는 실사용 아카이브로 추정한 값이다. 2026-08-12 누수 차단
-    # 재추정본(495건 — 라벨된 평가 세그먼트 41건 제외, 제외 목록은 재추정 시 재사용):
-    # '희망' 자석 클래스 흡수(억제 13→5위), α=1.25 가 채택 규칙 통과(phone41 top-1
-    # +2.4%p·live 무악화·REAL09 게이트 −0.07%p). EM 계열 prior 보정은 실측 파국으로
-    # 기각됐다(아카이브의 "실사용 시도 단어"를 편향으로 오인 — 기간/누수 분리는 필수).
-    # 재추정 절차: 신규 아카이브로 추정 → 라벨 평가셋(live_eval + phone_sessions)으로
-    # 검증 → live_debias.npy 교체와 이 값을 함께 갱신.
-    # 0.0 이면 완전 항등(제거 끔). 파일 부재 시 로더가 α=0 으로 폴백한다 (경고 1회).
-    debias_alpha: float = 1.25
+    # (도메인 이동이 만든 클래스 편향의 평균 log-softmax).
+    # ⚠️ **편향 벡터는 모델별이다 — 그래서 현재 기본값이 0.0(끔)이다.** 기존 값 1.25 는
+    # SPOTER-208(spoter300-pilot)의 출력 분포로 추정한 live_debias.npy 위에서 고른
+    # 값이라, 가중치가 바뀐 hybrid300-h1b 에 그대로 적용하면 보정이 아니라 **새 편향
+    # 주입**이 된다. hybrid300-h1b 번들에는 편향 파일 자체가 없으므로 로더도 α=0 으로
+    # 폴백하지만, 설정 기본값까지 0.0 으로 내려 두 곳이 어긋나지 않게 한다.
+    # spoter300-pilot 으로 롤백할 때는 1.25 로 되돌릴 것 — 그 값의 근거(2026-08-12
+    # 누수 차단 재추정 495건, phone41 top-1 +2.4%p, REAL09 게이트 −0.07%p, EM 계열
+    # prior 보정 기각)는 git log 의 이전 주석에 남아 있다.
+    # 재추정 절차: 신규 아카이브로 추정 → 라벨 평가셋으로 검증 → live_debias.npy 교체와
+    # 이 값을 함께 갱신. 0.0 이면 완전 항등(제거 끔).
+    debias_alpha: float = 0.0
 
     # 세그먼트 프레임 수 범위 — 요청(Pydantic) 검증용. SPOTER 전처리는 trim 없이 전
     # 구간을 쓰고 30fps 리샘플 후 256 초과분은 uniform sampling 으로 흡수하므로

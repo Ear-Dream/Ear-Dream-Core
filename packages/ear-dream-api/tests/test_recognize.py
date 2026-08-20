@@ -1,4 +1,4 @@
-"""/recognize 엔드포인트 검증 — 422 / 503 / 200 (SPOTER-208 번들 서빙)."""
+"""/recognize 엔드포인트 검증 — 422 / 503 / 200 (208D 300단어 번들 서빙)."""
 
 import numpy as np
 import pytest
@@ -8,7 +8,17 @@ from app.ml import model as model_module
 from app.ml.model import ModelState, get_model_state
 from tests.conftest import make_frames, make_recognize_request
 
-BUNDLE_AVAILABLE = (model_module.resolve_bundle_dir() / "release.json").exists()
+BUNDLE_RELEASE_PATH = model_module.resolve_bundle_dir() / "release.json"
+BUNDLE_AVAILABLE = BUNDLE_RELEASE_PATH.exists()
+
+
+def _release() -> dict:
+    """설치된 번들의 release.json. 번들 이름·모델명을 테스트에 박지 않기 위한 것이다 —
+    모델 세대 교체(SPOTER-208 → Hybrid H1b)마다 테스트를 고치게 되면 검증이 아니라
+    복붙 작업이 된다. 여기서 보는 것은 "로더가 번들이 밝힌 값을 그대로 싣는가"다."""
+    import json
+
+    return json.loads(BUNDLE_RELEASE_PATH.read_text(encoding="utf-8"))
 
 
 def test_recognize_422_too_few_frames(client):
@@ -54,7 +64,7 @@ def test_recognize_200_real_inference(client):
     data = res.json()
     assert data["request_id"] == "req-1"
     assert data["status"] in {"recognized", "rejected"}
-    assert data["model_version"] == "spoter300-pilot"
+    assert data["model_version"] == _release()["bundle"]
     if data["status"] == "recognized":
         assert 1 <= len(data["candidates"]) <= settings.recognize_top_k
         confidences = [c["confidence"] for c in data["candidates"]]
@@ -137,16 +147,20 @@ def test_bundle_loads():
     """번들 로딩 스모크: release.json 게이트 통과 + TorchScript 추론이 확률을 내야 한다."""
     state = get_model_state()
     assert state.loaded, f"model load failed: {state.error}"
+    release = _release()
     assert state.num_classes == 300
-    assert state.model_name == "spoter_208"
-    assert state.model_version == "spoter300-pilot"
+    assert state.model_name == release["model_name"]
+    assert state.model_version == release["bundle"]
+    assert state.interface in model_module.KNOWN_INTERFACES
     # release.json class_labels 는 vocab300.json 인덱스 순서와 일치가 강제된다
     from app.ml.vocab import CLASS_INDEX_TO_ENTRY
 
     assert [e.label for e in state.class_entries] == [e.label for e in CLASS_INDEX_TO_ENTRY]
-    assert state.temperature != 1.0  # calibration temperature (1.8489...)
-    assert 0.0 < state.reject_threshold < 1.0
-    probs = state.predict_probs(np.zeros((32, 208), dtype=np.float32))
+    assert state.temperature == release["serving"]["temperature"]
+    assert 0.0 <= state.reject_threshold < 1.0
+    # hybrid 인터페이스는 손 검출 마스크가 필수다 — 전 프레임 양손 검출로 넣는다
+    detected = np.ones((32, 2), dtype=np.uint8)
+    probs = state.predict_probs(np.zeros((32, 208), dtype=np.float32), detected)
     assert probs.shape == (300,)
     np.testing.assert_allclose(probs.sum(), 1.0, atol=1e-5)
 

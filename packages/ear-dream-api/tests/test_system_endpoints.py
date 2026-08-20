@@ -1,4 +1,4 @@
-"""/vocabulary, /model, /health 형태 검증 (SPOTER-208 300단어)."""
+"""/vocabulary, /model, /health 형태 검증 (300단어)."""
 
 from app.core.config import settings
 from app.ml.sign_sequences import SEQUENCE_COUNT, SEQUENCES
@@ -52,8 +52,10 @@ def test_model_info(client):
     assert data["top_k"] == settings.recognize_top_k
     # 전처리 계약 버전 = 학습 산출물 feature_version
     assert data["preprocess_version"] == "spoter2_mp_xy_v1"
-    # reject 임계는 로드 시 확정 (release.json 권장값 0.5 또는 설정 오버라이드/fallback)
-    assert 0.0 < data["reject_threshold"] < 1.0
+    # reject 임계는 로드 시 확정 (release.json 권장값 또는 설정 오버라이드/fallback).
+    # 0.0 은 "거부 없음" 으로 유효한 값이다 — hybrid300-h1b 처럼 분류 head 캘리브레이션이
+    # 없는 번들이 근거 없는 임계 대신 쓰는 설정이다 (config.reject_threshold 주석).
+    assert 0.0 <= data["reject_threshold"] < 1.0
     contract = data["landmark_contract"]
     assert contract["hand_point_count"] == 21
     assert contract["pose_point_count"] == 33

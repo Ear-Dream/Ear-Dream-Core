@@ -496,15 +496,27 @@ def eval_clip(
                 else:
                     z = (x[np.ix_(sel, range(lo, hi))] - mu_l) / np.maximum(sd_l, 1e-3)
                     x[np.ix_(sel, range(lo, hi))] = (z * sd_s + mu_s).astype(np.float32)
+        # 손 검출 마스크 — hybrid 인터페이스의 결측 게이팅 입력 (app/ml/model).
+        # ablate/coral 은 피처만 바꾸므로 마스크는 전처리 결과를 그대로 쓴다.
+        hand_detected = pp.part_mask[:, 1:3]
         lg = None
         if proto is not None:
             import torch
 
+            from app.ml.model import INTERFACE_HYBRID
+
             feats = torch.from_numpy(x.astype(np.float32)).unsqueeze(0)
             mask = torch.zeros(1, x.shape[0], dtype=torch.bool)
             with torch.no_grad():
-                lg = state.model(feats, mask).squeeze(0).numpy()
-        return state.predict_probs(x), lg, pp
+                if state.interface == INTERFACE_HYBRID:
+                    det = torch.from_numpy(
+                        np.ascontiguousarray(hand_detected, dtype=np.float32)
+                    ).unsqueeze(0)
+                    lg = state.model(feats, mask, det, torch.ones_like(det))[0]
+                else:
+                    lg = state.model(feats, mask)
+                lg = lg.squeeze(0).numpy()
+        return state.predict_probs(x, hand_detected), lg, pp
 
     if bundle is None:
         probs, logits, pp = run_once(frames, kp, source_aspect)

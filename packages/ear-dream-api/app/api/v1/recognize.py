@@ -1,4 +1,4 @@
-"""/recognize — 수어 세그먼트 하나를 단어 후보 top-k 로 인식한다 (SPOTER-208, 300단어).
+"""/recognize — 수어 세그먼트 하나를 단어 후보 top-k 로 인식한다 (208D 300단어).
 
 라우트는 얇게 유지한다: 조립·전처리·추론은 app/ml, 아카이빙은 app/services 소관.
 응답 시간은 반드시 로깅한다 — NFR-01(허용 지연 시간) 확정의 유일한 근거 데이터다.
@@ -173,8 +173,10 @@ def recognize(
         )
         log["frames_used"] = pp.model_frame_count
         # probs 는 캘리브레이션 + 로짓 편향 제거 후 분포다 (app/ml/model docstring) —
-        # 아래 confidence·reject 판정 전부 이 분포 기준이다
-        probs = state.predict_probs(pp.x)
+        # 아래 confidence·reject 판정 전부 이 분포 기준이다.
+        # part_mask[:, 1:3] = 프레임별 [오른손, 왼손] 검출 여부 (hybrid 인터페이스의
+        # 손 결측 게이팅 입력 — PARTS 순서: pose, right_hand, left_hand, face)
+        probs = state.predict_probs(pp.x, pp.part_mask[:, 1:3])
 
         # top-k (개수는 미확정 임시값 — settings.recognize_top_k)
         # 클래스 인덱스 → 어휘는 로드 시 검증된 release.json class_labels(state.class_entries)

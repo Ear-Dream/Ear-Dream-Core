@@ -89,7 +89,7 @@ def replay_one(request: RecognizeRequest) -> dict[str, Any]:
             source_aspect=cap.source_width / cap.source_height,
             y_scale=settings.live_y_scale,
         )
-        probs = state.predict_probs(pp.x)
+        probs = state.predict_probs(pp.x, pp.part_mask[:, 1:3])
         order = np.argsort(probs)[::-1][: settings.recognize_top_k]
         best = float(probs[order[0]])
         if best < state.reject_threshold:
