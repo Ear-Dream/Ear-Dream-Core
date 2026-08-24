@@ -19,15 +19,19 @@ class Settings(BaseSettings):
     # ear_dream 네임스페이스 로거 레벨 (app/core/logging.py). 요청 처리 로그는 INFO.
     log_level: str = "INFO"
 
-    # ---- 모델 서빙 — Hybrid H1b 208D 300단어 (one_hand_hybrid — SPOTER-208 후속)
+    # ---- 모델 서빙 — Single-Observed-Hand 208D 300단어 (single_observed_hand_300)
     # 번들 디렉토리 하나만 가리킨다 (release.json + model_torchscript.pt).
     # 상대경로는 api 패키지 루트 기준 (model.resolve_bundle_dir). var/ 는 .gitignore —
-    # 모델 파일은 레포에 커밋하지 않는다. 번들 생성: scripts/build_hybrid300_bundle.py.
-    # 전처리 계약(spoter2_mp_xy_v1)과 300 클래스 인덱스는 베이스라인과 동일하므로
-    # 이 값만 var/models/spoter300-pilot 으로 되돌리면 SPOTER-208 로 롤백된다
-    # (forward 호출 규약은 번들의 release.json serving.interface 가 밝힌다).
-    # ⚠️ 롤백 시 debias_alpha 도 함께 되돌려야 한다 — 아래 주석 참조.
-    model_bundle_dir: str = "var/models/hybrid300-h1b"
+    # 모델 파일은 레포에 커밋하지 않는다. 번들 생성: scripts/build_single_observed_bundle.py.
+    # 전처리 계약(spoter2_mp_xy_v1)과 300 클래스 인덱스가 세 세대 모두 같으므로 이 값만
+    # 바꾸면 모델이 갈린다 — forward 호출 규약은 번들의 serving.interface 가 밝힌다:
+    #   var/models/single-observed-300-allpeople   현재 (single_observed_v1)
+    #   var/models/single-observed-300             같은 세대, 3인 v1 만 학습 (calibration 있음)
+    #   var/models/hybrid300-h1b                   Hybrid H1b (hybrid_v1)
+    #   var/models/spoter300-pilot                 SPOTER-208 베이스라인 (spoter_v1)
+    # ⚠️ spoter300-pilot 으로 롤백할 때는 reject_threshold 0.15 · debias_alpha 1.25 도
+    # 함께 되돌릴 것 (아래 주석). 나머지 번들은 release.json 권장값이 맞다.
+    model_bundle_dir: str = "var/models/single-observed-300-allpeople"
 
     # ⚠️ 아래 수치는 전부 **프로토타입용 임시값**이다. 사용자 검증·실측 후 확정한다.
     recognize_top_k: int = (

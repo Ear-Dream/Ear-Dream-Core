@@ -94,7 +94,7 @@ MediaPipe 애셋·폰트 서브셋·gzip 사이드카는 위 명령들이 알아
 
 | 문서 | 내용 |
 | --- | --- |
-| [아키텍처](docs/architecture.md) | 양방향 파이프라인, 인식 모델(Hybrid H1b), 라이브 도메인 보정, 알려진 한계 |
+| [아키텍처](docs/architecture.md) | 양방향 파이프라인, 인식 모델(Single-Observed-Hand), 라이브 도메인 보정, 알려진 한계 |
 | [개발 가이드](docs/development.md) | 실기기(모바일 웹), 앱 실행 대상, API 주소 설정, API 타입 생성, 모델 번들 배포 |
 | [선택 기능](docs/optional-services.md) | 문장 변환 LLM · 음성 합성 서버 설정 |
 

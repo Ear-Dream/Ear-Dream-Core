@@ -8,9 +8,12 @@
 
 `ear-dream-api`는 Python 프로젝트라 pnpm 워크스페이스에 포함되지 않는다.
 
-모델 학습·실험은 **별도 레포**에 있다. 현재 서빙 모델(Hybrid H1b 300단어)은
-`~/Documents/Ear-Dream-Benchmarks/one_hand_hybrid`, 그 전신 SPOTER-208은 같은 레포의
-`sign_word_300`, 미사용 보존 중인 v2 30단어는 `../Ear-Dream-Model` — 「서빙 모델」 절 참고.
+모델 학습·실험은 **별도 레포**(`Ear-Dream/Ear-Dream-Benchmarks`, public)에 있다.
+현재 서빙 모델은 그 레포의 `single_observed_hand_300`, 이전 세대는 `one_hand_hybrid`
+(Hybrid H1b)와 `sign_word_300`(SPOTER-208)이다. 미사용 보존 중인 v2 30단어는
+`../Ear-Dream-Model` — 「서빙 모델」 절 참고.
+**번들 빌드는 그 레포를 클론하지 않고 고정 커밋에서 원격으로 받는다** —
+`scripts/build_single_observed_bundle.py`. 로컬 경로를 전제하지 말 것.
 
 ## 에이전트와 스킬
 
@@ -159,96 +162,89 @@ Pydantic 모델은 생성된 TS에 나타나지 않는다.
 TypeScript는 Expo SDK 57이 고정한 `~6.0.3`에 맞춰 `core`와 `app` 양쪽을 통일해 두었다.
 한쪽만 올리지 말 것. `openapi-typescript`의 TS peer 예외는 `pnpm-workspace.yaml`에 명시되어 있다.
 
-## 서빙 모델 — Hybrid H1b 300단어 (2026-08-20 SPOTER-208에서 교체)
+## 서빙 모델 — Single-Observed-Hand 300단어 (2026-08-24 Hybrid H1b에서 교체)
 
-현재 서빙 모델은 **Hybrid H1b 300단어 분류기**(TorchScript)다. 학습·실험은 별도 레포
-`~/Documents/Ear-Dream-Benchmarks/one_hand_hybrid`에서 하고, 서버는 그 산출물을
-**로컬 번들 디렉토리**로 로드한다.
+현재 서빙 모델은 **Single-Observed-Hand 300단어 분류기**(TorchScript)다. 학습·실험은
+별도 레포 `~/Documents/Ear-Dream-Benchmarks/single_observed_hand_300`이고, 서버는 그
+산출물을 **로컬 번들 디렉토리**로 로드한다.
 
-전신은 같은 벤치마크 레포의 **SPOTER-208**(`sign_word_300`)이고, 이 교체에서
-**전처리 계약(`spoter2_mp_xy_v1`)과 300 클래스 인덱스는 바뀌지 않았다** — 그래서
-`preprocess_spoter.py`와 `vocab300.json`은 손대지 않았고, 빌드 스크립트가 학습 쪽
-`word_partition_report.json`과 라벨·word_id 일치를 확인만 한다. 바뀐 것은
-**가중치와 forward 호출 규약**이다.
+세 세대(SPOTER-208 → Hybrid H1b → 이 모델)가 **전처리 계약(`spoter2_mp_xy_v1`)과
+300 클래스 인덱스를 공유한다.** 그래서 `preprocess_spoter.py`와 `vocab300.json`은
+세 번의 교체에서 한 번도 손대지 않았고, 번들 경로만 바꾸면 모델이 갈린다.
 
-H1b가 겨눈 지점은 「알려진 구조적 한계」의 **한손 재조음 갭**이다 — 좌우 손이 Conv1D
-인코더를 공유하고, 한손 106 분류 · 한손/양손 이진 · retrieval 임베딩을 보조
-supervision으로 얹었다. 학습 레포 REAL09 test에서 한손 106 LEFT Recall@5가 +6.22%p,
-전체 FULL top-1이 96.73→98.00%다. **실사용 개선은 미검증이다** (라벨된 라이브 평가셋이
-없다 — 「사람이 직접 해야 하는 실측 항목」).
+**바뀐 것은 모델이 손을 하나만 본다는 점이다.** 학습 데이터의 양손 단어도 대표 손 하나만
+남기고 반대 손을 지운 채 학습했다. 그래서 서빙도 같은 형태로 넣는다 — 한 손으로 폰을 든
+실사용 자세가 학습 분포 안에 들어온다. 여기에 직접 촬영 데이터(3인)로 도메인 적응까지
+얹혔다.
 
-> ⚠️ v2 30단어 SqueezeformerLite(`../Ear-Dream-Model`, z-off, exp15)는 서빙 경로에서
-> 빠졌고 관련 코드도 삭제됐다(`model_v2_squeezeformer.py`, `preprocess.py`).
-> **v2 원본은 `master` 브랜치에 온전히 있다** — develop이 mainline이고 master가 v2
-> 시점에 멈춰 있으므로, 복귀는 브랜치에서 가져온다.
-
-- 번들 기본 경로: `var/models/hybrid300-h1b/` (api 패키지 루트 기준.
+- 번들 기본 경로: `var/models/single-observed-300-allpeople/` (api 패키지 루트 기준.
   `EAR_DREAM_MODEL_BUNDLE_DIR`로 변경 — `app/core/config.py`). `var/`는 .gitignore이라
   **모델 파일은 커밋하지 않는다**. 받기: `pnpm setup:model-bundle` (GitHub Release).
-  학습 산출물에서 생성: `scripts/build_hybrid300_bundle.py` (산출물 위치는
-  `EAR_DREAM_BENCHMARKS_DIR` → 형제 디렉토리 → 홈 순으로 탐색)
-- 번들 구성 — `release.json`(기계 판독 핸드오프이자 **로더의 정본**),
-  `model_torchscript.pt`. `live_debias.npy`는 **이 번들에 없다**(아래)
-- **서빙 인터페이스가 번들에 실린다** (`serving.interface`) — 모델 세대마다 forward
-  시그니처가 달라서, 로더가 코드 분기 대신 번들이 밝힌 규약을 따른다. 필드가 없으면
-  구 SPOTER 번들로 취급하므로 `model_bundle_dir`만 되돌리면 롤백된다
-  (⚠️ 롤백 시 `reject_threshold` 0.15 · `debias_alpha` 1.25도 함께 되돌릴 것):
+  학습 산출물에서 생성: `scripts/build_single_observed_bundle.py`
+- **번들 후보가 둘이다** (`--run`으로 고른다):
+
+  | run | 번들 | 성격 |
+  | --- | --- | --- |
+  | `final_all_people_deployment` | `single-observed-300-allpeople` | 3인 v1+v2 전부 학습. calibration 없음. **현재 서빙** |
+  | `final_deployment` | `single-observed-300` | 3인 v1만 학습, v2 홀드아웃. calibration 있음(0.5343) |
+
+  학습 레포는 근거가 명확한 `final_deployment`를 권장하지만, **라벨된 라이브 셋 실측에서
+  all_people이 임계 전 구간에서 우세**해 그쪽을 택했다 (「라이브 실측」 아래)
+- **서빙 인터페이스가 번들에 실린다** (`serving.interface`) — 세대마다 forward 규약이
+  달라서, 로더가 코드 분기 대신 번들이 밝힌 규약을 따른다. 필드가 없으면 구 SPOTER
+  번들로 취급하므로 `model_bundle_dir`만 되돌리면 롤백된다:
 
   | interface | forward |
   | --- | --- |
   | `spoter_v1` | `(features[T,208], padding_mask)` → `logits[300]` |
-  | `hybrid_v1` | `(features[T,208], padding_mask, detected[T,2], view[T,2])` → `(full_logits[300], onehand_logits[106], hand_type_logits[2], embedding[128])` |
+  | `hybrid_v1` | `(features, padding_mask, detected[T,2], view[T,2])` → `(full_logits[300], onehand_logits[106], hand_type_logits[2], embedding[128])` |
+  | `single_observed_v1` | 같은 4입력 → `(logits[300], hand_type_logits[2], embedding[128])` |
 
-- **hybrid_v1의 추가 입력 2종** — `detected`는 프레임별 [오른손, 왼손] 검출 여부로
-  전처리 `part_mask[:, 1:3]`을 그대로 넘긴다(미검출 손을 0 좌표로 오해하지 않게 하는
-  게이팅). `view`는 그 손을 모델에 보여줄지이고 **서빙은 항상 FULL(1,1)**이다 —
-  `right_only`/`left_only`는 검출된 손을 일부러 가리는 학습·평가측 ablation이라
-  라이브 입력에 해당하지 않는다. 여기서 손 검출률로 view를 분기시키면 학습에 없는 입력
-  조합과 새 임계 상수가 동시에 생긴다
-- **서빙이 쓰는 출력은 `full_logits` 하나다.** 나머지 3종은 학습 레포가 확정 분류에
-  쓰지 않기로 결론낸 것들이다 — 106 head는 selected-hand top-1 90.75%로 300 head보다
-  낮고, hand_type head(99.87%)는 hard routing에 쓰지 않으며, retrieval 임베딩은
-  prototype bank(`h2_prototypes.npz`)가 필요한데 top-k를 300 head 로짓에서 뽑으므로
-  번들에 넣지 않았다
+- ⚠️ **`single_observed_v1`은 입력 계약이 앞의 둘과 다르다.** 서버가 대표 손을 고르고
+  **반대 손 42차원을 0으로 지운 뒤** view를 그 손의 one-hot으로 준다. FULL view로 주면
+  학습에 없는 입력이다. 선택 규칙(`app/ml/model.robust_motion_side`)은 학습 레포
+  `dataset.robust_motion_side`의 이식본이고 **수치가 일치해야 한다** — 선택이 갈리면
+  모델이 보는 손 자체가 달라진다. `tests/test_model_bundle.py`가 인라인 레퍼런스
+  복사본과 난수 200케이스를 대조한다 (전처리 정본 규칙과 같은 취지)
+- 서빙이 쓰는 출력은 `logits` 하나다. hand_type과 embedding은 학습 레포가 확정 분류에
+  쓰지 않기로 한 것들이다 (한손/양손 hard routing을 두지 않는다)
+- ⚠️ **클래스 인덱스 대조 파일이 이 세대에는 없다.** 정본
+  `data/organized300_v1/word_partition_report.json`이 학습 레포의 .gitignore라 올라오지
+  않았다. 빌드 스크립트에 `--partition`을 열어 뒀으니 그 파일을 받으면 자동 대조된다.
+  없을 때의 확인 방법은 **라벨된 REAL09로 채점**하는 것이다 — 순서가 맞으면 ~89%,
+  어긋나면 ~0.3%(우연)이라 판정이 명확하다. 2026-08-24 확인: **88.93% → 순서 일치**
 - 로딩 실패 시 서버는 뜨되 `/recognize`가 503을 반환하고 `/health`의 `model_loaded`가 false다
-- **로드 게이트** (어긋난 조합 사고 방지): `release.json`의 `feature_version`이 서버
-  `PREPROCESS_VERSION`과 불일치하거나, `num_classes`가 300이 아니거나, `class_labels`가
-  `vocab300.json` 순서와 어긋나거나, `serving.interface`가 아는 값이 아니면 **로드를 거부한다**
-- **클래스 인덱스 ↔ 어휘 매핑의 정본은 `classes.json`의 명시적 인덱스다** — v2의
-  `sorted(단어)` 규약에서 **바뀌었다**. `app/ml/data/vocab300.json`이 각 항목의
-  `class_index`를 그대로 싣고, 로드 시 `release.json`의 `class_labels`와 교차 검증한다.
-  여기가 틀리면 조용히 전부 오답이 된다. vocab300.json은 손으로 고치지 말고
-  베이스라인 빌드 스크립트(`build_spoter300_bundle.py`)로 재생성한다
-  (`VOCAB_VERSION`으로 대응 기록)
-- ⚠️ **캘리브레이션과 도메인 갭 개입 2종이 이 모델에서는 꺼져 있다** — 셋 다 추정에 쓴
-  모델의 출력 분포에 묶인 값이라 가중치가 바뀌면서 근거가 무효가 됐다:
-  - **temperature 1.0(항등)** — 학습 레포에 분류 head용 온도 산출물이 없다.
-    그쪽 `hybrid_calibration.json`은 retrieval 코사인 임계(RIGHT 0.7880 / LEFT 0.9381)이지
-    로짓 온도가 아니다
-  - **reject 임계 0.0(거부 없음)** — 과거 0.15는 SPOTER-208의 편향 제거 후 분포에
-    live_eval n=45로 피팅한 값이고, 번들 권장 0.5는 스튜디오 val 기준이다. 둘 다 이
-    모델에 적용되지 않는다. 근거 없는 임계로 조용히 거부하느니 전부 후보를 낸다
-  - **로짓 편향 제거 α=0** — `live_debias.npy`가 **모델별**이라 다른 가중치에 쓰면
-    보정이 아니라 **새 편향 주입**이 된다. 그래서 번들에 파일을 넣지 않았고 설정
-    기본값도 0.0으로 내렸다 (두 곳이 어긋나지 않게)
+- **로드 게이트**: `feature_version` 불일치, `num_classes` != 300, `class_labels`가
+  `vocab300.json` 순서와 불일치, `serving.interface`가 아는 값이 아니면 **로드 거부**
+- temperature는 **1.0(항등)**, 편향 제거는 **α=0(끔)**이다. 학습 레포에 로짓 온도
+  산출물이 없고(그쪽 calibration.json은 softmax 확률 위의 임계다), 편향 벡터는
+  **모델별**이라 다른 가중치에 쓰면 새 편향 주입이 된다
+- reject 임계는 현재 번들에 calibration이 없어 **0.0(거부 없음)**이다. 라벨된 라이브
+  셋으로 곡선은 쟀지만(아래), 그 셋 하나로 임계를 고르고 같은 셋으로 성능을 보고하면
+  순환이라 값을 박지 않았다 — 별도 촬영분이 필요하다
 
-  셋 다 **라벨된 라이브 평가셋을 확보한 뒤 함께 다시 피팅한다**. 관측된 변화(아카이브
-  662건 재생, 라벨 없음): top-1 confidence 중앙값 0.153 → 0.443. 온도·편향 제거가
-  빠진 결과이지 정확도 개선의 근거가 아니다
-- 모델 입력은 **프레임당 208차원 xy** = pose 25 + 오른손 21 + 왼손 21 + 얼굴 37.
-  (kp130 130키포인트는 이제 조립·품질·진단 경로 전용이다 — 「전처리 정본」 절)
-- 전처리 대응은 `PREPROCESS_VERSION`, 어휘는 `VOCAB_VERSION`, 문장 규칙은 `RULESET_VERSION`
-  으로 응답·`/model`에 실린다
+**라이브 실측 (2026-08-24)** — 라벨된 실사용 클립 138개(폰 세로, 도메인 적응에 쓰이지
+않은 사용자). ⚠️ 스튜디오 수치(AI Hub 90% 안팎)와 혼동하지 말 것.
 
-평가 수치: 학습 레포 REAL09 test FULL view — 한손 106 그룹 top-1 **94.91%**(n=530),
-양손 194 그룹 **99.69%**(n=970) (`release.json` `source.test_metrics_full_view`).
-**라이브는 이 근처에도 못 간다** — 전신 SPOTER-208 기준 live_eval(n=45, 화자 2명)
-top-1이 22.2% 수준이었고, H1b의 라이브 수치는 **아직 측정되지 않았다**(같은 평가셋이
-이 기계에 없다). 스튜디오 수치를 실사용 기대치로 인용하지 말 것.
+| 모델 | top-1 | top-4 |
+| --- | ---: | ---: |
+| **Single-Observed-Hand all_people (현재)** | **29.0%** | **54.3%** |
+| Single-Observed-Hand final_deployment | 28.3% | 48.6% |
+| SPOTER-208 | 26.1% | 41.3% |
+| Hybrid H1b | 13.8% | 29.7% |
 
-**남은 라이브 도메인 갭 개입은 `live_y_scale`(1.205) 하나다** — AR 보정과 함께
-전처리에 있고 모델과 무관해 교체 후에도 유효하지만, 여전히 실측 피팅 임시값이다.
-근거·리스크·재추정 절차가 `config.py` 주석에 있다.
+이 데이터의 **왼손 검출률이 2.5%**다 — 한 손으로 폰을 든 실제 자세이고, 현재 모델이
+겨냥한 조건이다. 임계를 올리면 통과분 정확도가 오른다(0.4에서 커버리지 58% ·
+통과분 45.0%).
+
+**파이프라인 노브 실측** (같은 셋, 이전 모델 기준): 시간축 스무딩만 실질 개선이었고
+(창 5~11이 고원), 트리밍·결측 채움·TTA는 무효 또는 유해했다. AR 보정을 끄면 붕괴한다
+(−9.5%p). ⚠️ 스무딩은 **아직 서빙에 넣지 않았다** — 학습 데이터는 스무딩되지 않았으므로
+도입한다면 AR 보정과 같은 "입력측 적응"으로 전처리 한 곳에 넣어야 한다
+
+**신규 사용자 일반화가 여전히 한계다** — 학습 레포 LOPO 평균 top-1 47.78%이고, 위
+138클립도 적응에 쓰이지 않은 사용자라 그 조건이다. 사용자별 적응 없이 쓰는 것이
+현재 전제다.
 
 ## 엔드포인트
 
@@ -471,7 +467,7 @@ CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않
 | 모노레포·CI·API 계약 파이프라인 | 완료 |
 | 손·얼굴·포즈 랜드마크 추출 | 완료 (웹) |
 | 서버 — 스키마 재설계·ML 모듈(`app/ml/`)·엔드포인트 7종·아카이빙·진단 | 완료, pytest 136건 통과 |
-| 모델 서빙 (Hybrid H1b 300단어) | 완료 — 번들은 `var/models/`(비커밋). ⚠️ **캘리브레이션·편향 제거·reject 임계가 전부 꺼진 상태**다 (모델 교체로 근거 무효 — 「서빙 모델」 절). 라이브 정확도 미측정 |
+| 모델 서빙 (Single-Observed-Hand 300단어) | 완료 — 번들은 `var/models/`(비커밋), 학습 레포 고정 커밋에서 원격 빌드. **라벨된 라이브 셋 실측 top-1 29.0% / top-4 54.3%**(구 모델 26.1 / 41.3). ⚠️ temperature·편향 제거·reject 임계는 꺼진 상태 — 「서빙 모델」 절 |
 | 문장 변환 LLM (Qwen3-4B / vLLM 이식) | 코드 완료 — vLLM 서버는 레포 밖, 미가동 시 규칙 폴백. **실기기 지연 미측정** |
 | 문장 → 음성 TTS (Qwen3-TTS / vLLM-Omni 이식) | 코드 완료 — **맥에서 실제 음성 검증 불가**(CUDA 전용). 미가동 시 브라우저 음성 폴백 |
 | 프론트 — 세그먼트 캡처·API 연동·SignFlow pill 큐(top-1 자동 확정)·하단 시트 정정·결과 화면(TTS) | 완료 (웹) |
@@ -516,7 +512,8 @@ CDN 직로드는 데모 현장 네트워크에 의존하게 되므로 쓰지 않
 `debias_alpha`(현재 **0.0 = 끔** — 편향 벡터는 모델별),
 `live_y_scale`(1.205), 세그먼트 프레임 수 범위, 프리롤/포스트롤 시간,
 LLM·TTS timeout 은 사용자 검증과 실측 전까지 확정되지 않은 값이다.
-⚠️ 앞의 셋이 **꺼져 있는 것도 확정이 아니다** — 근거가 없어 끈 것이고, 라벨된 라이브
-평가셋을 확보하면 셋을 함께 다시 피팅한다. 코드에는 임시값임을 주석으로 명시해 두었다(`app/core/config.py`,
+⚠️ 앞의 셋이 **꺼져 있는 것도 확정이 아니다** — 근거가 없어 끈 것이다. 라벨된 라이브
+셋(138클립)이 생겨 임계 곡선은 측정했지만, **그 셋 하나로 임계를 고르고 같은 셋으로
+성능을 보고하면 순환**이라 값을 박지 않았다. 별도 촬영분을 확보하면 셋을 함께 피팅한다. 코드에는 임시값임을 주석으로 명시해 두었다(`app/core/config.py`,
 `capture/config.ts`). 그럴듯한 숫자를 임의로 채워 넣고 확정된 것처럼 코드나 문서에 박아두지
 말 것. 값이 필요하면 프로토타입용 임시값임을 명시하고, 근거가 없다는 사실을 드러낸다.

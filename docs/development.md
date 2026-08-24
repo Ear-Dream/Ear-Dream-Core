@@ -163,24 +163,32 @@ const { data, error } = await api.GET('/api/v1/vocabulary');
 ## 모델 번들
 
 수어 인식 모델은 대용량 바이너리라 커밋하지 않는다(`var/`는 .gitignore). `pnpm setup`이
-받아 두지만 따로 다시 받을 수도 있다.
+설치해 두지만 따로 다시 만들 수도 있다.
 
 ```bash
 pnpm setup:model-bundle
 ```
 
-`packages/ear-dream-api/var/models/hybrid300-h1b/`에 풀린다. 이미 있으면 건너뛰고,
-다시 받으려면 `--force`를 붙인다.
+`packages/ear-dream-api/var/models/single-observed-300-allpeople/`에 생긴다. 이미 있으면
+건너뛰고, 다시 만들려면 `--force`를 붙인다.
+
+**학습 레포를 클론해 둘 필요가 없다.** 이 명령은 공개 학습 저장소
+(`Ear-Dream/Ear-Dream-Benchmarks`)의 **고정 커밋**에서 TorchScript(약 26MB)를 내려받아
+번들을 만든다. 참조를 커밋 SHA로 박아 두므로 어느 기계에서 언제 돌려도 같은 산출물이
+나오고, 별도의 릴리스 업로드 단계가 없다.
 
 - 구성: `model_torchscript.pt`(TorchScript 가중치) + `release.json`(계약·캘리브레이션
   메타). `live_debias.npy`(라이브 편향 벡터)는 **번들에 따라 있고 없다** — 편향은
   모델별로 추정하는 값이라 추정하지 않은 번들은 싣지 않는다(현재 번들이 그렇다)
+- `release.json`의 `source`에 레포·커밋 SHA·산출물 sha256이 남는다 — 어느 가중치를
+  서빙 중인지 번들만 보고 확인할 수 있다
 - 로드 게이트: `release.json`의 `feature_version`이 서버 전처리 계약과 다르거나,
   `class_labels`가 어휘 데이터와 어긋나거나, `serving.interface`가 서버가 모르는
   값이면 로드를 거부한다 — 구모델+신전처리 조합, 조용한 전량 오답, 모르는 호출
   규약으로의 추론을 막는 장치다
-- `serving.interface`가 **forward 호출 규약을 밝힌다**(`hybrid_v1` / `spoter_v1`).
-  모델 세대를 되돌릴 때 `EAR_DREAM_MODEL_BUNDLE_DIR`만 바꾸면 되는 이유다
+- `serving.interface`가 **forward 호출 규약을 밝힌다**(`single_observed_v1` /
+  `hybrid_v1` / `spoter_v1`). 모델 세대를 되돌릴 때 `EAR_DREAM_MODEL_BUNDLE_DIR`만
+  바꾸면 되는 이유다
 - 다른 위치는 환경변수 `EAR_DREAM_MODEL_BUNDLE_DIR`로 지정한다
   (상대경로는 `packages/ear-dream-api` 기준)
 
@@ -188,29 +196,33 @@ pnpm setup:model-bundle
 `GET /health`의 `model_loaded`가 `false`가 된다 — 문장 변환·아바타·음성 흐름은 그대로
 돈다. 즉 수어 인식을 제외한 전 구간은 번들 없이 확인할 수 있다.
 
-### 새로 올릴 때
+### 다른 모델·다른 커밋으로 바꿀 때
 
-학습 산출물(별도 레포)을 가진 사람이 한다. 릴리스 태그와 파일명은
-`scripts/setup-model-bundle.mjs`의 상수와 맞춘다. **세 명령 모두 레포 루트에서** 돌린다
-— 빌드만 하위 디렉토리를 쓰므로 서브셸로 감싸 현재 위치가 바뀌지 않게 했다.
+빌드 스크립트를 직접 부른다. **레포 루트에서** 서브셸로 감싸면 현재 위치가 바뀌지 않는다.
 
 ```bash
-(cd packages/ear-dream-api && uv run python scripts/build_hybrid300_bundle.py)
+(cd packages/ear-dream-api && uv run python scripts/build_single_observed_bundle.py --run final_deployment)
 ```
 
 ```bash
-tar -czf hybrid300-h1b.tar.gz -C packages/ear-dream-api/var/models hybrid300-h1b
+(cd packages/ear-dream-api && uv run python scripts/build_single_observed_bundle.py --ref main)
 ```
 
-```bash
-gh release create model-hybrid300-h1b hybrid300-h1b.tar.gz --notes "Hybrid H1b 300단어 서빙 번들"
-```
+- `--run` — 같은 세대의 다른 번들 (`final_all_people_deployment` 기본 / `final_deployment`)
+- `--ref` — 학습 레포의 커밋 SHA·브랜치·태그. **새 모델을 채택하면 스크립트의
+  `DEFAULT_REF`를 새 SHA로 갱신한다** (브랜치로 두면 같은 명령이 시점에 따라 다른
+  가중치를 받는다)
+- `--source` — 로컬 체크아웃 경로. 아직 push하지 않은 산출물을 시험할 때만 쓴다
+- `--partition` — 클래스 인덱스 대조 파일(경로/URL)
 
-빌드 스크립트는 학습 산출물 위치를 환경변수 `EAR_DREAM_BENCHMARKS_DIR` → 이 레포의
-형제 디렉토리 → `~/Documents` 순으로 찾는다. 다른 곳이면 `--source`로 넘긴다.
+⚠️ `single_observed_hand_300`은 클래스 인덱스 정본(`data/organized300_v1/`)이 학습
+레포의 `.gitignore` 대상이라 올라와 있지 않고, 그래서 **대조 없이 빌드된다**. 올라오면
+`--partition`으로 넘기면 자동 대조된다. 없을 때의 확인 방법은 라벨된 REAL09로 채점해
+보는 것이다 — 순서가 맞으면 ~89%, 어긋나면 ~0.3%(우연)라 판정이 명확하다.
 
-`vocab300.json`은 **이 스크립트가 쓰지 않는다** — 300 클래스 인덱스 체계가 베이스라인과
-같아서, 학습 쪽 `word_partition_report.json`과 라벨·`word_id`가 전부 일치하는지 확인만
-하고 어긋나면 빌드를 중단한다. 어휘 자체를 새로 만드는 것은 베이스라인 빌드
-(`scripts/build_spoter300_bundle.py`)의 몫이고, 그쪽 산출물인 `vocab300.json`이
-커밋 대상이다.
+`vocab300.json`은 **이 스크립트가 쓰지 않는다** — 300 클래스 인덱스 체계가 세 세대 모두
+같아서 확인만 한다. 어휘 자체를 새로 만드는 것은 베이스라인 빌드
+(`scripts/build_spoter300_bundle.py`)의 몫이고, 그쪽 산출물인 `vocab300.json`이 커밋
+대상이다. ⚠️ 이전 세대 빌드 스크립트 둘(`build_spoter300_bundle.py`,
+`build_hybrid300_bundle.py`)은 학습 레포가 **로컬 형제 디렉토리에 있다고 가정**하는 옛
+방식이다 — 새로 만들 때는 이 스크립트의 원격 방식을 따른다.

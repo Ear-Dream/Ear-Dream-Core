@@ -1,22 +1,22 @@
 """208D 300단어 TorchScript 추론 모듈 — 로컬 번들 로딩.
 
-로딩 단위는 **번들 디렉토리** (settings.model_bundle_dir, 기본 var/models/hybrid300-h1b):
+로딩 단위는 **번들 디렉토리** (settings.model_bundle_dir, 기본 var/models/single-observed-300):
 
     release.json          -> 기계 판독 핸드오프 (정본): feature_version, model_name,
                              num_classes, class_labels(한국어, 인덱스 순),
                              serving{artifact, interface, temperature,
                              recommended_reject_threshold}, source(학습 run 경로·지표)
-    model_torchscript.pt  -> torch.jit.trace 산출물. 호출 규약은 두 가지고
+    model_torchscript.pt  -> torch.jit.trace 산출물. 호출 규약이 여러 가지고
                              release.json serving.interface 가 고른다 (아래).
 
-**서빙 인터페이스 2종** — 모델 세대가 갈려서 forward 시그니처가 다르다. 번들이
+**서빙 인터페이스 3종** — 모델 세대가 갈려서 forward 시그니처가 다르다. 번들이
 스스로 어느 쪽인지 밝히므로 구 번들로 롤백해도 코드 변경이 필요 없다
 (serving.interface 가 없는 번들 = 구 SPOTER 번들로 취급):
 
   "spoter_v1" (var/models/spoter300-pilot — SPOTER-208 베이스라인)
       forward(features[B,T,208], padding_mask[B,T] bool) -> logits[B,300]
 
-  "hybrid_v1" (var/models/hybrid300-h1b — one_hand_hybrid H1b, 현재 기본)
+  "hybrid_v1" (var/models/hybrid300-h1b — one_hand_hybrid H1b)
       forward(features[B,T,208], padding_mask[B,T] bool,
               detected[B,T,2], view[B,T,2])
           -> (full_logits[B,300], onehand_logits[B,106],
@@ -29,6 +29,16 @@
         - embedding(128): prototype retrieval 용. 서빙 top-k 는 300 head 로짓에서
           나오므로 prototype bank(h2_prototypes.npz)를 번들에 넣지 않았다
 
+  "single_observed_v1" (var/models/single-observed-300 — single_observed_hand_300, 현재 기본)
+      forward(features[B,T,208], padding_mask[B,T] bool,
+              detected[B,T,2], view[B,T,2])
+          -> (logits[B,300], hand_type_logits[B,2], embedding[B,128])
+      **입력 계약이 앞의 둘과 다르다** — 이 모델은 손 하나만 보도록 학습됐다.
+      서빙이 대표 손을 골라(robust_motion_side) **반대 손 42차원을 0 으로 지우고**
+      view 를 그 손의 one-hot 으로 준다. 손을 가리지 않고 FULL 로 주면 학습에 없는
+      입력이 된다. 서빙은 logits 만 쓰고 hand_type/embedding 은 쓰지 않는다
+      (학습 레포가 hand_type 을 hard routing 에 쓰지 않기로 결론냈다).
+
   detected/view 의 의미 (hybrid_v1):
       detected[..., 0/1] = 그 프레임에서 오른손/왼손이 **검출됐는지** — 전처리
           part_mask 의 right_hand/left_hand 열을 그대로 넘긴다 (PARTS 순서:
@@ -40,7 +50,8 @@
           학습의 x_full 경로와 정확히 같은 입력이다. 여기서 view 를 손 검출률로
           분기시키면 학습에 없는 입력 조합과 새 임계 상수가 동시에 생긴다.
 
-번들 생성: scripts/build_hybrid300_bundle.py (베이스라인은 build_spoter300_bundle.py).
+번들 생성: scripts/build_single_observed_bundle.py (이전 세대는
+build_hybrid300_bundle.py / build_spoter300_bundle.py — 셋 다 남겨 롤백 가능).
 var/ 는 .gitignore — 모델 파일은 레포에 커밋하지 않는다.
 
 로드 게이트 — 어긋난 조합 사고 방지 (v2 로더의 원칙 유지):
@@ -104,8 +115,52 @@ DEBIAS_FILENAME = "live_debias.npy"
 # 필드가 없는 번들은 이 스위치 도입 이전에 만들어진 SPOTER 번들이다.
 INTERFACE_SPOTER = "spoter_v1"
 INTERFACE_HYBRID = "hybrid_v1"
-KNOWN_INTERFACES = (INTERFACE_SPOTER, INTERFACE_HYBRID)
+INTERFACE_SINGLE_OBSERVED = "single_observed_v1"
+KNOWN_INTERFACES = (INTERFACE_SPOTER, INTERFACE_HYBRID, INTERFACE_SINGLE_OBSERVED)
 DEFAULT_INTERFACE = INTERFACE_SPOTER
+
+# ---------------------------------------------------------------- 대표 손 선택 (single_observed_v1)
+# 208 피처의 손 구간 (preprocess_spoter 의 부위 순서와 동일: pose 0-50, R 50-92, L 92-134)
+RIGHT_SLICE = slice(50, 92)
+LEFT_SLICE = slice(92, 134)
+# 검출률 차이가 이보다 크면 motion 을 보지 않고 많이 보인 손을 고른다 (학습 레포 기본값).
+HAND_COVERAGE_MARGIN = 0.15
+
+
+def robust_motion_side(features: np.ndarray, detected: np.ndarray) -> int:
+    """대표 손 선택 → 0=오른손, 1=왼손. 학습 레포 dataset.robust_motion_side 의 이식본이다.
+
+    ⚠️ 이 함수는 학습 쪽과 **수치가 그대로 일치해야 한다** — 선택이 갈리면 모델이 보는
+    손 자체가 달라져 train/serve skew 가 된다 (설계 결정 1과 같은 취지). 수정할 때는
+    single_observed_hand_300/dataset.py 와 동시에 바꾼다.
+
+    규칙: 검출률이 HAND_COVERAGE_MARGIN 이상 차이 나면 많이 보인 손. 비슷하면 검출
+    프레임의 프레임 간 이동량에서 상하위 10% 를 잘라낸 **중앙값**이 큰 손 (한두 프레임의
+    튄 값에 선택이 좌우되지 않게 하는 게 robust 의 요지다).
+    """
+    coverage = (
+        detected.astype(np.float32).mean(axis=0) if len(detected) else np.zeros(2, np.float32)
+    )
+    if coverage[0] > coverage[1] + HAND_COVERAGE_MARGIN:
+        return 0
+    if coverage[1] > coverage[0] + HAND_COVERAGE_MARGIN:
+        return 1
+    energies = []
+    for part, mask in (
+        (features[:, RIGHT_SLICE], detected[:, 0]),
+        (features[:, LEFT_SLICE], detected[:, 1]),
+    ):
+        if len(part) < 2:
+            energies.append(0.0)
+            continue
+        velocity = np.abs(np.diff(part, axis=0)).mean(axis=1)
+        valid = (mask[:-1] > 0) & (mask[1:] > 0)
+        values = velocity[valid]
+        if len(values) >= 5:
+            low, high = np.quantile(values, (0.1, 0.9))
+            values = values[(values >= low) & (values <= high)]
+        energies.append(float(np.median(values)) if len(values) else 0.0)
+    return int(energies[1] > energies[0])
 
 
 @dataclass
@@ -148,7 +203,7 @@ class ModelState:
         features = torch.from_numpy(x).unsqueeze(0)  # (1, T, 208)
         padding_mask = torch.zeros(1, x.shape[0], dtype=torch.bool)
         with torch.no_grad():
-            if self.interface == INTERFACE_HYBRID:
+            if self.interface in (INTERFACE_HYBRID, INTERFACE_SINGLE_OBSERVED):
                 if hand_detected is None:
                     raise ValueError(
                         f"interface={self.interface} 는 hand_detected (T,2) 가 필수다 — "
@@ -161,8 +216,20 @@ class ModelState:
                 detected = torch.from_numpy(
                     np.ascontiguousarray(hand_detected, dtype=np.float32)
                 ).unsqueeze(0)  # (1, T, 2)
-                view = torch.ones_like(detected)  # FULL — 서빙은 손을 가리지 않는다
-                logits = self.model(features, padding_mask, detected, view)[0]  # full_logits
+                if self.interface == INTERFACE_HYBRID:
+                    view = torch.ones_like(detected)  # FULL — 서빙은 손을 가리지 않는다
+                    # 4출력 중 [0]=full_logits
+                    logits = self.model(features, padding_mask, detected, view)[0]
+                else:
+                    # single_observed_v1: 대표 손 하나만 남긴다 — 반대 손 42차원을 0 으로
+                    # 지우고 view 를 그 손의 one-hot 으로 준다 (학습 입력과 동일한 형태).
+                    side = robust_motion_side(x, hand_detected)
+                    features = features.clone()
+                    features[..., LEFT_SLICE if side == 0 else RIGHT_SLICE] = 0.0
+                    view = torch.zeros_like(detected)
+                    view[..., side] = 1.0
+                    # 3출력 중 [0]=logits
+                    logits = self.model(features, padding_mask, detected, view)[0]
             else:
                 logits = self.model(features, padding_mask)  # (1, C)
             probs = torch.softmax(logits / self.temperature, dim=-1).squeeze(0).numpy()

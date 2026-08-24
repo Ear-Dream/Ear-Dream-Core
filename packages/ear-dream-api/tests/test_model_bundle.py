@@ -79,7 +79,10 @@ def _write_bundle(tmp_path: Path, release: dict, debias: np.ndarray | None = Non
     bundle = tmp_path / "fake-bundle"
     bundle.mkdir(parents=True, exist_ok=True)
     interface = (release.get("serving") or {}).get("interface", model_module.DEFAULT_INTERFACE)
-    stub = _StubHybrid() if interface == model_module.INTERFACE_HYBRID else _StubSpoter()
+    stub = {
+        model_module.INTERFACE_HYBRID: _StubHybrid,
+        model_module.INTERFACE_SINGLE_OBSERVED: _StubSingleObserved,
+    }.get(interface, _StubSpoter)()
     torch.jit.save(torch.jit.script(stub), str(bundle / "model_torchscript.pt"))
     (bundle / "release.json").write_text(json.dumps(release, ensure_ascii=False), encoding="utf-8")
     if debias is not None:
@@ -324,3 +327,108 @@ def test_hybrid_requires_hand_detected(tmp_path, monkeypatch):
         state.predict_probs(x)
     with pytest.raises(ValueError, match="hand_detected"):
         state.predict_probs(x, np.ones((8, 2), dtype=np.uint8))  # 프레임 수 불일치
+
+
+# --------------------------------------------- single_observed_v1 (대표 손 하나만 보는 세대)
+class _StubSingleObserved(torch.nn.Module):
+    """single_observed_v1 시그니처 스텁 (3출력). logits 에 **입력 검증 결과**를 싣는다 —
+    클래스 0 = 오른손 구간 절댓값 합, 클래스 1 = 왼손 구간 절댓값 합, 클래스 2 = view 의
+    오른손 성분 합. 서빙이 반대 손을 안 지우거나 view 를 잘못 주면 argmax 가 달라진다."""
+
+    def forward(
+        self,
+        features: torch.Tensor,
+        padding_mask: torch.Tensor,
+        detected: torch.Tensor,
+        view: torch.Tensor,
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+        batch = features.shape[0]
+        logits = torch.zeros(batch, 300)
+        logits[:, 0] = features[..., 50:92].abs().sum((1, 2))
+        logits[:, 1] = features[..., 92:134].abs().sum((1, 2))
+        logits[:, 2] = view[..., 0].sum(1)
+        return logits, torch.zeros(batch, 2), torch.zeros(batch, 128)
+
+
+def _single_observed_release(**overrides) -> dict:
+    release = _valid_release(model_name="single_observed_hand_208")
+    release["serving"] = {
+        **release["serving"],
+        "interface": "single_observed_v1",
+        "view": "single_observed",
+        "temperature": 1.0,
+    }
+    release.update(overrides)
+    return release
+
+
+def _reference_robust_motion_side(features, detected, coverage_margin=0.15):
+    """학습 레포 single_observed_hand_300/dataset.robust_motion_side 의 **인라인 복사본**.
+
+    test_preprocess_spoter 가 레퍼런스 전처리와 대조하는 것과 같은 취지다 — 대표 손
+    선택이 학습과 갈리면 모델이 보는 손 자체가 달라진다 (train/serve skew)."""
+    right, left = slice(50, 92), slice(92, 134)
+    coverage = (
+        detected.astype(np.float32).mean(axis=0) if len(detected) else np.zeros(2, np.float32)
+    )
+    if coverage[0] > coverage[1] + coverage_margin:
+        return 0
+    if coverage[1] > coverage[0] + coverage_margin:
+        return 1
+    energies = []
+    for part, mask in ((features[:, right], detected[:, 0]), (features[:, left], detected[:, 1])):
+        if len(part) < 2:
+            energies.append(0.0)
+            continue
+        velocity = np.abs(np.diff(part, axis=0)).mean(axis=1)
+        valid = (mask[:-1] > 0) & (mask[1:] > 0)
+        values = velocity[valid]
+        if len(values) >= 5:
+            low, high = np.quantile(values, (0.1, 0.9))
+            values = values[(values >= low) & (values <= high)]
+        energies.append(float(np.median(values)) if len(values) else 0.0)
+    return int(energies[1] > energies[0])
+
+
+def test_robust_motion_side_matches_training_reference():
+    """대표 손 선택이 학습 레퍼런스와 **모든 난수 케이스에서** 일치해야 한다."""
+    rng = np.random.default_rng(20260824)
+    for _ in range(200):
+        t = int(rng.integers(1, 40))
+        x = rng.normal(size=(t, FEAT_DIM)).astype(np.float32)
+        # 검출 패턴을 다양하게 — 한쪽만/양쪽/희박
+        detected = (rng.random((t, 2)) < rng.choice([0.05, 0.5, 0.95])).astype(np.uint8)
+        assert model_module.robust_motion_side(x, detected) == _reference_robust_motion_side(
+            x, detected
+        )
+
+
+def test_single_observed_masks_other_hand_and_sets_view(tmp_path, monkeypatch):
+    """반대 손 42차원이 0 으로 지워지고 view 가 선택 손 one-hot 이어야 한다."""
+    from app.core.config import settings as cfg
+
+    monkeypatch.setattr(cfg, "reject_threshold", None)
+    state = _load(tmp_path, monkeypatch, _single_observed_release())
+    assert state.loaded, f"load failed: {state.error}"
+    assert state.interface == model_module.INTERFACE_SINGLE_OBSERVED
+
+    t = 20
+    x = np.ones((t, FEAT_DIM), dtype=np.float32)
+    # 오른손만 검출 → 검출률 차이 1.0 > 0.15 이므로 오른손이 선택된다
+    detected = np.zeros((t, 2), dtype=np.uint8)
+    detected[:, 0] = 1
+    probs = state.predict_probs(x, detected)
+    # 스텁 로짓: 클래스 0=오른손 합(42*20=840), 1=왼손 합(지워져 0), 2=view 오른손 합(20)
+    assert int(np.argmax(probs)) == 0
+
+    # 왼손만 검출 → 왼손 선택 → 오른손이 0 이 되어 클래스 1 이 최고여야 한다
+    flipped = detected[:, ::-1].copy()
+    assert int(np.argmax(state.predict_probs(x, flipped))) == 1
+
+
+def test_single_observed_requires_hand_detected(tmp_path, monkeypatch):
+    import pytest
+
+    state = _load(tmp_path, monkeypatch, _single_observed_release())
+    with pytest.raises(ValueError, match="hand_detected"):
+        state.predict_probs(np.zeros((16, FEAT_DIM), dtype=np.float32))
