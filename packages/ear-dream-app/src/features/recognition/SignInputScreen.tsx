@@ -64,6 +64,37 @@ const STRIP_CHIP_GAP = 6;
 /** 뷰파인더 안쪽 여백 — 가이드 박스와 오버레이 문구가 같은 값을 쓴다(사방 동일). */
 const GUIDE_INSET = 16;
 
+/** 뷰파인더 모서리 — 시안 실측 16 (460:2482). */
+const VIEWFINDER_RADIUS = 16;
+
+/*
+  시안 실측 세로 치수.
+
+  **뷰파인더와 단어 띠가 함께 있는 프레임은 `4-1. 농인 입력 — 단어 인식`(460:2741)
+  하나뿐이다.** 그 프레임의 세로 배치가 이 화면의 기준이다:
+    손잡이 바 0..123 · 여백 21 · 뷰파인더 144..789(645) · 여백 22 · 띠 811..932(121)
+
+  둘의 비율은 645 : 121 (약 5.33 : 1). 이 화면에는 시안 4-1 에 없는 녹화 버튼이 하나 더
+  들어가므로 **높이를 그대로 쓸 수는 없다** — 대신 두 요소에 시안 비율을 flex 로 주어
+  서로의 세로 비율이 시안과 같아지게 한다. 남는 높이는 둘이 그 비율대로 나눠 갖는다.
+*/
+const VIEWFINDER_FLEX = 645;
+const STRIP_FLEX = 121;
+
+/** 손잡이 바 아래 ~ 뷰파인더 위 (123 → 144). */
+const GAP_BELOW_HANDLE = 144 - 123;
+/** 뷰파인더 아래 ~ 단어 띠 위 (789 → 811). */
+const GAP_ABOVE_STRIP = 811 - 789;
+/** 녹화 버튼 위아래 여백 — 촬영 프레임(460:2478)의 21 / 23 을 그대로 쓴다. */
+const GAP_ABOVE_CAPTURE = 829 - 808;
+const GAP_BELOW_CAPTURE = 932 - 909;
+
+/**
+ * 띠가 아무리 눌려도 단어 칩(63.2)이 잘리지 않게 하는 바닥값.
+ * 화면이 아주 낮을 때만 걸리며, 그때는 시안 비율보다 칩이 보이는 쪽을 택한다.
+ */
+const STRIP_MIN_HEIGHT = 80;
+
 /** 「전달」 버튼의 종이비행기 크기. 시안의 글자(Bold 28)가 차지하던 높이에 맞춘 값이다. */
 const COMPOSE_ICON_SIZE = 30;
 
@@ -556,21 +587,33 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     backgroundColor: colors.bg.canvas,
   },
+  /**
+   * 뷰파인더 아래 조작 영역 — 세로 여백을 시안 실측값으로 잡는다.
+   *
+   * 시안 촬영 화면(460:2478)의 세로 리듬: 손잡이 바 123 · 여백 36 · 뷰파인더 649 ·
+   * 여백 21 · 녹화 버튼 80 · 아래 여백 23. 우리 화면에는 시안 촬영 프레임에 없는
+   * 단어 띠(121)가 하나 더 들어가므로, **고정 치수는 전부 시안값을 쓰고 남는 높이를
+   * 뷰파인더가 흡수**한다. 비율이 시안과 어긋나는 지점은 뷰파인더 한 곳뿐이다.
+   */
   footer: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
+    paddingTop: GAP_ABOVE_CAPTURE,
+    paddingBottom: GAP_BELOW_CAPTURE,
     gap: spacing.md,
   },
   /**
-   * 뷰파인더 — **여백 없이 화면을 채운다**(2026-08-24 사용자 요청).
+   * 뷰파인더 — **좌우 여백 없이 화면을 채우되 모서리는 굴린다**(2026-08-24 요청 두 건).
    *
-   * 시안은 398x649 카드를 좌우 16 여백과 반경 16 으로 띄워 두지만, 카메라가 잘 보이는 것이
-   * 우선이라 여백·라운드를 걷어냈다. 인식 실패 시 테두리가 빨강으로 바뀌는 표시는 유지한다.
+   * 시안은 398x649 카드를 좌우 16 여백 + 반경 16 으로 띄워 두는데, 여백만 걷어내고
+   * 반경은 시안값 그대로 남겼다 — 화면 끝까지 차면서 모서리가 뾰족하지 않다.
+   * 인식 실패 시 테두리가 빨강으로 바뀌는 표시는 유지한다.
    */
   card: {
-    flex: 1,
+    flex: VIEWFINDER_FLEX,
+    marginTop: GAP_BELOW_HANDLE,
     overflow: 'hidden',
     position: 'relative',
+    borderRadius: VIEWFINDER_RADIUS,
     borderWidth: 3,
     borderColor: 'transparent',
     backgroundColor: colors.bg.video,
@@ -706,11 +749,13 @@ const styles = StyleSheet.create({
    * (화면에서의 상하 위치는 렌더 순서가 정한다 — wordStrip 주석 참고.)
    */
   strip: {
+    flex: STRIP_FLEX,
+    marginTop: GAP_ABOVE_STRIP,
     marginHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: STRIP_CHIP_GAP,
-    minHeight: 121,
+    minHeight: STRIP_MIN_HEIGHT,
     paddingHorizontal: spacing.sm,
     // 화면 아래에 붙는 띠가 아니라 **떠 있는 밴드**라 네 모서리를 모두 굴린다.
     borderRadius: 20,
@@ -824,8 +869,9 @@ const styles = StyleSheet.create({
   captureInnerRecording: {
     width: CAPTURE_INNER_SIZE * 0.8,
     height: CAPTURE_INNER_SIZE * 0.8,
-    // 모서리를 살짝만 굴린다. 완전한 직각은 작은 크기에서 거칠게 읽힌다.
-    borderRadius: 4,
+    // 시안의 다른 사각형(칩 12 · 뷰파인더 16)과 같은 결로 굴린다 — 이 크기에서 4 는
+    // 사실상 직각으로 읽혀 혼자 뾰족해 보였다.
+    borderRadius: radius.sm,
     backgroundColor: colors.status.error,
   },
   captureHint: {

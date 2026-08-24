@@ -61,7 +61,7 @@ export function WordCandidateSheet({ entry, onChoose, onRemove, onClose }: WordC
                 <CandidateCard
                   key={candidate.id}
                   word={candidate.label}
-                  iconKey={candidate.label}
+                  wordId={candidate.id}
                   selected={index === entry.chosenCandidateIndex}
                   onPress={() => onChoose(index)}
                   testID={`word-sheet-candidate-${index}`}

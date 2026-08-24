@@ -9,7 +9,6 @@ import { Ripple } from '../../components/Ripple';
 import { SpinnerRing } from '../../components/SpinnerRing';
 import { TrackSwitchHandle } from '../../components/TrackSwitchHandle';
 import { Waveform, WAVEFORM_BAR_COUNT } from '../../components/Waveform';
-import { LANDMARK_DEV_ENABLED } from '../../constants/devFlags';
 import { strings } from '../../constants/strings';
 import {
   colors,
@@ -261,19 +260,6 @@ export function VoiceInputScreen({ onSubmit, onSwitchToSign }: VoiceInputScreenP
           </Text>
         ) : null}
 
-        {/*
-          엔진 이벤트 순서 (개발 화면 플래그에서만).
-
-          실기기에서 콘솔을 못 보는 상태로 "말해도 아무것도 안 잡힌다" 를 고치려면 어디까지
-          왔는지가 유일한 단서다. audiostart 가 없으면 오디오가 안 붙은 것이고, speechstart
-          까지 오는데 final 이 없으면 인식 서비스가 빈손으로 돌려주는 것이다.
-        */}
-        {LANDMARK_DEV_ENABLED && stt.trace.length > 0 ? (
-          <Text style={styles.sttTrace} testID="voice-stt-trace">
-            {stt.trace.join(' → ')}
-          </Text>
-        ) : null}
-
         <View style={styles.spacerBeforeWave} />
         <Waveform amplitudes={amplitudes} testID="voice-waveform" />
         <View style={styles.spacerBeforeCaption} />
@@ -386,15 +372,6 @@ const styles = StyleSheet.create({
   spacerBeforeCaption: { flex: 36 },
   spacerBeforeButton: { flex: 42 },
   spacerBottom: { flex: 24 },
-  // 진단용 표시. 제품 화면에서는 플래그가 꺼져 있어 렌더되지 않는다.
-  sttTrace: {
-    marginTop: spacing.sm,
-    paddingHorizontal: spacing.md,
-    fontFamily: 'monospace',
-    fontSize: 11,
-    lineHeight: 15,
-    color: colors.text.secondary,
-  },
   // 시안 실측: Bold 30 / 행간 135% / 자간 -0.45.
   title: {
     fontFamily: fonts.bold,

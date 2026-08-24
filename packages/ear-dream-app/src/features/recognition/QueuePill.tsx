@@ -1,8 +1,8 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { candidateIconFor } from '../../components/icons/CandidateIcons';
+import { WordIcon } from '../../components/WordIcon';
 import { strings } from '../../constants/strings';
-import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
+import { colors, fonts, radius, spacing } from '../../constants/theme';
 import type { RecognitionEntry } from './api/useRecognitionQueue';
 import { chosenCandidate } from './api/useRecognitionQueue';
 
@@ -80,8 +80,6 @@ export function QueuePill({ entry, onPress, onRemove, selected = false, testID }
   }
 
   const candidate = chosenCandidate(entry);
-  // 시안의 단어 칩은 그림 + 글자다. 그림이 없는 단어는 글자만 나온다(추상어 등).
-  const Icon = candidateIconFor(candidate.label);
   return (
     <Pressable
       accessibilityRole="button"
@@ -90,7 +88,8 @@ export function QueuePill({ entry, onPress, onRemove, selected = false, testID }
       style={({ pressed }) => [styles.root, styles.done, selected && styles.doneSelected, pressed && styles.pressed]}
       testID={testID}
     >
-      {Icon ? <Icon size={PILL_ICON_SIZE} color={colors.text.primary} /> : null}
+      {/* 시안의 단어 칩은 그림 + 글자다. 그림은 단어 ID 로 찾는다(WordIcon 주석). */}
+      <WordIcon wordId={candidate.id} size={PILL_ICON_SIZE} />
       <Text style={styles.doneLabel}>{candidate.label}</Text>
       {/* 탭하면 아래(시트)가 열린다는 방향 표시 — 삭제(×)로 오해되지 않게 ▾를 쓴다. */}
       <Text style={styles.doneAffordance}>▾</Text>
@@ -98,17 +97,27 @@ export function QueuePill({ entry, onPress, onRemove, selected = false, testID }
   );
 }
 
-/** 칩 안 픽토그램 — 글자(Bold 28)와 광학적으로 맞는 크기. */
-const PILL_ICON_SIZE = 30;
+/** 시안 실측 칩 높이(63.2)와 좌우 여백(4). */
+const PILL_HEIGHT = 63.2;
+const PILL_PADDING_X = 4;
+/** 칩 안 픽토그램 — 글자(Bold 28) 높이에 맞춘다. 시안 칩에는 그림이 없어 실측값이 아니다. */
+const PILL_ICON_SIZE = 28;
 
 const styles = StyleSheet.create({
-  // 시안 실측: 높이 63 · 반경 12 · 테두리 2 (460:2767·460:2777).
+  /**
+   * 시안 실측(460:2767·460:2777): 높이 63.2 · 반경 12 · 테두리 2 ·
+   * **좌우 여백 4** (자동차 칩 96 안에 글자 88).
+   *
+   * 여백이 이렇게 좁은 건 글자가 Bold 28 로 크기 때문이다. 12 를 주면 칩이 시안보다
+   * 1.3배 넓어져 두세 개만 담겨도 스트립이 꽉 찬다. 높이 63 이 최소 터치 타깃(48)을
+   * 넉넉히 넘으므로 좁은 좌우 여백이 조작성을 해치지도 않는다.
+   */
   root: {
-    minHeight: Math.max(touchTarget.minHeight, 63),
+    minHeight: PILL_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
+    gap: spacing.xs,
+    paddingHorizontal: PILL_PADDING_X,
     borderRadius: radius.md,
     borderWidth: 2,
   },
