@@ -22,7 +22,9 @@ def find_workspace_root(start: Path) -> Path:
 def main() -> None:
     output_path = find_workspace_root(API_ROOT) / "packages" / "core" / "openapi.json"
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    output_path.write_text(json.dumps(app.openapi(), indent=2, ensure_ascii=False) + "\n")
+    output_path.write_text(
+        json.dumps(app.openapi(), indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+    )
     print(f"wrote {output_path}")
 
 

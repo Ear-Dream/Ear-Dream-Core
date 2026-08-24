@@ -5,10 +5,17 @@ import type { SignSequenceItem } from '@ear-dream/core';
 
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
-import { HomeAction } from '../../components/HomeAction';
-import { ScreenFrame } from '../../components/ScreenFrame';
+import { TrackSwitchHandle } from '../../components/TrackSwitchHandle';
 import { strings } from '../../constants/strings';
-import { colors, fonts, koreanWordBreak, radius, spacing, touchTarget } from '../../constants/theme';
+import {
+  colors,
+  fonts,
+  koreanWordBreak,
+  maxScreenWidth,
+  radius,
+  spacing,
+  touchTarget,
+} from '../../constants/theme';
 import { createRequestId } from '../recognition/api/createRequestId';
 import { AvatarPlayer, useSignSequence } from './avatar';
 
@@ -19,12 +26,15 @@ export interface SignVideoScreenProps {
    * 시퀀스(빌트인 시퀀스)를 아바타로 재생한다.
    */
   sentence: string;
-  /** AppBar 뒤로가기 — 음성 입력 화면으로 복귀(다시 말하기는 이 경로로 해결, V2 시안 방침). */
-  onBack: () => void;
-  /** "답장하기" — 농인 트랙(수어 입력)으로. 대화 턴이 상대에게 넘어가는 지점이다. */
+  /**
+   * "답장" — 농인 트랙(수어 입력)으로. 대화 턴이 상대에게 넘어가는 지점이다.
+   * 시안에서는 화면 아래 **손 손잡이**가 이 동작이다.
+   *
+   * ⚠️ 시안에 이 화면의 **뒤로가기·홈이 없다**. 그래서 `onBack`/`onGoHome` 을 지웠다 —
+   * 음성 입력 화면으로 되돌아가는 경로가 사라졌다는 뜻이다(손잡이로 수어 트랙에 간 뒤
+   * 그쪽 손잡이로 첫 화면까지는 갈 수 있다). 되살리려면 두 prop 과 배선만 복구하면 된다.
+   */
   onReply: () => void;
-  /** AppBar 홈 버튼 — 세션을 끝내고 첫 화면으로. */
-  onGoHome: () => void;
 }
 
 /**
@@ -34,14 +44,14 @@ export interface SignVideoScreenProps {
  * 확정 디자인이 세그먼트로 돌아왔고, 세 값이 전부 보이면 "지금 몇 배인지"와 "무엇을
  * 고를 수 있는지"를 한 번에 읽을 수 있다 — 순환 버튼은 눌러 봐야 알 수 있었다.
  */
-const PLAYBACK_SPEEDS = [
-  { label: '0.5배', rate: 0.5 },
-  { label: '1.0배', rate: 1 },
-  { label: '1.5배', rate: 1.5 },
-] as const;
-
-/** 기본 재생 속도(1.0배)의 인덱스. */
-const DEFAULT_SPEED_INDEX = 1;
+/**
+ * 재생 속도 — 시안 「최종」에 속도 조절 UI 가 없어 **등속 고정**이다.
+ *
+ * 이전에는 하단에 세 칸 세그먼트(0.5/1.0/1.5배)를 두었는데, 시안 어디에도 없어서 걷어냈다.
+ * 조절이 필요하다는 판단이 서면 이 상수 대신 다시 세그먼트를 올린다 — 재생부
+ * (`AvatarPlayer`)는 fps 를 그대로 받으므로 UI 만 얹으면 된다.
+ */
+const PLAYBACK_RATE = 1;
 
 /** 자막이 카드 밑변에서 떨어지는 거리 — 시안 49pt(430pt 폭 기준)를 좁은 화면에 맞춘 값. */
 const CAPTION_BOTTOM_INSET = 40;
@@ -67,8 +77,7 @@ const CAPTION_BOTTOM_INSET = 40;
  * 재생 불가 사유를 **두 종류로 나눠 보여준다** — 어휘에 없는 단어(unknown_word)와
  * 어휘엔 있으나 동작 시퀀스가 없는 단어(no_sequence)는 사용자가 할 수 있는 일이 다르다.
  */
-export function SignVideoScreen({ sentence, onBack, onReply, onGoHome }: SignVideoScreenProps) {
-  const [speedIndex, setSpeedIndex] = useState(DEFAULT_SPEED_INDEX);
+export function SignVideoScreen({ sentence, onReply }: SignVideoScreenProps) {
   const [playing, setPlaying] = useState(true);
   // "다시 보기" 신호. 값 자체엔 의미가 없고 **바뀌었다는 사실**이 재시작을 뜻한다.
   const [restartToken, setRestartToken] = useState(0);
@@ -95,45 +104,16 @@ export function SignVideoScreen({ sentence, onBack, onReply, onGoHome }: SignVid
     return { unknown, notReady };
   }, [result]);
 
-  return (
-    <ScreenFrame
-      title={strings.signVideo.appBarTitle}
-      onBack={onBack}
-      headerRight={<HomeAction onPress={onGoHome} testID="sign-video-home" />}
-      footer={
+  const footer =
         phase.name === 'failed' ? (
           <Button label={strings.signVideo.retry} onPress={retry} testID="sign-video-retry" />
         ) : (
           <>
-            {/* 속도 세그먼트는 하단 조작 영역 안이다 — 엄지 범위에 있어야 하는 조작이다. */}
-            <View style={styles.speedCard} testID="sign-video-speed">
-              <Text style={styles.speedLabel}>{strings.signVideo.speedLabel}</Text>
-              <View style={styles.speedSegments}>
-                {PLAYBACK_SPEEDS.map((speed, index) => {
-                  const active = index === speedIndex;
-                  return (
-                    <Pressable
-                      key={speed.label}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: active }}
-                      accessibilityLabel={`${strings.signVideo.speedLabel} ${speed.label}`}
-                      onPress={() => setSpeedIndex(index)}
-                      style={({ pressed }) => [
-                        styles.speedSegment,
-                        active && styles.speedSegmentActive,
-                        pressed && styles.speedSegmentPressed,
-                      ]}
-                      testID={`sign-video-speed-${speed.rate}`}
-                    >
-                      <Text style={[styles.speedText, active && styles.speedTextActive]}>
-                        {speed.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
-            <Button label={strings.signVideo.reply} onPress={onReply} testID="sign-video-reply" />
+            {/*
+              시안의 하단 버튼은 「다시보기」 하나다(460:2326). 「답장하기」는 화면 아래
+              **손 손잡이**(TrackSwitchHandle)로 옮겼다 — 아이콘이 가리키는 수어 트랙이
+              곧 답장이다.
+            */}
             <Button
               label={strings.signVideo.replay}
               variant="outline"
@@ -145,9 +125,10 @@ export function SignVideoScreen({ sentence, onBack, onReply, onGoHome }: SignVid
               testID="sign-video-replay"
             />
           </>
-        )
-      }
-    >
+        );
+
+  const body = (
+    <>
       <View style={styles.card} testID="sign-video-card">
         <View style={styles.cardCenter}>
           {phase.name === 'pending' ? (
@@ -161,7 +142,7 @@ export function SignVideoScreen({ sentence, onBack, onReply, onGoHome }: SignVid
           ) : sequences.length > 0 ? (
             <AvatarPlayer
               sequences={sequences}
-              fps={(result?.source_fps ?? 30) * PLAYBACK_SPEEDS[speedIndex].rate}
+              fps={(result?.source_fps ?? 30) * PLAYBACK_RATE}
               playing={playing}
               restartToken={restartToken}
               onFinished={() => setPlaying(false)}
@@ -215,12 +196,43 @@ export function SignVideoScreen({ sentence, onBack, onReply, onGoHome }: SignVid
           </Text>
         </View>
       ) : null}
+    </>
+  );
 
-    </ScreenFrame>
+  return (
+    <View style={styles.root}>
+      <View style={styles.card_frame}>{body}</View>
+      <View style={styles.footer}>{footer}</View>
+
+      {/* 시안 하단 흰 띠 — 수어 트랙(= 답장)으로 넘어가는 손잡이. */}
+      <TrackSwitchHandle
+        variant="toSign"
+        onPress={onReply}
+        accessibilityLabel={strings.signVideo.reply}
+        testID="sign-video-reply"
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    width: '100%',
+    maxWidth: maxScreenWidth,
+    alignSelf: 'center',
+    // 시안은 화면 전체가 인디고 면이고 하단 121pt 만 흰 띠다(손잡이 자리).
+    backgroundColor: colors.bg.brandSurface,
+  },
+  card_frame: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+  },
   // 확정 디자인 MotionCard — 430x932 프레임 기준 398x491, 반경 16, bg/video.
   // 높이는 flex 로 둔다: 하단 조작 영역이 정해지고 남는 공간이 시안 비율과 거의 같다.
   card: {
@@ -263,52 +275,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.4,
     color: colors.text.onVideo,
     textAlign: 'center',
-  },
-  /** 재생 속도(확정 디자인 Speed) — 398x93 · 반경 12 · bg/surface 카드. */
-  speedCard: {
-    gap: spacing.sm - 2,
-    paddingVertical: spacing.sm + 2,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
-    backgroundColor: colors.bg.surface,
-  },
-  speedLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
-    letterSpacing: -0.3,
-    color: colors.text.primary,
-  },
-  speedSegments: {
-    flexDirection: 'row',
-    gap: spacing.lg - 1,
-  },
-  speedSegment: {
-    flex: 1,
-    // 시안 실측 50 — 최소 터치 타겟(48)을 넘긴다.
-    height: 50,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    backgroundColor: colors.bg.canvas,
-  },
-  speedSegmentActive: {
-    borderColor: colors.brand.primary,
-    backgroundColor: colors.brand.primary,
-  },
-  speedSegmentPressed: {
-    opacity: 0.8,
-  },
-  speedText: {
-    // 시안 Bold 24 → 좁은 화면 보정.
-    fontFamily: fonts.bold,
-    fontSize: 21,
-    letterSpacing: -0.3,
-    color: colors.text.primary,
-  },
-  speedTextActive: {
-    color: colors.text.onBrand,
   },
   /** 카드 안 상태 문구(준비 중 · 실패 · 재생할 게 없음). 다크 카드 위라 on-video 색이다. */
   caption: {

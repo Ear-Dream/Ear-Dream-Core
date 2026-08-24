@@ -4,30 +4,34 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import type { SentenceCandidate } from '@ear-dream/core';
 
 import { Button } from '../../components/Button';
-import { HomeAction } from '../../components/HomeAction';
-import { ScreenFrame } from '../../components/ScreenFrame';
 import { SpinnerRing } from '../../components/SpinnerRing';
+import { TrackSwitchHandle } from '../../components/TrackSwitchHandle';
 import { Waveform } from '../../components/Waveform';
 import { strings } from '../../constants/strings';
-import { colors, fonts, koreanWordBreak, radius, spacing } from '../../constants/theme';
+import {
+  colors,
+  fonts,
+  koreanWordBreak,
+  maxScreenWidth,
+  radius,
+  spacing,
+} from '../../constants/theme';
 import type { ComposerPhase } from '../recognition/api/useSentenceComposer';
-import type { SessionWord } from '../recognition/session';
 import { useSpeech } from './speech';
 import { SpeakerButton, type SpeakerStatus } from './SpeakerButton';
 import { useSpeakingWaveform } from './useSpeakingWaveform';
 
 export interface ResultScreenProps {
-  /** 문장을 만든 입력 단어 열 — 문장과 병기해 무엇에서 나온 문장인지 보여준다. */
-  words: readonly SessionWord[];
   /** /compose-sentence 호출 상태. pending = 로딩, failed = 재전송 UI. */
   phase: ComposerPhase;
   /** 전송 실패 시 재전송 (단어 열은 보존되어 있다). */
   onRetry: () => void;
-  /** "답장하기" — 청인 트랙(음성 입력)으로. 세션 종료(칩 비움)를 겸한다. */
+  /**
+   * "답장" — 청인 트랙(음성 입력)으로. 세션 종료(칩 비움)를 겸한다.
+   * 시안에서는 상단 **트랙 전환 손잡이**(마이크 + 아래 화살촉)가 이 동작이다.
+   */
   onReply: () => void;
-  /** AppBar 홈 버튼 — 세션 종료(칩 비움) 후 첫 화면으로. */
-  onGoHome: () => void;
-  /** AppBar 뒤로가기 — 입력 화면으로 복귀(칩 유지, 단어 추가·수정 가능). */
+  /** 하단 「뒤로」 — 입력 화면으로 복귀(칩 유지, 단어 추가·수정 가능). */
   onBack: () => void;
 }
 
@@ -49,32 +53,33 @@ export interface ResultScreenProps {
  * 않는 사정은 그대로여서 **실측 파형이 아니고**, 그래서 모양은 시안의 고정 프로필을 쓰고
  * 움직임만 재생 중에 준다 — 근거와 지키는 선은 `useSpeakingWaveform` 주석에 있다.
  *
- * source 구분: `word_list` 는 서버가 문장으로 다듬지 못하고 단어를 그대로 나열한 것이다.
- * 문장처럼 보이면 안 되므로 안내 문구 + 점선 테두리로 시각 구분한다(색에만 의존하지 않는다).
+ * ⚠️ **카드에는 스피커·파형·문장 셋만 있다**(2026-08-24 요청). 그 결과로 사라진 것:
+ *   · `word_list` 구분 — 서버가 문장으로 다듬지 못하고 단어를 나열했을 때의 안내 문구와
+ *     점선 테두리. 이제 다듬어진 문장과 **구별되지 않는다**.
+ *   · 스피커 상태 캡션(준비 중 · 재생 중 · 음성 사용 불가). 준비에 수 초 걸리는 동안
+ *     글로는 아무 설명이 없다 — 버튼을 감싸는 링만 남는다.
  */
-export function ResultScreen({
-  words,
-  phase,
-  onRetry,
-  onReply,
-  onGoHome,
-  onBack,
-}: ResultScreenProps) {
-  // 후보가 여럿이면 탭으로 바꿔볼 수 있다. 후보 개수는 서버 몫(미확정)이다.
-  const [selectedIndex, setSelectedIndex] = useState(0);
+export function ResultScreen({ phase, onRetry, onReply, onBack }: ResultScreenProps) {
+  /**
+   * 시안에 후보 목록이 없어 **항상 첫 후보**를 읽는다.
+   *
+   * ⚠️ 서버가 후보를 여럿 줘도(`candidates`) 사용자가 고를 방법이 사라졌다는 뜻이다.
+   * 되살리려면 이 상수를 state 로 되돌리고 카드 아래에 후보 줄을 다시 그리면 된다
+   * (git 이력의 `styles.alternatives` 참고).
+   */
+  const selectedIndex = 0;
   /** 한 번이라도 재생됐는지 — 스피커 라벨/캡션이 "재생" 에서 "다시 듣기" 로 바뀐다. */
   const [played, setPlayed] = useState(false);
 
   const result = phase.name === 'done' ? phase.result : null;
-  const selected: SentenceCandidate | null =
-    result?.candidates[selectedIndex] ?? result?.candidates[0] ?? null;
+  const selected: SentenceCandidate | null = result?.candidates[selectedIndex] ?? null;
 
   // 문장이 확정되는 순간(pending → done, 또는 다른 후보 선택) 자동으로 읽는다.
   // 빈 문자열이면 훅이 아무것도 하지 않는다.
   //
   // 감정·말투 태그를 함께 넘긴다 — 서버 TTS 의 연기가 이 값으로 갈린다. 규칙 폴백으로
   // 만들어진 문장이면 null 이고, 그때는 훅이 태그 없이 읽는다(계약상 선택 값).
-  const { status, speak, stop, error } = useSpeech(selected?.text ?? '', {
+  const { status, speak, stop } = useSpeech(selected?.text ?? '', {
     emotion: selected?.emotion ?? null,
     style: selected?.style ?? null,
   });
@@ -82,7 +87,6 @@ export function ResultScreen({
   // 훅이 그중 일부만 내보내더라도(부분집합) 그대로 대입된다.
   const speechStatus: SpeakerStatus = status;
   const waveformLevels = useSpeakingWaveform(speechStatus === 'speaking');
-  const unavailable = speechStatus === 'unsupported' || speechStatus === 'error';
 
   useEffect(() => {
     if (speechStatus === 'speaking') setPlayed(true);
@@ -94,23 +98,8 @@ export function ResultScreen({
     else speak();
   };
 
-  return (
-    <ScreenFrame
-      title={strings.result.appBarTitle}
-      onBack={onBack}
-      // 세션 종료는 AppBar 홈 버튼이 맡는다 — 하단을 primary 하나로 비워 두기 위해서다
-      // (확정 디자인 Button 규칙 「Primary 는 화면당 1개」).
-      headerRight={<HomeAction onPress={onGoHome} testID="result-home" />}
-      footer={
-        phase.name === 'failed' ? (
-          <Button label={strings.result.retryCompose} onPress={onRetry} testID="result-retry" />
-        ) : selected ? (
-          // 문장을 전달한 다음의 주 행동. 문장이 나온 뒤에만 뜬다 —
-          // 만드는 중에는 아직 전달된 게 없다.
-          <Button label={strings.result.reply} onPress={onReply} testID="result-reply" />
-        ) : null
-      }
-    >
+  const body = (
+    <>
       {phase.name === 'pending' ? (
         <View style={styles.centerCard} testID="result-composing">
           {/*
@@ -133,16 +122,7 @@ export function ResultScreen({
         </View>
       ) : selected ? (
         <>
-          <View
-            style={[styles.card, selected.source === 'word_list' && styles.cardWordList]}
-            testID="result-sentence"
-          >
-            {selected.source === 'word_list' ? (
-              <Text style={styles.wordListNotice} testID="result-word-list-notice">
-                {strings.result.wordListNotice}
-              </Text>
-            ) : null}
-
+          <View style={styles.card} testID="result-sentence">
             {/* 스피커 = 재생 조작. 상태별 도형·움직임은 SpeakerButton 이 갖는다. */}
             <SpeakerButton
               status={speechStatus}
@@ -155,52 +135,8 @@ export function ResultScreen({
             <Waveform amplitudes={waveformLevels} testID="result-waveform" />
 
             <Text style={[styles.sentence, koreanWordBreak]}>{selected.text}</Text>
-
-            {/*
-              캡션은 스피커 상태를 글로도 말해 준다. 특히 준비 중(수 초)은 링만으로 두면
-              "눌렀는데 아무 일도 안 일어난다"로 읽힌다.
-            */}
-            <Text style={[styles.caption, unavailable && styles.captionWarning]}>
-              {unavailable
-                ? (error ?? strings.result.speechUnavailable)
-                : speechStatus === 'loading'
-                  ? strings.result.preparing
-                  : speechStatus === 'speaking'
-                    ? strings.result.speaking
-                    : played
-                      ? strings.result.tapToReplay
-                      : strings.result.caption}
-            </Text>
           </View>
 
-          {/* 입력 단어 병기 — 어떤 단어에서 나온 문장인지 항상 보인다(정정 판단 근거). */}
-          <View style={styles.wordsRow} testID="result-input-words">
-            <Text style={styles.wordsLabel}>{strings.result.inputWordsLabel}</Text>
-            <Text style={styles.wordsText}>{words.map((word) => word.label).join(' · ')}</Text>
-          </View>
-
-          {result && result.candidates.length > 1 ? (
-            <View style={styles.alternatives}>
-              <Text style={styles.wordsLabel}>{strings.result.alternativesLabel}</Text>
-              {result.candidates.map((candidate, index) =>
-                index === selectedIndex ? null : (
-                  <Pressable
-                    key={`${candidate.text}-${index}`}
-                    onPress={() => setSelectedIndex(index)}
-                    accessibilityRole="button"
-                    accessibilityLabel={candidate.text}
-                    style={({ pressed }) => [
-                      styles.alternativeRow,
-                      pressed && styles.alternativeRowPressed,
-                    ]}
-                    testID={`result-alternative-${index}`}
-                  >
-                    <Text style={styles.alternativeText}>{candidate.text}</Text>
-                  </Pressable>
-                ),
-              )}
-            </View>
-          ) : null}
         </>
       ) : (
         // done 인데 후보가 0개 — 서버 계약상 없어야 하지만 방어한다.
@@ -208,7 +144,39 @@ export function ResultScreen({
           <Text style={styles.centerTitle}>{strings.result.composeFailedTitle}</Text>
         </View>
       )}
-    </ScreenFrame>
+    </>
+  );
+
+  return (
+    <View style={styles.root}>
+      {/*
+        시안에 AppBar 가 없다. 상단 인디고 띠의 마이크 손잡이가 곧 「답장」 이다 —
+        아이콘(마이크 + 아래 화살촉)이 가리키는 대로 청인 트랙으로 넘어간다.
+      */}
+      <TrackSwitchHandle
+        variant="toVoice"
+        onPress={onReply}
+        accessibilityLabel={strings.result.reply}
+        testID="result-reply"
+      />
+
+      <View style={styles.body}>{body}</View>
+
+      <View style={styles.footer}>
+        {phase.name === 'failed' ? (
+          <Button label={strings.result.retryCompose} onPress={onRetry} testID="result-retry" />
+        ) : (
+          // 시안의 하단 버튼은 「뒤로」 하나다(460:2714). 세션을 끝내는 「처음으로」는
+          // 이 화면에서 사라졌다 — 뒤로 간 입력 화면의 손잡이가 그 경로를 갖는다.
+          <Button
+            label={strings.result.back}
+            variant="outline"
+            onPress={onBack}
+            testID="result-back"
+          />
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -217,7 +185,23 @@ const COMPOSING_SPINNER_SIZE = 56;
 const COMPOSING_SPINNER_THICKNESS = 6;
 
 const styles = StyleSheet.create({
-  // 확정 디자인에서 이 카드는 본문을 거의 다 채운다(430x932 프레임 기준 398x683).
+  root: {
+    flex: 1,
+    width: '100%',
+    maxWidth: maxScreenWidth,
+    alignSelf: 'center',
+    backgroundColor: colors.bg.canvas,
+  },
+  body: {
+    flex: 1,
+    paddingHorizontal: spacing.lg,
+  },
+  footer: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.lg,
+    gap: spacing.md,
+  },
+  // 시안에서 이 카드는 본문을 거의 다 채운다(430x932 프레임 기준 398x645).
   card: {
     flex: 1,
     marginTop: spacing.sm,
@@ -230,80 +214,18 @@ const styles = StyleSheet.create({
     borderColor: colors.brand.primary,
     backgroundColor: colors.brand.subtle,
   },
-  // word_list 시각 구분: 점선 테두리 + 중립 배경 — "다듬어진 문장" 카드와 형태로도 갈린다.
-  cardWordList: {
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: colors.border.default,
-    backgroundColor: colors.bg.surface,
-  },
-  wordListNotice: {
-    fontFamily: fonts.medium,
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.text.secondary,
-    textAlign: 'center',
-  },
   sentence: {
     // 청인에게 보여주는 텍스트 — 큰 글자 · 고대비.
-    // 시안은 430pt 폭 기준 48pt(행간 140%)다. 좁은 화면에서 두세 줄을 넘기지 않게 줄였다.
+    // 시안 실측 그대로: Bold 48 / 행간 140% / 자간 -0.72 (460:2694).
     fontFamily: fonts.bold,
-    fontSize: 36,
-    lineHeight: 50,
-    letterSpacing: -0.5,
+    fontSize: 48,
+    lineHeight: 48 * 1.4,
+    letterSpacing: -0.72,
     color: colors.text.primary,
     textAlign: 'center',
   },
   // 확정 디자인 실측: Regular 20 / 행간 145% (430pt 폭 기준).
-  caption: {
-    fontFamily: fonts.regular,
-    fontSize: 17,
-    lineHeight: 25,
-    letterSpacing: -0.3,
-    color: colors.text.secondary,
-    textAlign: 'center',
-  },
-  captionWarning: {
-    color: colors.status.error,
-  },
-  wordsRow: {
-    marginTop: spacing.md,
-    gap: spacing.xs,
-  },
-  wordsLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 13,
-    color: colors.text.secondary,
-  },
-  wordsText: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.text.primary,
-  },
-  alternatives: {
-    marginTop: spacing.lg,
-    gap: spacing.sm,
-  },
   // 대안 문장 행 — CandidateRow 삭제(마스터) 후 시안 아웃라인 톤으로 그린 행.
-  alternativeRow: {
-    minHeight: 52,
-    justifyContent: 'center',
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    backgroundColor: colors.bg.canvas,
-  },
-  alternativeRowPressed: {
-    opacity: 0.85,
-  },
-  alternativeText: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.text.primary,
-  },
   centerCard: {
     flex: 1,
     marginTop: spacing.sm,

@@ -1,7 +1,7 @@
 import { StyleSheet, View } from 'react-native';
 
 import { CircleIconButton } from '../../components/CircleIconButton';
-import { Ripple } from '../../components/Ripple';
+import { SpeakerIcon } from '../../components/icons/SpeakerIcon';
 import { SpinnerRing } from '../../components/SpinnerRing';
 import { strings } from '../../constants/strings';
 import { colors, radius } from '../../constants/theme';
@@ -78,21 +78,9 @@ export function SpeakerButton({ status, onPress, played, testID }: SpeakerButton
         {speaking ? (
           <View style={styles.stopSquare} />
         ) : (
-          // 스피커 아이콘 — 확정 애셋 전 placeholder 도형(몸통 + 나팔).
-          <View style={styles.speakerShape}>
-            <View style={styles.speakerBody} />
-            <View style={styles.speakerHorn} />
-          </View>
+          <SpeakerIcon size={SPEAKER_ICON_SIZE} color={colors.text.onBrand} />
         )}
       </CircleIconButton>
-
-      {/* 소리가 나가는 중이라는 표시. 재생이 끝나면 멈춘다. */}
-      <Ripple
-        size={SPEAKER_RIPPLE_SIZE}
-        startScale={SPEAKER_SIZE / SPEAKER_RIPPLE_SIZE}
-        active={speaking}
-        testID="result-ripple"
-      />
     </View>
   );
 }
@@ -106,16 +94,24 @@ function speakerLabel(status: SpeakerStatus, played: boolean): string {
 
 /** 한 손 조작 최소 터치 타겟(48)을 크게 넘긴다 — 이 화면의 주 조작이다. */
 const SPEAKER_SIZE = 88;
-/** 물결이 가장 멀리 퍼졌을 때의 지름. */
-const SPEAKER_RIPPLE_SIZE = 176;
+/** 버튼 안 아이콘. 시안 비율(원 지름의 절반쯤)에 맞춘 값이다. */
+const SPEAKER_ICON_SIZE = 46;
+/**
+ * 무대 크기 — 준비 중 링이 버튼보다 크므로 그만큼 자리를 잡아 둔다.
+ *
+ * ⚠️ 예전에는 재생 중 물결(`Ripple`)이 여기까지 퍼졌는데, 시안에 없어서 걷어냈다
+ * (2026-08-24 요청). 재생 중이라는 신호는 **파형**이 대신한다 — 파형이 실제로 움직이므로
+ * 소리로만 전달되는 피드백이 되지는 않는다.
+ */
+const SPEAKER_STAGE_SIZE = 120;
 /** 준비 중 링 — 버튼을 살짝 감싸는 크기. 퍼지는 물결과 달리 자리에서 돈다. */
 const LOADING_RING_SIZE = 108;
 const LOADING_RING_THICKNESS = 4;
 
 const styles = StyleSheet.create({
   stage: {
-    width: SPEAKER_RIPPLE_SIZE,
-    height: SPEAKER_RIPPLE_SIZE,
+    width: SPEAKER_STAGE_SIZE,
+    height: SPEAKER_STAGE_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -125,27 +121,6 @@ const styles = StyleSheet.create({
   // 크기·색은 SpinnerRing 이 갖는다. 여기서는 버튼 뒤에 겹쳐 놓는 배치만 준다.
   loadingRing: {
     position: 'absolute',
-  },
-  speakerShape: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  speakerBody: {
-    width: 10,
-    height: 14,
-    borderTopLeftRadius: 3,
-    borderBottomLeftRadius: 3,
-    backgroundColor: colors.text.onBrand,
-  },
-  speakerHorn: {
-    width: 0,
-    height: 0,
-    borderTopWidth: 12,
-    borderBottomWidth: 12,
-    borderRightWidth: 14,
-    borderTopColor: 'transparent',
-    borderBottomColor: 'transparent',
-    borderRightColor: colors.text.onBrand,
   },
   stopSquare: {
     width: 26,

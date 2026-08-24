@@ -3,7 +3,7 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { QualityIssue } from '@ear-dream/core';
 
 import { Button } from '../../components/Button';
-import { CANDIDATE_CELL_SIZE, CandidateCard } from '../../components/CandidateCard';
+import { CANDIDATE_CELL_WIDTH, CandidateCard } from '../../components/CandidateCard';
 import { strings } from '../../constants/strings';
 import { colors, fonts, maxScreenWidth, radius, spacing } from '../../constants/theme';
 import type { RecognitionEntry } from './api/useRecognitionQueue';
@@ -61,12 +61,18 @@ export function WordCandidateSheet({ entry, onChoose, onRemove, onClose }: WordC
                 <CandidateCard
                   key={candidate.id}
                   word={candidate.label}
+                  iconKey={candidate.label}
                   selected={index === entry.chosenCandidateIndex}
                   onPress={() => onChoose(index)}
                   testID={`word-sheet-candidate-${index}`}
                 />
               ))}
             </View>
+            {/*
+              시안의 시트 하단 버튼은 「다시 하기」 하나다(473:1326). 닫기 버튼이 없어져
+              **스크림 탭이 유일한 닫기 경로**가 된다 — 스크림에는 이미 같은 라벨의
+              accessibilityLabel 이 붙어 있다.
+            */}
             <View style={styles.actions}>
               <Button
                 label={strings.wordSheet.removeWord}
@@ -74,7 +80,6 @@ export function WordCandidateSheet({ entry, onChoose, onRemove, onClose }: WordC
                 onPress={onRemove}
                 testID="word-sheet-remove"
               />
-              <Button label={strings.wordSheet.close} onPress={onClose} testID="word-sheet-close" />
             </View>
           </View>
         ) : null}
@@ -119,21 +124,27 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.xl,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    backgroundColor: colors.bg.surface,
+    // 시안 실측: 상단 모서리 26 · bg/card (460:2508).
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    backgroundColor: colors.bg.card,
   },
+  // 시안 실측: 44x5 · line/soft (460:2509).
   grabber: {
     alignSelf: 'center',
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.border.default,
+    width: 44,
+    height: 5,
+    borderRadius: radius.pill,
+    backgroundColor: colors.border.soft,
   },
+  // 시안 실측: Bold 40 / 행간 135% / 자간 -0.8 / text/strong (460:2510).
   prompt: {
     fontFamily: fonts.bold,
-    fontSize: 20,
-    color: colors.text.primary,
+    fontSize: 40,
+    lineHeight: 40 * 1.35,
+    letterSpacing: -0.8,
+    color: colors.text.strong,
+    textAlign: 'center',
   },
   // 어드바이저리 힌트 — 안내이지 실패가 아니므로 보조 톤(secondary)으로만 그린다.
   advisoryHint: {
@@ -146,7 +157,7 @@ const styles = StyleSheet.create({
     // 2열 고정. 폭을 열어 두면 시트가 넓을 때 flexWrap 이 한 줄에 3개까지 밀어넣어
     // 3 + 1 로 접힌다. 두 칸 + 사이 간격만큼으로 잘라 두 번째 카드 뒤에서 반드시 접히게 한다.
     alignSelf: 'center',
-    width: CANDIDATE_CELL_SIZE * GRID_COLUMNS + spacing.md * (GRID_COLUMNS - 1),
+    width: CANDIDATE_CELL_WIDTH * GRID_COLUMNS + spacing.lg * (GRID_COLUMNS - 1),
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'center',

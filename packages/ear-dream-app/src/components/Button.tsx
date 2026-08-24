@@ -75,9 +75,10 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: fonts.bold,
-    // 시안은 430pt 폭 기준 25pt 다. 좁은 화면에서 긴 라벨이 접히지 않게 한 단계 줄였다.
-    fontSize: 20,
-    letterSpacing: -0.3,
+    // 시안 「최종」 실측: Bold 32 / 행간 140% / 자간 -0.48 (430pt 프레임, I460:2259;95:68).
+    fontSize: 32,
+    lineHeight: 32 * 1.4,
+    letterSpacing: -0.48,
     color: colors.text.onBrand,
   },
   outlineLabel: {

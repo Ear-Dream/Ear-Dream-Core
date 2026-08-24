@@ -1,10 +1,13 @@
 import { useMemo, useRef } from 'react';
 import { Animated, StyleSheet, View } from 'react-native';
 
-import { colors, radius, spacing } from '../constants/theme';
+import { colors, radius } from '../constants/theme';
 
-/** 파형 막대 개수. 레벨을 공급하는 쪽(`useMicLevels`)이 같은 개수로 나눠야 한다. */
-export const WAVEFORM_BAR_COUNT = 17;
+/**
+ * 파형 막대 개수. 레벨을 공급하는 쪽(`useMicLevels`)이 같은 개수로 나눠야 한다.
+ * 시안 「최종」의 파형이 15개다(460:2243).
+ */
+export const WAVEFORM_BAR_COUNT = 15;
 
 export interface WaveformProps {
   /**
@@ -77,8 +80,10 @@ export function Waveform({
   );
 }
 
-const MAX_BAR_HEIGHT = 34;
-const BAR_WIDTH = 4;
+/** 시안 실측: 막대 폭 7.748 · 피치 20.661(=간격 12.913) · 최대 높이 93 (430pt 프레임). */
+const MAX_BAR_HEIGHT = 93;
+const BAR_WIDTH = 7.748;
+const BAR_GAP = 20.661 - BAR_WIDTH;
 /** 무음일 때의 막대 두께. 기준선과 같은 굵기라 서로 이어져 일자선으로 읽힌다. */
 const BASELINE_HEIGHT = 2;
 const FLAT_SCALE = BASELINE_HEIGHT / MAX_BAR_HEIGHT;
@@ -88,7 +93,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: spacing.xs,
+    gap: BAR_GAP,
     height: MAX_BAR_HEIGHT,
   },
   baseline: {
