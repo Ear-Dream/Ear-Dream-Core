@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { candidateIconFor } from '../../components/icons/CandidateIcons';
 import { strings } from '../../constants/strings';
 import { colors, fonts, radius, spacing, touchTarget } from '../../constants/theme';
 import type { RecognitionEntry } from './api/useRecognitionQueue';
@@ -15,6 +16,11 @@ export interface QueuePillProps {
   onPress: () => void;
   /** failed 전용 — × 탭으로 엔트리를 지운다. 재전송하지 않고 포기하는 경로. */
   onRemove?: () => void;
+  /**
+   * 지금 하단 시트가 열려 있는 pill 인가. 시안은 이 하나만 brand 톤으로 띄우고
+   * 나머지는 흰 칩으로 둔다(460:2767 vs 460:2777).
+   */
+  selected?: boolean;
   testID?: string;
 }
 
@@ -28,7 +34,7 @@ export interface QueuePillProps {
  * confidence 수치는 표시하지 않는다 — 캘리브레이션되지 않은 수치 노출은 PRD V-07
  * 미해결 항목이다. 후보 간 우열은 하단 시트의 정렬 순서로만 표현한다.
  */
-export function QueuePill({ entry, onPress, onRemove, testID }: QueuePillProps) {
+export function QueuePill({ entry, onPress, onRemove, selected = false, testID }: QueuePillProps) {
   if (entry.state === 'pending') {
     return (
       <Pressable
@@ -74,14 +80,17 @@ export function QueuePill({ entry, onPress, onRemove, testID }: QueuePillProps) 
   }
 
   const candidate = chosenCandidate(entry);
+  // 시안의 단어 칩은 그림 + 글자다. 그림이 없는 단어는 글자만 나온다(추상어 등).
+  const Icon = candidateIconFor(candidate.label);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`${candidate.label} ${strings.signInput.pillDoneA11ySuffix}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.root, styles.done, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.root, styles.done, selected && styles.doneSelected, pressed && styles.pressed]}
       testID={testID}
     >
+      {Icon ? <Icon size={PILL_ICON_SIZE} color={colors.text.primary} /> : null}
       <Text style={styles.doneLabel}>{candidate.label}</Text>
       {/* 탭하면 아래(시트)가 열린다는 방향 표시 — 삭제(×)로 오해되지 않게 ▾를 쓴다. */}
       <Text style={styles.doneAffordance}>▾</Text>
@@ -89,15 +98,19 @@ export function QueuePill({ entry, onPress, onRemove, testID }: QueuePillProps) 
   );
 }
 
+/** 칩 안 픽토그램 — 글자(Bold 28)와 광학적으로 맞는 크기. */
+const PILL_ICON_SIZE = 30;
+
 const styles = StyleSheet.create({
+  // 시안 실측: 높이 63 · 반경 12 · 테두리 2 (460:2767·460:2777).
   root: {
-    minHeight: touchTarget.minHeight,
+    minHeight: Math.max(touchTarget.minHeight, 63),
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    borderWidth: 2,
   },
   pressed: {
     opacity: 0.7,
@@ -116,13 +129,22 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: colors.text.secondary,
   },
+  // 확정 칩의 평상시 모습 — 흰 면 + 중립 테두리.
   done: {
+    borderColor: colors.border.default,
+    backgroundColor: colors.bg.canvas,
+  },
+  /** 하단 시트가 열려 있는 칩만 brand 톤으로 띄운다. */
+  doneSelected: {
     borderColor: colors.brand.primary,
     backgroundColor: colors.brand.subtle,
   },
+  // 시안 실측: Bold 28 / 행간 140% / 자간 -0.42.
   doneLabel: {
-    fontFamily: fonts.medium,
-    fontSize: 16,
+    fontFamily: fonts.bold,
+    fontSize: 28,
+    lineHeight: 28 * 1.4,
+    letterSpacing: -0.42,
     color: colors.text.primary,
   },
   doneAffordance: {

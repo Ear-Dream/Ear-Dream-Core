@@ -13,6 +13,12 @@ export interface SpinnerRingProps {
   thickness: number;
   /** 한 바퀴 도는 데 걸리는 시간. 기본 1200ms. */
   periodMs?: number;
+  /**
+   * 도는 호가 아니라 **뒤에 깔리는 고리**의 색. 기본은 brand/subtle(밝은 면 기준)이고,
+   * 인디고 면 위에서는 시안대로 흰색 18% 를 넘긴다(460:2398). 호의 색은 열지 않는다 —
+   * "무엇을 기다리는 중인지"가 화면마다 달라 보이면 안 된다는 원칙은 그대로다.
+   */
+  trackColor?: string;
   /** 배치용(예: 버튼 뒤 절대 배치). 회전 transform 은 이 style 뒤에 붙어 덮이지 않는다. */
   style?: StyleProp<ViewStyle>;
   testID?: string;
@@ -44,6 +50,7 @@ export function SpinnerRing({
   size,
   thickness,
   periodMs = SPIN_PERIOD_MS,
+  trackColor,
   style,
   testID,
 }: SpinnerRingProps) {
@@ -79,6 +86,7 @@ export function SpinnerRing({
       style={[
         styles.ring,
         { width: size, height: size, borderRadius: size / 2, borderWidth: thickness },
+        trackColor ? { borderColor: trackColor, borderTopColor: colors.brand.primary } : null,
         style,
         { transform: [{ rotate }] },
       ]}

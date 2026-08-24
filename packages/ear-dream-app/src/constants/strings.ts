@@ -9,15 +9,27 @@ import type { QualityIssue } from '@ear-dream/core';
 export const strings = {
   common: {
     /** 워드마크는 이미지(components/Wordmark)라 스크린 리더가 읽을 글자가 여기뿐이다. */
-    logoAlt: '이어 드림',
+    logoAlt: '손결',
     back: '뒤로 가기',
     /** AppBar 우측 홈 버튼 — 세션을 끝내고 첫 화면으로. */
     goHome: '처음으로',
+    /**
+     * 트랙 전환 손잡이 (components/TrackSwitchHandle) — 화면에 글자가 없어 스크린 리더가
+     * 읽을 것이 이 라벨뿐이다. 시안 외 임시 카피: 손잡이가 실제로 어디로 가는지가 미확정이다.
+     */
+    switchToSignTrack: '수어로 말하기로 넘어가기',
+    switchToVoiceTrack: '음성으로 말하기로 넘어가기',
   },
 
   home: {
+    /**
+     * 진입 선택 화면의 두 타일은 시안에 **보이는 글자가 없다**. 아래 두 문구는 화면에
+     * 그려지지 않고 `accessibilityLabel` 로만 쓰인다 — 시안 카피가 아니라 접근성 문구다.
+     */
     startSign: '손으로 말하기',
     startVoice: '입으로 말하기',
+    /** 진입 화면(스플래시) 탭 — 시안 외 임시 카피. 전환 방식 자체가 미확정이다. */
+    splashContinue: '시작하기',
     landmarkDev: '개발용: 랜드마크 확인 화면',
   },
 
@@ -42,7 +54,7 @@ export const strings = {
      */
     guideShouldersMissing: '상체가 화면에 들어오면 더 정확해요',
     guideHandsMissing: '손이 화면에 보이게 해주세요',
-    guideAllVisible: '어깨와 손이\n잘 보여요',
+    guideAllVisible: '한 손이 잘 보여요',
     /**
      * 인식 결과 인라인 안내 — rejected/low_quality 는 화면 전환 없이 입력 화면에 남아
      * 이 배너로만 알린다(흐름 유지 · 즉시 재시도 가능 · 추가 탭 0회). 에러가 아니므로
@@ -109,8 +121,13 @@ export const strings = {
    * quality_issues 가 있으면 힌트 한 줄만 보탠다(흐름 방해 금지).
    */
   wordSheet: {
-    prompt: '단어를 선택해주세요',
-    removeWord: '이 단어 지우기',
+    /** 시안 실측 카피(460:2510). */
+    prompt: '단어 선택',
+    /**
+     * 시안의 하단 버튼(473:1326)은 새로고침 아이콘 + 「다시 하기」 하나다.
+     * 이 pill 을 지워 다시 촬영한다는 뜻이라 기존 "이 단어 지우기" 동작에 그대로 붙는다.
+     */
+    removeWord: '다시 하기',
     close: '닫기',
     /**
      * recognized + 어드바이저리 quality_issues 힌트. Partial 이 계약이다 — 서버 enum
@@ -130,6 +147,8 @@ export const strings = {
    */
   result: {
     appBarTitle: '음성 전달',
+    /** 시안 하단 버튼(460:2714) — 입력 화면으로 돌아간다. */
+    back: '뒤로',
     speakerAlt: '음성 재생',
     caption: '상대방에게 음성으로 전달되고 있어요',
     /**
@@ -169,11 +188,11 @@ export const strings = {
   voiceInput: {
     appBarTitle: '음성 입력',
     title: '말씀해 주세요',
-    subtitle: '수어 영상으로 바꿔서 보여드릴게요',
+    subtitle: '수어 영상으로 보여드릴게요',
     micAlt: '음성 입력 시작',
     stopAlt: '듣기 정지',
     listeningBadge: '듣고 있어요',
-    noiseCaption: '주변 소음이 크다면 키보드로 입력해주세요.',
+    noiseCaption: '주변이 시끄러우면 키보드로 입력해주세요.',
     /**
      * 마이크를 열지 못했을 때 noiseCaption 대신 보여주는 안내 — 시안 외 임시 카피.
      * 파형이 계속 일자로만 있는 이유를 알려주고 키보드 폴백으로 유도한다.
@@ -181,7 +200,7 @@ export const strings = {
     micUnavailableCaption: '마이크를 쓸 수 없습니다. 키보드로 입력해주세요.',
     /** 인식된 말이 아직 없을 때 자리를 지키는 안내 — 시안 외 임시 카피. */
     transcriptHint: '말씀하신 내용이 여기에 보여요',
-    keyboardFallback: '키보드로 입력하기',
+    keyboardFallback: '키보드 입력',
     textPlaceholder: '전달할 내용을 입력하세요',
     textConfirm: '확인',
     /**

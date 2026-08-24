@@ -1,15 +1,25 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Modal, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Modal, StyleSheet, Text, TextInput, View, useWindowDimensions } from 'react-native';
 
 import { Badge } from '../../components/Badge';
 import { Button } from '../../components/Button';
 import { CircleIconButton } from '../../components/CircleIconButton';
+import { MicFilledIcon } from '../../components/icons/TrackIcons';
 import { Ripple } from '../../components/Ripple';
-import { ScreenFrame } from '../../components/ScreenFrame';
+import { SpinnerRing } from '../../components/SpinnerRing';
+import { TrackSwitchHandle } from '../../components/TrackSwitchHandle';
 import { Waveform, WAVEFORM_BAR_COUNT } from '../../components/Waveform';
 import { LANDMARK_DEV_ENABLED } from '../../constants/devFlags';
 import { strings } from '../../constants/strings';
-import { colors, fonts, koreanWordBreak, radius, spacing, touchTarget } from '../../constants/theme';
+import {
+  colors,
+  fonts,
+  koreanWordBreak,
+  maxScreenWidth,
+  radius,
+  spacing,
+  touchTarget,
+} from '../../constants/theme';
 import { useMicLevels } from './audio';
 
 /**
@@ -28,12 +38,27 @@ export interface VoiceInputScreenProps {
    * 다음 화면 입장에서 차이가 없기 때문이다(어느 쪽이든 "청인이 말한 내용"이다).
    */
   onSubmit: (text: string) => void;
-  onBack: () => void;
+  /**
+   * 화면 아래 **손 손잡이** — 농인 트랙(수어 입력)으로 곧장 넘어간다.
+   * 첫 화면을 거치지 않는다(2026-08-24 사용자 확정): 대화 중에 주도권만 넘기는 동작이라
+   * 중간에 진입 선택 화면이 끼면 흐름이 끊긴다.
+   */
+  onSwitchToSign: () => void;
 }
 
 /**
- * 음성 입력 화면 (확정 디자인 「2. 청인 입력 — 음성」): 동심원 + 마이크 버튼 + 파형 +
- * 키보드 폴백.
+ * 음성 입력 화면 (피그마 「최종」 `3. 청인 입력 — 음성` 460:2234): 인디고 카드 위의
+ * 동심원 + 마이크 버튼 + 파형 + 키보드 폴백.
+ *
+ * ## 시안이 흰 화면이 아니라 인디고 카드다
+ *
+ * 청인 트랙의 모든 화면은 `bg/brandSurface`(= brand/primary 74%) 면 위에 서고, 글자는
+ * 흰색·연회색이다. 화면 맨 아래 121pt 만 흰 띠로 남아 **수어 트랙으로 넘어가는 손잡이**
+ * (`TrackSwitchHandle`)가 거기 앉는다. 시안에 AppBar 가 없어서 제목·뒤로가기 대신
+ * 이 손잡이가 유일한 이동 경로다.
+ *
+ * 세로 배치는 시안 절대좌표를 **고정 높이 + 비율 스페이서**로 옮겼다. 요소 크기는 시안
+ * 값(배율 환산)이고 사이 여백만 화면 높이에 따라 늘고 준다.
  *
  * - idle ↔ 듣는 중: 마이크 탭으로 전환. 듣는 중에는 버튼이 빨간 정지 사각형으로 바뀌고
  *   "● 듣고 있어요" 배지가 붙고 물결이 퍼진다. 정지 탭 → 인식된 문장을 다음 화면으로 넘긴다.
@@ -47,7 +72,10 @@ export interface VoiceInputScreenProps {
  * - 음성을 못 쓰는 환경(네이티브 · iOS 계열 브라우저 · 권한 거부 · http): 마이크 버튼을 끄고
  *   이유를 캡션으로 알리며 **키보드 입력을 자동으로 펼친다**. 남은 유일한 경로라서다.
  */
-export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
+export function VoiceInputScreen({ onSubmit, onSwitchToSign }: VoiceInputScreenProps) {
+  const { width } = useWindowDimensions();
+  const scale = Math.min(width, maxScreenWidth) / DESIGN_FRAME_WIDTH;
+
   const [timeoutVisible, setTimeoutVisible] = useState(false);
   const [textMode, setTextMode] = useState(false);
   const [text, setText] = useState('');
@@ -107,66 +135,70 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
       ? strings.voiceInput.micUnavailableCaption
       : strings.voiceInput.noiseCaption);
 
+  const keyboardArea = textMode ? (
+    <View style={styles.textRow}>
+      <TextInput
+        value={text}
+        onChangeText={setText}
+        placeholder={strings.voiceInput.textPlaceholder}
+        placeholderTextColor={colors.border.default}
+        style={styles.input}
+        testID="voice-text-input"
+      />
+      <Button
+        label={strings.voiceInput.textConfirm}
+        variant="outline"
+        disabled={text.trim().length === 0}
+        onPress={() => {
+          // 키보드로 넘어간 순간 마이크는 놓는다 — 두 입력이 동시에 살아 있을 이유가 없다.
+          stt.cancel();
+          onSubmitRef.current(text.trim());
+        }}
+        testID="voice-text-confirm"
+      />
+    </View>
+  ) : (
+    <Button
+      label={strings.voiceInput.keyboardFallback}
+      variant="outline"
+      onPress={() => setTextMode(true)}
+      testID="voice-text-toggle"
+    />
+  );
+
   return (
-    <ScreenFrame
-      title={strings.voiceInput.appBarTitle}
-      onBack={onBack}
-      footer={
-        <>
-          <Text style={styles.noiseCaption} testID="voice-caption">
-            {caption}
-          </Text>
-          {textMode ? (
-            <View style={styles.textRow}>
-              <TextInput
-                value={text}
-                onChangeText={setText}
-                placeholder={strings.voiceInput.textPlaceholder}
-                placeholderTextColor={colors.border.default}
-                style={styles.input}
-                testID="voice-text-input"
-              />
-              <Button
-                label={strings.voiceInput.textConfirm}
-                variant="outline"
-                disabled={text.trim().length === 0}
-                onPress={() => {
-                  // 키보드로 넘어간 순간 마이크는 놓는다 — 두 입력이 동시에 살아 있을 이유가 없다.
-                  stt.cancel();
-                  onSubmitRef.current(text.trim());
-                }}
-                testID="voice-text-confirm"
-              />
-            </View>
-          ) : (
-            <Button
-              label={strings.voiceInput.keyboardFallback}
-              variant="outline"
-              onPress={() => setTextMode(true)}
-              testID="voice-text-toggle"
-            />
-          )}
-        </>
-      }
-    >
-      <View style={styles.center}>
+    <View style={styles.root}>
+      <View style={styles.card}>
+        <View style={styles.spacerTop} />
+
         <Text style={[styles.title, koreanWordBreak]}>{strings.voiceInput.title}</Text>
         <Text style={styles.subtitle}>{strings.voiceInput.subtitle}</Text>
+
+        <View style={styles.spacerBeforeStage} />
 
         {/*
           시안의 정적 동심원(halo + pond)은 그대로 두고, 듣는 중일 때만 그 위로 물결이
           퍼진다. idle 에서는 멈춰 있어서 물결 자체가 "지금 듣고 있다"는 시각 신호가 된다.
           연한 원(pond)은 물결이 퍼지는 수면 자리이자 버튼 배경이고, 듣는 중에는 여기에
-          빨간 링이 붙는다.
+          빨간 링이 붙는다. 세 원은 시안에서 중심이 같다(215, 368).
         */}
-        <View style={styles.micStage}>
-          {/* 확정 디자인의 동심원 — 바깥 옅은 원 · 가운데 연보라 원 · 안쪽 인디고 버튼. */}
-          <View style={styles.halo} />
-          <View style={[styles.pond, listening && styles.pondListening]}>
+        <View style={[styles.micStage, { width: HALO_SIZE * scale, height: HALO_SIZE * scale }]}>
+          <View style={[styles.halo, { width: HALO_SIZE * scale, height: HALO_SIZE * scale }]} />
+          {/*
+            가운데 원은 **채움과 테두리를 따로** 그린다. RN 의 opacity 는 자식까지 함께
+            흐려지므로, 16% 원 안에 버튼을 넣으면 버튼도 16% 가 된다.
+          */}
+          <View style={[styles.pondFill, { width: POND_SIZE * scale, height: POND_SIZE * scale }]} />
+          {listening ? (
+            <View
+              style={[styles.pondRing, { width: POND_SIZE * scale, height: POND_SIZE * scale }]}
+            />
+          ) : null}
+          <View style={styles.stageCenter}>
             <CircleIconButton
               onPress={listening ? stt.stop : stt.start}
               accessibilityLabel={listening ? strings.voiceInput.stopAlt : strings.voiceInput.micAlt}
-              size={MIC_BUTTON_SIZE}
+              size={MIC_BUTTON_SIZE * scale}
               // 음성을 못 쓰는 환경에서는 누를 수 없게 한다. 이유는 하단 캡션이 말해준다
               // (CircleIconButton 주석의 "왜 못 누르는지는 버튼 밖에서" 규칙).
               disabled={sttUnavailable}
@@ -174,13 +206,14 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
               testID="voice-mic"
             >
               {listening ? (
-                <View style={styles.stopSquare} />
+                <View
+                  style={[
+                    styles.stopSquare,
+                    { width: STOP_SQUARE_SIZE * scale, height: STOP_SQUARE_SIZE * scale },
+                  ]}
+                />
               ) : (
-                // 마이크 아이콘 — 확정 애셋 전 placeholder 도형(캡슐 + 받침).
-                <View style={styles.micShape}>
-                  <View style={styles.micCapsule} />
-                  <View style={styles.micStand} />
-                </View>
+                <MicFilledIcon size={MIC_ICON_SIZE * scale} />
               )}
             </CircleIconButton>
           </View>
@@ -190,8 +223,8 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
             버튼 지름에서 시작하므로 버튼 위를 지나가지는 않고, 터치도 가로채지 않는다.
           */}
           <Ripple
-            size={RIPPLE_SIZE}
-            startScale={MIC_BUTTON_SIZE / RIPPLE_SIZE}
+            size={HALO_SIZE * scale}
+            startScale={MIC_BUTTON_SIZE / HALO_SIZE}
             active={listening}
             testID="voice-ripple"
           />
@@ -241,8 +274,42 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
           </Text>
         ) : null}
 
+        <View style={styles.spacerBeforeWave} />
         <Waveform amplitudes={amplitudes} testID="voice-waveform" />
+        <View style={styles.spacerBeforeCaption} />
+
+        <Text style={styles.noiseCaption} testID="voice-caption">
+          {caption}
+        </Text>
+
+        <View style={styles.spacerBeforeButton} />
+        {keyboardArea}
+        <View style={styles.spacerBottom} />
       </View>
+
+      {/*
+        인식 결과를 기다리는 동안 (시안 `4. 청인 입력 — 로딩`, 460:2352).
+        화면 전체에 스크림을 덮고 동심원 자리에 호가 돈다 — 시안은 화면을 통째로 가라앉히고
+        **마이크 주위에서만** 진행을 보여준다. 별도 화면을 만들지 않은 이유는 이 대기가
+        같은 화면의 한 상태이기 때문이다(예전의 고정 타이머 "인식 중" 화면과는 다르다).
+      */}
+      {stt.status === 'processing' ? (
+        <View style={styles.loadingScrim} pointerEvents="none" testID="voice-loading">
+          <SpinnerRing
+            size={LOADING_RING_SIZE * scale}
+            thickness={LOADING_RING_THICKNESS * scale}
+            trackColor={LOADING_RING_TRACK}
+          />
+        </View>
+      ) : null}
+
+      {/* 시안의 하단 흰 띠 — 수어 트랙으로 넘어가는 손잡이. */}
+      <TrackSwitchHandle
+        variant="toSign"
+        onPress={onSwitchToSign}
+        accessibilityLabel={strings.common.switchToSignTrack}
+        testID="voice-track-switch"
+      />
 
       {/* 못 알아들었을 때의 알림 — 웹에서 Alert.alert 가 no-op 이라 인앱 Modal 을 쓴다. */}
       <Modal visible={timeoutVisible} transparent animationType="fade">
@@ -258,19 +325,67 @@ export function VoiceInputScreen({ onSubmit, onBack }: VoiceInputScreenProps) {
           </View>
         </View>
       </Modal>
-    </ScreenFrame>
+    </View>
   );
 }
 
-const MIC_BUTTON_SIZE = 104;
-/** 물결이 퍼지는 수면 겸 버튼 배경. */
-const POND_SIZE = 156;
-/** 동심원 바깥 고리의 지름 (확정 디자인). */
-const HALO_SIZE = 200;
-/** 물결이 가장 멀리 퍼졌을 때의 지름 — 수면 밖까지 번져나간다. */
-const RIPPLE_SIZE = 216;
+/** 시안 프레임 폭 — 원 지름·아이콘을 이 값 대비 배율로 환산한다. */
+const DESIGN_FRAME_WIDTH = 430;
 
+/** 로딩 호 — 시안 실측 203.5 지름 · 두께 12 · 뒤 고리는 흰색 18% (460:2398). */
+const LOADING_RING_SIZE = 203.5;
+const LOADING_RING_THICKNESS = 12;
+const LOADING_RING_TRACK = 'rgba(255, 255, 255, 0.18)';
+
+/** 시안 실측(430pt 프레임): 세 원은 중심이 같고 지름만 다르다. */
+const HALO_SIZE = 260;
+/** 물결이 퍼지는 수면 겸 버튼 배경. */
+const POND_SIZE = 196;
+const MIC_BUTTON_SIZE = 132;
+/** 버튼 안 마이크 아이콘 — 시안은 132 버튼에 115 아이콘(여백 9)이다. */
+const MIC_ICON_SIZE = 115;
+/** 듣는 중 정지 사각형. 시안에 치수가 없어 아이콘 대비로 잡은 임시값이다. */
+const STOP_SQUARE_SIZE = 44;
+
+/**
+ * 시안 세로 좌표(430x932): 카드 0~811 / 손잡이 811~932.
+ * 카드 안: 제목 121 · 부제 168 · 동심원 238 · 파형 534 · 캡션 663 · 버튼 727~787.
+ * 요소 높이는 고정하고 사이 여백만 flex 로 두어 화면 높이에 따라 늘고 준다.
+ */
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    width: '100%',
+    maxWidth: maxScreenWidth,
+    alignSelf: 'center',
+    backgroundColor: colors.bg.canvas,
+  },
+  card: {
+    flex: 1,
+    alignItems: 'center',
+    paddingHorizontal: spacing.lg,
+    backgroundColor: colors.bg.brandSurface,
+  },
+  /**
+   * 로딩 스크림 — 시안은 화면 전체(433x935, 즉 프레임보다 살짝 넘치게)를 덮는다.
+   * 색은 시안 애셋에서 값을 못 뽑아 앱의 모달 스크림과 같은 톤을 쓴다(임시).
+   */
+  loadingScrim: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(11, 15, 20, 0.45)',
+  },
+  spacerTop: { flex: 121 },
+  spacerBeforeStage: { flex: 46 },
+  spacerBeforeWave: { flex: 36 },
+  spacerBeforeCaption: { flex: 36 },
+  spacerBeforeButton: { flex: 42 },
+  spacerBottom: { flex: 24 },
   // 진단용 표시. 제품 화면에서는 플래그가 꺼져 있어 렌더되지 않는다.
   sttTrace: {
     marginTop: spacing.sm,
@@ -280,69 +395,68 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     color: colors.text.secondary,
   },
-  center: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.lg,
-  },
+  // 시안 실측: Bold 30 / 행간 135% / 자간 -0.45.
   title: {
     fontFamily: fonts.bold,
     fontSize: 30,
-    letterSpacing: -0.4,
-    color: colors.text.primary,
+    lineHeight: 30 * 1.35,
+    letterSpacing: -0.45,
+    color: colors.text.onBrand,
     textAlign: 'center',
   },
+  // 시안 실측: Regular 24 / 행간 145% / 자간 -0.36.
   subtitle: {
     fontFamily: fonts.regular,
-    fontSize: 16,
-    color: colors.text.secondary,
+    fontSize: 24,
+    lineHeight: 24 * 1.45,
+    letterSpacing: -0.36,
+    color: colors.text.onBrandSubtle,
     textAlign: 'center',
-    marginBottom: spacing.lg,
   },
   transcript: {
     fontFamily: fonts.medium,
     fontSize: 18,
     lineHeight: 26,
-    color: colors.text.primary,
+    color: colors.text.onBrand,
     textAlign: 'center',
     paddingHorizontal: spacing.lg,
   },
   transcriptHint: {
     fontFamily: fonts.regular,
     fontSize: 15,
-    color: colors.text.secondary,
+    color: colors.text.onBrandSubtle,
   },
   /** 아직 확정되지 않은 구간 — 흐리게. */
   transcriptInterim: {
-    color: colors.text.secondary,
+    color: colors.text.onBrandSubtle,
   },
   micStage: {
-    width: RIPPLE_SIZE,
-    height: RIPPLE_SIZE,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  /** 동심원 바깥 고리 — 시안의 가장 옅은 원. 정적이라 물결(Ripple)과 역할이 겹치지 않는다. */
+  /** 동심원 바깥 고리 — 시안은 brand/subtle 을 불투명하게 깐다(460:2238). */
   halo: {
     position: 'absolute',
-    width: HALO_SIZE,
-    height: HALO_SIZE,
-    borderRadius: radius.pill,
-    backgroundColor: colors.brand.subtle,
-    opacity: 0.55,
-  },
-  pond: {
-    width: POND_SIZE,
-    height: POND_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
     borderRadius: radius.pill,
     backgroundColor: colors.brand.subtle,
   },
-  pondListening: {
+  /** 가운데 원의 채움 — 시안은 brand/primary 16% (460:2239). */
+  pondFill: {
+    position: 'absolute',
+    borderRadius: radius.pill,
+    backgroundColor: colors.brand.primary,
+    opacity: 0.16,
+  },
+  /** 듣는 중에만 붙는 링. 채움과 분리되어 있어 투명도의 영향을 받지 않는다. */
+  pondRing: {
+    position: 'absolute',
+    borderRadius: radius.pill,
     borderWidth: 3,
     borderColor: colors.status.errorSoft,
+  },
+  stageCenter: {
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   micButton: {
     backgroundColor: colors.brand.primary,
@@ -371,21 +485,20 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: radius.pill,
   },
   stopSquare: {
-    width: 34,
-    height: 34,
     borderRadius: 8,
     backgroundColor: colors.status.error,
   },
-  // 확정 디자인 실측: Regular 20 / 행간 150% (430pt 폭 기준).
+  // 시안 실측: Regular 22 / 행간 150% / 자간 -0.33.
   noiseCaption: {
     fontFamily: fonts.regular,
-    fontSize: 17,
-    lineHeight: 26,
-    letterSpacing: -0.3,
-    color: colors.text.secondary,
+    fontSize: 22,
+    lineHeight: 22 * 1.5,
+    letterSpacing: -0.33,
+    color: colors.text.onBrandMuted,
     textAlign: 'center',
   },
   textRow: {
+    alignSelf: 'stretch',
     gap: spacing.sm,
   },
   input: {
@@ -394,6 +507,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: colors.border.default,
+    backgroundColor: colors.bg.canvas,
     fontFamily: fonts.regular,
     fontSize: 16,
     color: colors.text.primary,

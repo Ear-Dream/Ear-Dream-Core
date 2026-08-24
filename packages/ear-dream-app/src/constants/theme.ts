@@ -12,15 +12,35 @@ import { Platform, type TextStyle } from 'react-native';
 export interface ThemeColors {
   text: {
     primary: string;
+    /** 시트 제목처럼 한 단계 더 진한 제목용. 피그마 변수 `text/strong`. */
+    strong: string;
     secondary: string;
     /** brand 면(인디고) 위 텍스트 */
     onBrand: string;
+    /** brand 면 위 보조 텍스트(부제) — 흰색보다 한 단계 물러난 회색 */
+    onBrandSubtle: string;
+    /** brand 면 위 가장 약한 텍스트(캡션) */
+    onBrandMuted: string;
     /** 다크 미디어 카드(뷰파인더/비디오) 위 텍스트 */
     onVideo: string;
   };
   bg: {
     canvas: string;
     surface: string;
+    /**
+     * 트랙 면 — 청인 입력 화면 전체와 첫 화면 상단이 서는 인디고 면.
+     * `brand/primary` 를 캔버스 위에 74% 로 얹은 것과 같은 값이라 두 화면의 톤이 이어진다.
+     */
+    brandSurface: string;
+    /** 단어 칩(pill) 바탕. 피그마 변수 `bg/chip`. */
+    chip: string;
+    /** 하단 시트 등 캔버스 위에 떠 있는 면. 피그마 변수 `bg/card`. */
+    card: string;
+    /**
+     * 농인 입력 화면 하단의 단어 스트립 면(460:2764). 피그마 변수가 아니라 시안
+     * 하드코드값이라 확정 변수가 나오면 여기만 교체한다.
+     */
+    wordStrip: string;
     /** 다크 미디어 카드(뷰파인더/비디오) 면 */
     video: string;
     /** 스크림 · 로고 등 가장 어두운 면 */
@@ -33,6 +53,8 @@ export interface ThemeColors {
   };
   border: {
     default: string;
+    /** 시트 손잡이 등 아주 약한 구분선. 피그마 변수 `line/soft`. */
+    soft: string;
   };
   status: {
     success: string;
@@ -41,6 +63,12 @@ export interface ThemeColors {
      * `success`(#137a43)는 밝은 면 기준이라 bg/video 위에서는 거의 안 읽힌다.
      */
     successOnDark: string;
+    /**
+     * 촬영 대기 상태의 캡처 버튼(테두리 + 안쪽 원). 시안 애셋 `Stop`(467:846)의
+     * 하드코드 값이라 피그마 변수가 아니다 — `success`(#137a43)보다 어둡다.
+     * 녹화가 시작되면 `error` 로 바뀐다(색만으로 상태를 말하지 않게 모양도 함께 바뀐다).
+     */
+    recordReady: string;
     /**
      * 빨강 계열(녹화 중 배지 · 정지 버튼 · 인식 실패)은 피그마 변수 실측값이 없어
      * 시안 스크린샷 관측 근사값이다. 변수 값이 확인되면 여기만 교체한다.
@@ -58,13 +86,20 @@ export interface ThemeColors {
 export const lightTheme: ThemeColors = {
   text: {
     primary: '#0b0f14',
+    strong: '#17172b',
     secondary: '#3d4752',
     onBrand: '#ffffff',
+    onBrandSubtle: '#cecece',
+    onBrandMuted: '#afafaf',
     onVideo: '#ffffff',
   },
   bg: {
     canvas: '#ffffff',
     surface: '#f1f4f7',
+    brandSurface: '#7d76ec',
+    chip: '#efedfa',
+    card: '#ffffff',
+    wordStrip: '#d5d5fa',
     video: '#111820',
     overlay: '#0b0f14',
   },
@@ -75,10 +110,12 @@ export const lightTheme: ThemeColors = {
   },
   border: {
     default: '#b9c2cb',
+    soft: '#e8e6f2',
   },
   status: {
     success: '#137a43',
     successOnDark: '#4ade80',
+    recordReady: '#2b7646',
     error: '#dc2626',
     errorOnDark: '#c62828',
     errorSubtle: '#fdeeed',

@@ -191,12 +191,16 @@ export function drawSnapshot(
 
   if (snapshot.sourceWidth === 0 || snapshot.sourceHeight === 0) return;
 
-  // contain: 프레임 전체가 들어가도록 긴 쪽에 맞춘다 (video 의 object-fit: contain 과 같은 규칙).
+  // cover: 표시 박스를 채우도록 짧은 쪽에 맞춘다 (video 의 object-fit: cover 와 같은 규칙).
   //
-  // cover 였을 때는 가로 소스(1280x720)를 세로 카드에 넣느라 **좌우 절반이 잘렸다** — 화면에
-  // 안 보이는 영역의 손·얼굴까지 검출 대상이 되고, 사용자는 자기 손이 잡히는지 알 수 없었다.
-  // 보이는 것과 검출되는 것을 일치시키는 쪽이 이 서비스에서는 더 중요하다.
-  const scale = Math.min(
+  // ⚠️ **video 의 object-fit 과 반드시 같은 규칙이어야 한다.** 한쪽만 바꾸면 랜드마크 점이
+  // 영상과 어긋난다. 두 곳은 SignCameraView.web.tsx · CameraLandmarkView.web.tsx 다.
+  //
+  // contain 이던 시절의 근거는 여전히 유효하다 — 가로 소스(데스크톱 웹캠 1280x720)를 세로
+  // 화면에 채우면 좌우가 잘리고, **화면에 안 보이는 영역의 손·얼굴까지 검출 대상이 된다**.
+  // 실기기(세로 720x1280)는 비율이 같아 잘림이 거의 없다. 사용자 요청(2026-08-24)으로
+  // 화면을 채우는 쪽을 택했고, 데스크톱에서 이 어긋남이 남아 있다는 사실은 그대로다.
+  const scale = Math.max(
     bufferWidth / snapshot.sourceWidth,
     bufferHeight / snapshot.sourceHeight,
   );

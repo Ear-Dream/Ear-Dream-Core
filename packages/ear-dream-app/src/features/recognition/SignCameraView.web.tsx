@@ -11,7 +11,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 
 import { strings } from '../../constants/strings';
-import { colors, radius } from '../../constants/theme';
+import { colors } from '../../constants/theme';
 import type { LandmarkSnapshot } from './landmarks';
 import { PREVIEW_MIRRORED } from './landmarks';
 import type { OverlayColors } from './landmarks/overlay.web';
@@ -83,7 +83,7 @@ const webStyles: Record<string, React.CSSProperties> = {
     position: 'relative',
     width: '100%',
     height: '100%',
-    borderRadius: radius.lg,
+    // 라운드는 감싸는 쪽(SignInputScreen.card)이 정한다 — 화면을 꽉 채울 때는 0 이다.
     overflow: 'hidden',
     background: colors.bg.video,
   },
@@ -96,8 +96,17 @@ const webStyles: Record<string, React.CSSProperties> = {
     inset: 0,
     width: '100%',
     height: '100%',
-    // contain 이다. 가로 프레임을 세로 카드에 cover 로 넣으면 좌우가 잘려 나간다.
-    objectFit: 'contain',
+    // cover 다 — 프레임을 채우고 넘치는 쪽을 자른다.
+    //
+    // ⚠️ 2026-08-19 에 contain 으로 바꿨던 것을 사용자 요청(2026-08-24 「상하좌우 공백 없이
+    // 화면 꽉 채우기」)으로 되돌린 것이다. 그때의 근거는 유효하다 — **가로 소스(데스크톱
+    // 웹캠 1280x720)를 세로 화면에 채우면 좌우가 잘리고, 화면에 안 보이는 영역의 손까지
+    // 검출 대상이 된다.** 실기기(세로 720x1280)에서는 소스와 화면의 비율이 같아 잘림이
+    // 거의 없어 문제가 드러나지 않는다.
+    //
+    // 되돌리려면 여기와 `overlay.web.ts` 의 스케일 계산(Math.max ↔ Math.min)을 **함께**
+    // 바꾼다. 한쪽만 바꾸면 랜드마크 점이 영상과 어긋난다.
+    objectFit: 'cover',
   },
   // 오버레이 캔버스는 object-fit 을 쓰지 않는다 — cover 매핑을 overlay.web.ts 가 직접 계산한다.
   overlayLayer: {
