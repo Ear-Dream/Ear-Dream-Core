@@ -186,9 +186,8 @@ pnpm setup:model-bundle
   `class_labels`가 어휘 데이터와 어긋나거나, `serving.interface`가 서버가 모르는
   값이면 로드를 거부한다 — 구모델+신전처리 조합, 조용한 전량 오답, 모르는 호출
   규약으로의 추론을 막는 장치다
-- `serving.interface`가 **forward 호출 규약을 밝힌다**(`single_observed_v1` /
-  `hybrid_v1` / `spoter_v1`). 모델 세대를 되돌릴 때 `EAR_DREAM_MODEL_BUNDLE_DIR`만
-  바꾸면 되는 이유다
+- `serving.interface`가 **forward 호출 규약을 밝힌다**(`single_observed_v1`).
+  로더가 모르는 값이면 로드를 거부한다 — 잘못된 인자 수로 forward 하는 사고를 막는다
 - 다른 위치는 환경변수 `EAR_DREAM_MODEL_BUNDLE_DIR`로 지정한다
   (상대경로는 `packages/ear-dream-api` 기준)
 
@@ -220,9 +219,10 @@ pnpm setup:model-bundle
 `--partition`으로 넘기면 자동 대조된다. 없을 때의 확인 방법은 라벨된 REAL09로 채점해
 보는 것이다 — 순서가 맞으면 ~89%, 어긋나면 ~0.3%(우연)라 판정이 명확하다.
 
-`vocab300.json`은 **이 스크립트가 쓰지 않는다** — 300 클래스 인덱스 체계가 세 세대 모두
-같아서 확인만 한다. 어휘 자체를 새로 만드는 것은 베이스라인 빌드
-(`scripts/build_spoter300_bundle.py`)의 몫이고, 그쪽 산출물인 `vocab300.json`이 커밋
-대상이다. ⚠️ 이전 세대 빌드 스크립트 둘(`build_spoter300_bundle.py`,
-`build_hybrid300_bundle.py`)은 학습 레포가 **로컬 형제 디렉토리에 있다고 가정**하는 옛
-방식이다 — 새로 만들 때는 이 스크립트의 원격 방식을 따른다.
+`vocab300.json`은 **이 스크립트가 쓰지 않는다** — 어휘가 이미 커밋돼 있고 인덱스가
+맞는지 확인만 한다. 어휘를 새로 만드는 것은 `scripts/build_spoter300_bundle.py` 의 몫이다
+(⚠️ 그 스크립트는 학습 레포가 **로컬에 있다고 가정**하는 옛 방식이라, 어휘를 다시 만들
+일이 아니면 쓰지 않는다).
+
+⚠️ **모델을 다른 세대로 바꾸면 `preprocess_spoter.AR_TRAIN` 도 함께 봐야 한다.** 그 값은
+모델의 학습 좌표 관례라 모델마다 다르고, 안 맞추면 에러 없이 정확도만 무너진다.

@@ -1,10 +1,7 @@
 """번들 로더(app/ml/model.py) 게이트 검증 — 가짜 번들로 거부 조건을 만든다.
 
 실제 수십 MB TorchScript 대신 같은 시그니처의 소형 스크립트 모듈을 번들에 넣는다 —
-게이트는 release.json 검증이 핵심이라 가중치 크기와 무관하다. 서빙 인터페이스가 둘이라
-스텁도 둘이다 (모듈 docstring 「서빙 인터페이스 2종」):
-  _StubSpoter  (features, padding_mask) -> (B, 300)
-  _StubHybrid  (features, padding_mask, detected, view) -> 4-튜플, [0] 이 full_logits
+게이트는 release.json 검증이 핵심이라 가중치 크기와 무관하다 (_StubSingleObserved).
 """
 
 from __future__ import annotations
@@ -21,20 +18,8 @@ from app.ml.preprocess_spoter import FEAT_DIM, PREPROCESS_VERSION
 from app.ml.vocab import CLASS_INDEX_TO_ENTRY
 
 
-class _StubSpoter(torch.nn.Module):
-    """TorchScript 시그니처만 흉내 내는 스텁 — logits 는 클래스 0 이 항상 최고가 되게."""
-
-    def forward(self, features: torch.Tensor, padding_mask: torch.Tensor) -> torch.Tensor:
-        batch = features.shape[0]
-        logits = torch.zeros(batch, 300)
-        logits[:, 0] = 5.0
-        return logits
-
-
-class _StubHybrid(torch.nn.Module):
-    """hybrid_v1 시그니처 스텁. full_logits 는 **detected 를 실제로 반영**한다 —
-    로더가 마스크를 넘기지 않거나 엉뚱한 열을 넘기면 테스트가 잡아내야 하기 때문이다.
-    클래스 0 = 오른손 검출 프레임 수, 클래스 1 = 왼손 검출 프레임 수를 로짓에 싣는다."""
+class _StubConstant(torch.nn.Module):
+    """게이트·캘리브레이션 테스트용 — 입력과 무관하게 클래스 0 이 top-1 이다."""
 
     def forward(
         self,
@@ -42,24 +27,29 @@ class _StubHybrid(torch.nn.Module):
         padding_mask: torch.Tensor,
         detected: torch.Tensor,
         view: torch.Tensor,
-    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         batch = features.shape[0]
-        valid = detected.float() * view.float()  # (B, T, 2) — 학습 모델과 같은 게이팅
-        full = torch.zeros(batch, 300)
-        full[:, 0] = valid[..., 0].sum(1)
-        full[:, 1] = valid[..., 1].sum(1)
-        return full, torch.zeros(batch, 106), torch.zeros(batch, 2), torch.zeros(batch, 128)
+        logits = torch.zeros(batch, 300)
+        logits[:, 0] = 5.0
+        return logits, torch.zeros(batch, 2), torch.zeros(batch, 128)
+
+
+# 손 검출 마스크는 이제 필수 인자다 — 게이트 테스트용 기본값 (전 프레임 양손 검출).
+def _detected(t: int) -> np.ndarray:
+    return np.ones((t, 2), dtype=np.uint8)
 
 
 def _valid_release(**overrides) -> dict:
     release = {
         "bundle": "fake-bundle",
         "feature_version": PREPROCESS_VERSION,
-        "model_name": "spoter_208",
+        "model_name": "single_observed_hand_208",
         "num_classes": 300,
         "class_labels": [e.label for e in CLASS_INDEX_TO_ENTRY],
         "serving": {
             "artifact": "model_torchscript.pt",
+            "interface": "single_observed_v1",
+            "view": "single_observed",
             "temperature": 2.0,
             "recommended_reject_threshold": 0.5,
         },
@@ -68,32 +58,22 @@ def _valid_release(**overrides) -> dict:
     return release
 
 
-def _hybrid_release(**overrides) -> dict:
-    release = _valid_release(model_name="hybrid_208_h1b")
-    release["serving"] = {**release["serving"], "interface": "hybrid_v1", "view": "full"}
-    release.update(overrides)
-    return release
-
-
-def _write_bundle(tmp_path: Path, release: dict, debias: np.ndarray | None = None) -> Path:
+def _write_bundle(
+    tmp_path: Path, release: dict, debias: np.ndarray | None = None, stub=None
+) -> Path:
     bundle = tmp_path / "fake-bundle"
     bundle.mkdir(parents=True, exist_ok=True)
-    interface = (release.get("serving") or {}).get("interface", model_module.DEFAULT_INTERFACE)
-    stub = {
-        model_module.INTERFACE_HYBRID: _StubHybrid,
-        model_module.INTERFACE_SINGLE_OBSERVED: _StubSingleObserved,
-    }.get(interface, _StubSpoter)()
-    torch.jit.save(torch.jit.script(stub), str(bundle / "model_torchscript.pt"))
+    torch.jit.save(torch.jit.script(stub or _StubConstant()), str(bundle / "model_torchscript.pt"))
     (bundle / "release.json").write_text(json.dumps(release, ensure_ascii=False), encoding="utf-8")
     if debias is not None:
         np.save(bundle / model_module.DEBIAS_FILENAME, debias)
     return bundle
 
 
-def _load(tmp_path, monkeypatch, release: dict, debias: np.ndarray | None = None):
+def _load(tmp_path, monkeypatch, release: dict, debias: np.ndarray | None = None, stub=None):
     from app.core.config import settings as cfg
 
-    bundle = _write_bundle(tmp_path, release, debias=debias)
+    bundle = _write_bundle(tmp_path, release, debias=debias, stub=stub)
     monkeypatch.setattr(cfg, "model_bundle_dir", str(bundle))
     model_module.reset_model_state()
     try:
@@ -113,7 +93,7 @@ def test_valid_fake_bundle_loads_and_predicts(tmp_path, monkeypatch):
     assert state.model_version == "fake-bundle"
     assert state.temperature == 2.0
     assert state.reject_threshold == 0.5
-    probs = state.predict_probs(np.zeros((16, FEAT_DIM), dtype=np.float32))
+    probs = state.predict_probs(np.zeros((16, FEAT_DIM), dtype=np.float32), _detected(16))
     assert probs.shape == (300,)
     assert int(np.argmax(probs)) == 0  # 스텁 로짓의 클래스 0
     np.testing.assert_allclose(probs.sum(), 1.0, atol=1e-5)
@@ -216,8 +196,8 @@ def test_debias_fallback_when_file_missing(tmp_path, monkeypatch, caplog):
     assert len(warned) == 1
     # 항등 확인: bias 없는 predict == 이후 alpha=0 으로 강제한 predict (완전 동일)
     x = np.zeros((16, FEAT_DIM), dtype=np.float32)
-    probs = state.predict_probs(x)
-    np.testing.assert_array_equal(probs, state.predict_probs(x))
+    probs = state.predict_probs(x, _detected(16))
+    np.testing.assert_array_equal(probs, state.predict_probs(x, _detected(16)))
 
 
 def test_debias_applied_matches_runner_formula(tmp_path, monkeypatch):
@@ -234,9 +214,9 @@ def test_debias_applied_matches_runner_formula(tmp_path, monkeypatch):
     assert state.debias_alpha == 1.0
 
     x = np.zeros((16, FEAT_DIM), dtype=np.float32)
-    debiased = state.predict_probs(x)
+    debiased = state.predict_probs(x, _detected(16))
     state.debias_alpha = 0.0  # 같은 상태에서 편향 제거만 끈 기준 분포
-    base = state.predict_probs(x)
+    base = state.predict_probs(x, _detected(16))
     state.debias_alpha = 1.0
 
     np.testing.assert_allclose(debiased, _debias_formula(base, bias, 1.0), rtol=1e-6, atol=1e-9)
@@ -255,9 +235,9 @@ def test_debias_alpha_zero_is_identity(tmp_path, monkeypatch):
     assert state.loaded
     assert state.debias_alpha == 0.0
     x = np.zeros((16, FEAT_DIM), dtype=np.float32)
-    probs = state.predict_probs(x)
+    probs = state.predict_probs(x, _detected(16))
     state.debias_bias = None  # bias 자체가 없는 경로와 완전 동일해야 한다
-    np.testing.assert_array_equal(probs, state.predict_probs(x))
+    np.testing.assert_array_equal(probs, state.predict_probs(x, _detected(16)))
 
 
 def test_debias_shape_mismatch_falls_back(tmp_path, monkeypatch, caplog):
@@ -270,63 +250,14 @@ def test_debias_shape_mismatch_falls_back(tmp_path, monkeypatch, caplog):
     assert any("형상 불일치" in r.getMessage() for r in caplog.records)
 
 
-# ------------------------------------------------------- 서빙 인터페이스 (spoter/hybrid)
-def test_interface_defaults_to_spoter_when_absent(tmp_path, monkeypatch):
-    """serving.interface 가 없는 번들 = 스위치 도입 이전의 SPOTER 번들 — 롤백 호환."""
-    release = _valid_release()
-    release["serving"].pop("interface", None)
-    state = _load(tmp_path, monkeypatch, release)
-    assert state.loaded, f"load failed: {state.error}"
-    assert state.interface == model_module.INTERFACE_SPOTER
-    # 구 인터페이스는 손 마스크를 받지 않는다 — 인자 없이 호출돼야 한다
-    probs = state.predict_probs(np.zeros((16, FEAT_DIM), dtype=np.float32))
-    assert int(np.argmax(probs)) == 0
-
-
+# ---------------------------------------------------------------- 서빙 인터페이스
 def test_load_refused_on_unknown_interface(tmp_path, monkeypatch):
     """모르는 호출 규약으로 forward 하지 않는다 — 잘못된 인자 수는 런타임 폭발이다."""
-    state = _load(tmp_path, monkeypatch, _hybrid_release(serving={"interface": "hybrid_v9"}))
+    state = _load(
+        tmp_path, monkeypatch, _valid_release(serving={"interface": "single_observed_v9"})
+    )
     assert not state.loaded
     assert "interface" in (state.error or "")
-
-
-def test_hybrid_uses_full_logits_and_forwards_detected(tmp_path, monkeypatch):
-    """hybrid_v1: 4출력 중 full_logits 만 쓰고, 손 검출 마스크가 그대로 전달돼야 한다.
-
-    스텁이 클래스 0/1 로짓에 오른손/왼손 검출 프레임 수를 싣는다 — 열 순서가 뒤집히면
-    argmax 가 반대로 나온다 (조용한 좌우 뒤바뀜 방지)."""
-    from app.core.config import settings as cfg
-
-    monkeypatch.setattr(cfg, "reject_threshold", None)
-    state = _load(tmp_path, monkeypatch, _hybrid_release())
-    assert state.loaded, f"load failed: {state.error}"
-    assert state.interface == model_module.INTERFACE_HYBRID
-
-    x = np.zeros((16, FEAT_DIM), dtype=np.float32)
-    # 오른손 12 프레임 / 왼손 3 프레임 검출 → 클래스 0 이 최고여야 한다
-    detected = np.zeros((16, 2), dtype=np.uint8)
-    detected[:12, 0] = 1
-    detected[:3, 1] = 1
-    probs = state.predict_probs(x, detected)
-    assert probs.shape == (300,)
-    np.testing.assert_allclose(probs.sum(), 1.0, atol=1e-5)
-    assert int(np.argmax(probs)) == 0
-
-    # 좌우를 뒤집으면 결과도 뒤집혀야 한다 (마스크가 실제로 쓰인다는 확인)
-    assert int(np.argmax(state.predict_probs(x, detected[:, ::-1].copy()))) == 1
-
-
-def test_hybrid_requires_hand_detected(tmp_path, monkeypatch):
-    """마스크 없이 호출하면 조용히 전 프레임 검출로 가정하지 않고 즉시 실패한다 —
-    학습과 다른 게이팅으로 도는 것보다 터지는 편이 낫다."""
-    import pytest
-
-    state = _load(tmp_path, monkeypatch, _hybrid_release())
-    x = np.zeros((16, FEAT_DIM), dtype=np.float32)
-    with pytest.raises(ValueError, match="hand_detected"):
-        state.predict_probs(x)
-    with pytest.raises(ValueError, match="hand_detected"):
-        state.predict_probs(x, np.ones((8, 2), dtype=np.uint8))  # 프레임 수 불일치
 
 
 # --------------------------------------------- single_observed_v1 (대표 손 하나만 보는 세대)
@@ -351,15 +282,8 @@ class _StubSingleObserved(torch.nn.Module):
 
 
 def _single_observed_release(**overrides) -> dict:
-    release = _valid_release(model_name="single_observed_hand_208")
-    release["serving"] = {
-        **release["serving"],
-        "interface": "single_observed_v1",
-        "view": "single_observed",
-        "temperature": 1.0,
-    }
-    release.update(overrides)
-    return release
+    """현재 인터페이스가 하나뿐이라 _valid_release 와 같다 — 의도를 드러내는 별칭."""
+    return _valid_release(**overrides)
 
 
 def _reference_robust_motion_side(features, detected, coverage_margin=0.15):
@@ -408,7 +332,7 @@ def test_single_observed_masks_other_hand_and_sets_view(tmp_path, monkeypatch):
     from app.core.config import settings as cfg
 
     monkeypatch.setattr(cfg, "reject_threshold", None)
-    state = _load(tmp_path, monkeypatch, _single_observed_release())
+    state = _load(tmp_path, monkeypatch, _single_observed_release(), stub=_StubSingleObserved())
     assert state.loaded, f"load failed: {state.error}"
     assert state.interface == model_module.INTERFACE_SINGLE_OBSERVED
 

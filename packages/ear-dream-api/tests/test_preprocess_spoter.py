@@ -267,11 +267,11 @@ def _scale_raw(raw: dict, x_scale: float = 1.0, y_scale: float = 1.0) -> dict:
 
 
 def test_ar_identity_at_train_aspect():
-    """AR_live == AR_TRAIN(16:9)이면 배율이 정확히 1.0(항등) — 보정 없는 레퍼런스와
-    비트 단위 동일해야 한다. 1920/1080 같은 실측 16:9 해상도도 같은 배율이다."""
-    assert 1920 / 1080 == AR_TRAIN
+    """AR_live == AR_TRAIN 이면 배율이 정확히 1.0(항등) — 보정 없는 레퍼런스와 비트 단위
+    동일해야 한다. 현재 모델의 관례는 세로(9:16)이므로 1080/1920 같은 실측 해상도가 항등이다."""
+    assert 1080 / 1920 == AR_TRAIN
     server_frames, raw = make_paired_frames(n=12)
-    out = _run_server(server_frames, aspect=1920 / 1080)
+    out = _run_server(server_frames, aspect=1080 / 1920)
     assert out.x_scale == 1.0
     assert out.source_aspect == AR_TRAIN
     ref_features, ref_mask = ref_process(raw)
@@ -279,12 +279,14 @@ def test_ar_identity_at_train_aspect():
     np.testing.assert_array_equal(out.part_mask, ref_mask)
 
 
-def test_ar_vertical_matches_x_scaled_reference():
-    """세로(9:16) 입력: 서버 출력 == "x 만 배율만큼 스케일한 원시 좌표"로 돌린 레퍼런스.
+def test_ar_offtrain_matches_x_scaled_reference():
+    """학습 관례와 다른 종횡비 입력: 서버 출력 == "x 만 배율만큼 스케일한 원시 좌표"로
+    돌린 레퍼런스.
 
-    보정이 정규화 이전 원시 x 에만, 모든 부위(pose·양손·face)에 일괄 적용됨을 검증한다."""
-    aspect = 9.0 / 16.0
-    scale = aspect / AR_TRAIN  # ≈ 0.3164 (세로 캡처)
+    보정이 정규화 이전 원시 x 에만, 모든 부위(pose·양손·face)에 일괄 적용됨을 검증한다.
+    현재 AR_TRAIN 이 세로(9:16)이므로 가로(16:9) 입력이 배율 ≈3.16 의 비항등 경우다."""
+    aspect = 16.0 / 9.0
+    scale = aspect / AR_TRAIN  # ≈ 3.1605 (학습 관례와 다른 종횡비)
     server_frames, raw = make_paired_frames(n=12)
     out = _run_server(server_frames, aspect=aspect)
     assert out.x_scale == pytest.approx(scale)

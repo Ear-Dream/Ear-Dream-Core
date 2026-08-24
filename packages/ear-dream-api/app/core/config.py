@@ -22,15 +22,14 @@ class Settings(BaseSettings):
     # ---- 모델 서빙 — Single-Observed-Hand 208D 300단어 (single_observed_hand_300)
     # 번들 디렉토리 하나만 가리킨다 (release.json + model_torchscript.pt).
     # 상대경로는 api 패키지 루트 기준 (model.resolve_bundle_dir). var/ 는 .gitignore —
-    # 모델 파일은 레포에 커밋하지 않는다. 번들 생성: scripts/build_single_observed_bundle.py.
-    # 전처리 계약(spoter2_mp_xy_v1)과 300 클래스 인덱스가 세 세대 모두 같으므로 이 값만
-    # 바꾸면 모델이 갈린다 — forward 호출 규약은 번들의 serving.interface 가 밝힌다:
-    #   var/models/single-observed-300-allpeople   현재 (single_observed_v1)
-    #   var/models/single-observed-300             같은 세대, 3인 v1 만 학습 (calibration 있음)
-    #   var/models/hybrid300-h1b                   Hybrid H1b (hybrid_v1)
-    #   var/models/spoter300-pilot                 SPOTER-208 베이스라인 (spoter_v1)
-    # ⚠️ spoter300-pilot 으로 롤백할 때는 reject_threshold 0.15 · debias_alpha 1.25 도
-    # 함께 되돌릴 것 (아래 주석). 나머지 번들은 release.json 권장값이 맞다.
+    # 모델 파일은 레포에 커밋하지 않는다. 번들 생성: scripts/build_single_observed_bundle.py
+    # (학습 레포 고정 커밋에서 원격으로 받는다 — 로컬 체크아웃 불필요).
+    # 같은 세대의 다른 번들로 바꾸려면 이 값만 바꾼다 (--run final_deployment 로 빌드):
+    #   var/models/single-observed-300-allpeople   현재 — 3인 v1+v2 전부 학습
+    #   var/models/single-observed-300             3인 v1 만 학습, calibration 있음
+    # ⚠️ **다른 세대 모델로 바꿀 때는 preprocess_spoter.AR_TRAIN 도 함께 봐야 한다** —
+    # 그 값은 모델의 학습 좌표 관례라 모델마다 다르고, 안 맞추면 에러 없이 정확도만
+    # 무너진다 (실측: 맞을 때 39.9% / 어긋날 때 7~29%). preprocess_spoter 주석 참조.
     model_bundle_dir: str = "var/models/single-observed-300-allpeople"
 
     # ⚠️ 아래 수치는 전부 **프로토타입용 임시값**이다. 사용자 검증·실측 후 확정한다.
@@ -39,14 +38,10 @@ class Settings(BaseSettings):
     )
     # 최고 confidence(temperature 적용 후) 미달 시 rejected.
     # None = release.json serving.recommended_reject_threshold 채택.
-    # ⚠️ **hybrid300-h1b 에는 이 임계의 근거가 없다.** 이 모델은 temperature 가
-    # 미캘리브레이션(1.0 항등)이고 편향 제거도 꺼져 있어 confidence 분포가 베이스라인과
-    # 다르다 — 과거 오버라이드 0.15(SPOTER-208 의 편향 제거 후 분포에 live_eval n=45 로
-    # 피팅한 값)와 번들 권장 0.5(스튜디오 val 기준)는 **둘 다 이 모델에 적용되지 않는다**.
-    # 그래서 None 으로 두고 번들 권장값(0.0 = 거부 없음)을 따른다: 근거 없는 임계로
-    # 조용히 거부하느니 전부 후보를 내보내고, 라벨된 라이브 평가셋 확보 후
-    # temperature 와 함께 재피팅한다.
-    # spoter300-pilot 으로 롤백할 때는 0.15 로 되돌릴 것 (git log 에 근거 주석이 있다).
+    # ⚠️ 현재 번들(all_people)에는 calibration 이 없어 권장값이 0.0(거부 없음)이다.
+    # 라벨된 라이브 셋(138클립)으로 곡선은 쟀지만 — 임계 0.4 에서 커버리지 58% ·
+    # 통과분 정확도 45.0% — 그 셋 하나로 임계를 고르고 같은 셋으로 성능을 보고하면
+    # 순환이라 값을 박지 않았다. 별도 촬영분을 확보하면 확정한다.
     reject_threshold: float | None = None
     # ---- 라이브 도메인 갭 개입 2종 (2026-08-11 실측 검증 — 모델 레포
     # _workspace/17_hypothesis_ledger.md. 수식 정본은 scripts/live_eval.py 러너였고
@@ -63,16 +58,12 @@ class Settings(BaseSettings):
     # 로짓 편향 제거 강도 α — log_softmax(logits/T) 에서 α·(bias − bias.mean()) 을 뺀 뒤
     # softmax 재정규화 (app/ml/model.predict_probs). bias 는 번들의 live_debias.npy
     # (도메인 이동이 만든 클래스 편향의 평균 log-softmax).
-    # ⚠️ **편향 벡터는 모델별이다 — 그래서 현재 기본값이 0.0(끔)이다.** 기존 값 1.25 는
-    # SPOTER-208(spoter300-pilot)의 출력 분포로 추정한 live_debias.npy 위에서 고른
-    # 값이라, 가중치가 바뀐 hybrid300-h1b 에 그대로 적용하면 보정이 아니라 **새 편향
-    # 주입**이 된다. hybrid300-h1b 번들에는 편향 파일 자체가 없으므로 로더도 α=0 으로
-    # 폴백하지만, 설정 기본값까지 0.0 으로 내려 두 곳이 어긋나지 않게 한다.
-    # spoter300-pilot 으로 롤백할 때는 1.25 로 되돌릴 것 — 그 값의 근거(2026-08-12
-    # 누수 차단 재추정 495건, phone41 top-1 +2.4%p, REAL09 게이트 −0.07%p, EM 계열
-    # prior 보정 기각)는 git log 의 이전 주석에 남아 있다.
-    # 재추정 절차: 신규 아카이브로 추정 → 라벨 평가셋으로 검증 → live_debias.npy 교체와
-    # 이 값을 함께 갱신. 0.0 이면 완전 항등(제거 끔).
+    # ⚠️ **편향 벡터는 모델별이다** — 추정에 쓴 모델의 출력 분포에 묶인 값이라 다른
+    # 가중치에 쓰면 보정이 아니라 새 편향 주입이 된다. 현재 번들에는 편향 파일이 없어
+    # 로더가 α=0 으로 폴백하고, 설정 기본값도 0.0 으로 맞춰 두 곳이 어긋나지 않게 한다.
+    # 라벨된 라이브 셋 실측(2026-08-24): 아카이브 882건으로 추정한 벡터를 α 0.5~1.0 으로
+    # 걸면 top-1 +0.7%p / top-4 +2.9%p 였다 — 클립 1~4개 차이라 채택 근거로는 약하다.
+    # 0.0 이면 완전 항등(제거 끔).
     debias_alpha: float = 0.0
 
     # 세그먼트 프레임 수 범위 — 요청(Pydantic) 검증용. SPOTER 전처리는 trim 없이 전

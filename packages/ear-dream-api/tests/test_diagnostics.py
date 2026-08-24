@@ -6,6 +6,7 @@ import pytest
 
 from app.core.config import settings
 from app.ml import model as model_module
+from app.ml.preprocess_spoter import AR_TRAIN
 from tests.conftest import make_frames, make_recognize_request
 
 BUNDLE_AVAILABLE = (model_module.resolve_bundle_dir() / "release.json").exists()
@@ -40,10 +41,10 @@ def test_recognize_writes_diagnostics_record(client, tmp_path):
 
     # spoter 전처리 요약: 기하 보정(AR x + 원근 y)·리샘플·부위 검출율·정규화 후 범위
     pre = record["preprocess"]
-    # conftest 캡처는 720x1280(세로) — AR 보정 배율 = (720/1280)/(16/9) ≈ 0.3164
+    # conftest 캡처는 720x1280(세로) — 현재 AR_TRAIN 이 9/16 이라 배율은 항등이다
     assert pre["ar_correction"]["source_aspect"] == pytest.approx(720 / 1280)
-    assert pre["ar_correction"]["ar_train"] == pytest.approx(16 / 9)
-    assert pre["ar_correction"]["x_scale"] == pytest.approx((720 / 1280) / (16 / 9))
+    assert pre["ar_correction"]["ar_train"] == pytest.approx(AR_TRAIN)
+    assert pre["ar_correction"]["x_scale"] == pytest.approx((720 / 1280) / AR_TRAIN)
     # y 보정은 종횡비 무관 고정 상수 (settings.live_y_scale — 임시값)
     assert pre["ar_correction"]["y_scale"] == pytest.approx(settings.live_y_scale)
     assert pre["resample"]["source_frame_count"] == 40
