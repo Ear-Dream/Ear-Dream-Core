@@ -79,8 +79,11 @@ export function TrackTransition({ screenKey, direction, children }: TrackTransit
 /**
  * 전환 시간. 시안에 값이 없어 임시로 잡았다 — 화면 한 장이 지나가는 거리치고 짧으면
  * 끊겨 보이고, 길면 대화 흐름이 늘어진다. 실기기에서 재고 정할 값이다.
+ *
+ * 요청(2026-08-24)으로 **속도를 0.8배**로 낮췄다 — 처음 260ms 였고, 속도가 0.8배면
+ * 같은 거리를 가는 데 걸리는 시간은 1/0.8 배다.
  */
-const SLIDE_DURATION_MS = 260;
+const SLIDE_DURATION_MS = Math.round(260 / 0.8);
 
 const styles = StyleSheet.create({
   root: {
