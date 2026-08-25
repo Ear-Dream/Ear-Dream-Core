@@ -1,9 +1,9 @@
 import { useEffect } from 'react';
-import { Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Wordmark } from '../../components/Wordmark';
 import { strings } from '../../constants/strings';
-import { maxScreenWidth } from '../../constants/theme';
+import { useDesignScale } from '../../hooks/useDesignScale';
 
 import { HOME_FALLBACK_COLOR } from './backgroundTint';
 import { HomeBackground } from './HomeBackground';
@@ -30,9 +30,9 @@ export interface SplashScreenProps {
  * 이건 의도로 보기 어려워 가운데 정렬했다.
  */
 export function SplashScreen({ onContinue }: SplashScreenProps) {
-  const { width } = useWindowDimensions();
-  const frameWidth = Math.min(width, maxScreenWidth);
-  const wordmarkWidth = WORDMARK_DESIGN_WIDTH * (frameWidth / DESIGN_FRAME_WIDTH);
+  // 워드마크는 도형이라 균등 배율로 줄인다(HomeScreen 타일과 같은 이유).
+  const { v } = useDesignScale();
+  const wordmarkWidth = v(WORDMARK_DESIGN_WIDTH);
 
   useEffect(() => {
     const timer = setTimeout(onContinue, AUTO_ADVANCE_MS);
@@ -60,8 +60,6 @@ export function SplashScreen({ onContinue }: SplashScreenProps) {
   );
 }
 
-/** 시안 프레임 폭 — 워드마크 폭을 이 값 대비 배율로 환산한다. */
-const DESIGN_FRAME_WIDTH = 430;
 /** 시안 워드마크 폭(점 포함). */
 const WORDMARK_DESIGN_WIDTH = 193;
 

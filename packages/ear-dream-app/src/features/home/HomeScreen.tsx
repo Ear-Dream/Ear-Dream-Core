@@ -1,7 +1,8 @@
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { strings } from '../../constants/strings';
-import { colors, fonts, maxScreenWidth, spacing } from '../../constants/theme';
+import { colors, fonts, spacing } from '../../constants/theme';
+import { useDesignScale } from '../../hooks/useDesignScale';
 
 import { SignTrackIcon, VoiceTrackIcon } from './EntryIcons';
 
@@ -33,12 +34,15 @@ export interface HomeScreenProps {
  * 사용자 요청(2026-08-24)으로 맞췄다.
  */
 export function HomeScreen({ onStartSign, onStartVoice, onOpenLandmarkDev }: HomeScreenProps) {
-  const { width } = useWindowDimensions();
-  const frameWidth = Math.min(width, maxScreenWidth);
-  const scale = frameWidth / DESIGN_FRAME_WIDTH;
+  /*
+    타일은 정사각이라 **균등 배율**(`v`)로 줄인다. 가로 배율만 쓰면 화면이 짧을 때
+    위/아래 절반(flex 485:447)보다 타일이 커져 잘린다 — `vScale <= scale` 이므로
+    `v` 하나로 두 축이 모두 안전하다(`useDesignScale` 주석).
+  */
+  const { v } = useDesignScale();
 
-  const voiceTile = VOICE_TILE_SIZE * scale;
-  const signTile = SIGN_TILE_SIZE * scale;
+  const voiceTile = v(VOICE_TILE_SIZE);
+  const signTile = v(SIGN_TILE_SIZE);
 
   return (
     <View style={styles.root}>
@@ -53,13 +57,13 @@ export function HomeScreen({ onStartSign, onStartVoice, onOpenLandmarkDev }: Hom
             {
               width: voiceTile,
               height: voiceTile,
-              borderRadius: VOICE_TILE_RADIUS * scale,
+              borderRadius: v(VOICE_TILE_RADIUS),
             },
             pressed && styles.pressed,
           ]}
         >
           {/* 타일 한가운데. 시안은 살짝 치우쳐 있지만 중앙정렬로 맞췄다(아래 상수 주석). */}
-          <VoiceTrackIcon size={VOICE_ICON_WIDTH * scale} />
+          <VoiceTrackIcon size={v(VOICE_ICON_WIDTH)} />
         </Pressable>
       </View>
 
@@ -74,7 +78,7 @@ export function HomeScreen({ onStartSign, onStartVoice, onOpenLandmarkDev }: Hom
             {
               width: signTile,
               height: signTile,
-              borderRadius: SIGN_TILE_RADIUS * scale,
+              borderRadius: v(SIGN_TILE_RADIUS),
             },
             pressed && styles.pressed,
           ]}
@@ -98,9 +102,6 @@ export function HomeScreen({ onStartSign, onStartVoice, onOpenLandmarkDev }: Hom
     </View>
   );
 }
-
-/** 시안 프레임 폭 — 모든 치수를 이 값 대비 배율로 환산한다. */
-const DESIGN_FRAME_WIDTH = 430;
 
 /** 시안 상단 인디고 면 높이 485 / 하단 447 (총 932). flex 비율로 옮긴다. */
 const VOICE_HALF_FLEX = 485;

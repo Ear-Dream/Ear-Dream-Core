@@ -21,6 +21,16 @@ export interface QueuePillProps {
    * 나머지는 흰 칩으로 둔다(460:2767 vs 460:2777).
    */
   selected?: boolean;
+  /**
+   * 칩 기하의 세로 배율(`useDesignScale().vScale`). 시안 실측 높이 63.2 가 이 값으로
+   * 환산된다 — 짧은 화면에서 단어 띠가 얇아질 때 칩만 원래 크기로 남아 띠를 뚫는 것을
+   * 막는다. 부모(`SignInputScreen`)가 이미 계산한 값을 내려받는다 — 칩마다 창 크기를
+   * 구독하면 pill 이 늘어날수록 구독도 늘어난다.
+   *
+   * ⚠️ 글자 크기는 환산하지 않는다. 그래서 배율이 아주 작으면 `minHeight` 대신 글자가
+   * 높이를 정한다 — 비율이 조금 어긋나더라도 단어가 잘리지 않는 쪽이다.
+   */
+  sizeScale?: number;
   testID?: string;
 }
 
@@ -28,20 +38,37 @@ export interface QueuePillProps {
  * 인식 큐의 pill 하나. 태그 입력 UI 의 태그처럼 서버 응답이 순차 누적된다.
  *
  * 상태는 색에만 의존하지 않고 형태로도 갈린다(농인 사용자 접근성 원칙):
- *   pending — 점선 테두리 + "…", done — 실선 brand + 단어 + ▾(시트 열림 표시),
+ *   pending — 점선 테두리 + "…", done — 실선 테두리 + 픽토그램 + 단어,
  *   failed — 빨강 테두리 + ↻ 재전송 + 별도 × 타겟.
+ *
+ * ⚠️ done 칩에 있던 ▾(하단 시트가 열린다는 방향 표시)는 사용자 요청(2026-08-25)으로
+ * 뺐다. 탭하면 시트가 열린다는 사실은 이제 화면에 표시가 없다 — 정정 경로를 처음
+ * 발견하기 어려워졌다는 뜻이라, 온보딩이나 첫 사용 안내가 그 몫을 맡아야 한다.
  *
  * confidence 수치는 표시하지 않는다 — 캘리브레이션되지 않은 수치 노출은 PRD V-07
  * 미해결 항목이다. 후보 간 우열은 하단 시트의 정렬 순서로만 표현한다.
  */
-export function QueuePill({ entry, onPress, onRemove, selected = false, testID }: QueuePillProps) {
+export function QueuePill({
+  entry,
+  onPress,
+  onRemove,
+  selected = false,
+  sizeScale = 1,
+  testID,
+}: QueuePillProps) {
+  const pillHeight = PILL_HEIGHT * sizeScale;
   if (entry.state === 'pending') {
     return (
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={strings.signInput.pillPendingA11y}
         onPress={onPress}
-        style={({ pressed }) => [styles.root, styles.pending, pressed && styles.pressed]}
+        style={({ pressed }) => [
+          styles.root,
+          styles.pending,
+          { minHeight: pillHeight },
+          pressed && styles.pressed,
+        ]}
         testID={testID}
       >
         <Text style={styles.pendingLabel}>{strings.signInput.pillPendingLabel}</Text>
@@ -51,7 +78,7 @@ export function QueuePill({ entry, onPress, onRemove, selected = false, testID }
 
   if (entry.state === 'failed') {
     return (
-      <View style={[styles.root, styles.failed]} testID={testID}>
+      <View style={[styles.root, styles.failed, { minHeight: pillHeight }]} testID={testID}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={strings.signInput.pillFailedA11y}
@@ -85,14 +112,18 @@ export function QueuePill({ entry, onPress, onRemove, selected = false, testID }
       accessibilityRole="button"
       accessibilityLabel={`${candidate.label} ${strings.signInput.pillDoneA11ySuffix}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.root, styles.done, selected && styles.doneSelected, pressed && styles.pressed]}
+      style={({ pressed }) => [
+        styles.root,
+        styles.done,
+        { minHeight: pillHeight },
+        selected && styles.doneSelected,
+        pressed && styles.pressed,
+      ]}
       testID={testID}
     >
       {/* 시안의 단어 칩은 그림 + 글자다. 그림은 단어 ID 로 찾는다(WordIcon 주석). */}
-      <WordIcon wordId={candidate.id} size={PILL_ICON_SIZE} />
+      <WordIcon wordId={candidate.id} size={PILL_ICON_SIZE * sizeScale} />
       <Text style={styles.doneLabel}>{candidate.label}</Text>
-      {/* 탭하면 아래(시트)가 열린다는 방향 표시 — 삭제(×)로 오해되지 않게 ▾를 쓴다. */}
-      <Text style={styles.doneAffordance}>▾</Text>
     </Pressable>
   );
 }
@@ -113,7 +144,7 @@ const styles = StyleSheet.create({
    * 넉넉히 넘으므로 좁은 좌우 여백이 조작성을 해치지도 않는다.
    */
   root: {
-    minHeight: PILL_HEIGHT,
+    // 높이는 sizeScale 로 환산해 인라인으로 준다(위 props 주석).
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.xs,
@@ -155,11 +186,6 @@ const styles = StyleSheet.create({
     lineHeight: 28 * 1.4,
     letterSpacing: -0.42,
     color: colors.text.primary,
-  },
-  doneAffordance: {
-    fontFamily: fonts.medium,
-    fontSize: 12,
-    color: colors.brand.primary,
   },
   // failed — 전송 실패(인식 실패 아님). 본체 = 재전송, × = 포기. 두 타겟을 분리한다.
   failed: {

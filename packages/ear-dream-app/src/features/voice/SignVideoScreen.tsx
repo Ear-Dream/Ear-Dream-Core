@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { SignSequenceItem } from '@ear-dream/core';
 
@@ -14,8 +14,8 @@ import {
   maxScreenWidth,
   radius,
   spacing,
-  touchTarget,
 } from '../../constants/theme';
+import { useDesignScale } from '../../hooks/useDesignScale';
 import { createRequestId } from '../recognition/api/createRequestId';
 import { AvatarPlayer, useSignSequence } from './avatar';
 
@@ -55,6 +55,17 @@ const PLAYBACK_RATE = 1;
 
 /** 자막이 카드 밑변에서 떨어지는 거리 — 시안 49pt(430pt 폭 기준)를 좁은 화면에 맞춘 값. */
 const CAPTION_BOTTOM_INSET = 40;
+/** 자막 글자 — 시안 Bold 32 를 좁은 화면용으로 한 단계 낮춘 값과 그 바닥값. */
+const CAPTION_FONT_SIZE = 28;
+const CAPTION_MIN_FONT_SIZE = 18;
+/** 자막이 카드를 덮지 않도록 두는 상한 — 카드 높이 기준 비율이다. */
+const CAPTION_MAX_HEIGHT_RATIO = '45%';
+/**
+ * 재생 불가 단어 목록이 차지할 수 있는 최대 높이(시안 기준). 세로 배율을 거쳐 쓴다.
+ * ⚠️ 시안에 이 영역이 없어 **근거 없는 임시값**이다 — 아바타 카드가 살아남는 선에서
+ * 목록 두 줄이 보이는 정도로 잡았다. 실기기에서 재고 정할 값이다.
+ */
+const NOTICE_AREA_MAX_HEIGHT = 132;
 
 /**
  * 수어로 보기 화면 (확정 디자인 「4. 청인 입력 — 결과(수어)」): 아바타 카드(재생 중 배지
@@ -82,6 +93,7 @@ export function SignVideoScreen({ sentence, onReply }: SignVideoScreenProps) {
   // "다시 보기" 신호. 값 자체엔 의미가 없고 **바뀌었다는 사실**이 재시작을 뜻한다.
   const [restartToken, setRestartToken] = useState(0);
   const [sessionId] = useState(createRequestId);
+  const { v } = useDesignScale();
 
   const { phase, bundleMismatch, request, retry } = useSignSequence(sessionId);
 
@@ -103,6 +115,13 @@ export function SignVideoScreen({ sentence, onReply }: SignVideoScreenProps) {
     }
     return { unknown, notReady };
   }, [result]);
+
+  const hasNotices = blocked.unknown.length > 0 || blocked.notReady.length > 0 || bundleMismatch;
+  /**
+   * 자막 글자 크기 — 시안 Bold 32(430pt 폭 기준)를 좁은 화면용으로 28 로 낮춰 둔 값에
+   * 세로 배율을 태운다. 바닥값 아래로는 내려가지 않는다(읽는 것이 목적인 글자다).
+   */
+  const captionSize = Math.max(CAPTION_MIN_FONT_SIZE, v(CAPTION_FONT_SIZE));
 
   const footer =
         phase.name === 'failed' ? (
@@ -129,7 +148,7 @@ export function SignVideoScreen({ sentence, onReply }: SignVideoScreenProps) {
 
   const body = (
     <>
-      <View style={styles.card} testID="sign-video-card">
+      <View style={[styles.card, { marginTop: v(spacing.sm) }]} testID="sign-video-card">
         <View style={styles.cardCenter}>
           {phase.name === 'pending' ? (
             <Text style={styles.caption} testID="sign-video-preparing">
@@ -167,33 +186,56 @@ export function SignVideoScreen({ sentence, onReply }: SignVideoScreenProps) {
         {/* 자막(확정 디자인 Caption) — 카드 안에 떠 있는 라운드 오버레이. 청인이 말한
             문장 그대로다. 아바타 조음이 아직 검증 전이라 "무슨 말인지"를 글로도 확인할 수
             있어야 한다. */}
-        <View style={styles.captionBox} pointerEvents="none">
-          <Text style={[styles.captionText, koreanWordBreak]} testID="sign-video-caption">
-            {sentence}
-          </Text>
+        {/*
+          ⚠️ 상한(`maxHeight`)과 내부 스크롤이 있어야 한다. 없으면 긴 문장이 위로 자라
+          아바타를 통째로 덮는다 — 자막은 보조 정보인데 주인공을 가려 버린다.
+          `pointerEvents` 를 열어 둔 것도 이 스크롤 때문이다(아래에 눌릴 것이 없다).
+        */}
+        <View style={[styles.captionBox, { bottom: v(CAPTION_BOTTOM_INSET) }]}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            <Text
+              style={[styles.captionText, { fontSize: captionSize, lineHeight: captionSize * 1.4 }, koreanWordBreak]}
+              testID="sign-video-caption"
+            >
+              {sentence}
+            </Text>
+          </ScrollView>
         </View>
       </View>
 
-      {/* 두 사유를 나눠 보여준다 — 사용자가 할 수 있는 일이 다르다. */}
-      {blocked.unknown.length > 0 ? (
-        <View style={styles.noticeRow} testID="sign-video-unknown">
-          <Text style={styles.noticeText}>
-            {strings.signVideo.unknownWords}: {blocked.unknown.join(', ')}
-          </Text>
-        </View>
-      ) : null}
-      {blocked.notReady.length > 0 ? (
-        <View style={styles.noticeRow} testID="sign-video-not-ready">
-          <Text style={styles.noticeText}>
-            {strings.signVideo.notReadyWords}: {blocked.notReady.join(', ')}
-          </Text>
-        </View>
-      ) : null}
-      {bundleMismatch ? (
-        <View style={[styles.noticeRow, styles.noticeWarning]} testID="sign-video-mismatch">
-          <Text style={[styles.noticeText, styles.captionWarning]}>
-            {strings.signVideo.bundleMismatch}
-          </Text>
+      {/*
+        두 사유를 나눠 보여준다 — 사용자가 할 수 있는 일이 다르다.
+
+        ⚠️ **높이 상한 안에서 스크롤시킨다.** 재생 불가 단어가 많으면 이 목록이 몇 줄이고
+        늘어나는데, 위의 아바타 카드가 `flex` 라 그만큼 카드가 눌린다 — 단어 대여섯 개면
+        카드가 사라지다시피 했다(2026-08-25 요청 「단어가 많을 때 UI 가 흐트러진다」).
+        목록을 자르지 않고 카드를 지키는 방법이 상한 + 스크롤이다.
+      */}
+      {hasNotices ? (
+        <View style={[styles.noticeArea, { maxHeight: v(NOTICE_AREA_MAX_HEIGHT) }]}>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {blocked.unknown.length > 0 ? (
+              <View style={styles.noticeRow} testID="sign-video-unknown">
+                <Text style={styles.noticeText}>
+                  {strings.signVideo.unknownWords}: {blocked.unknown.join(', ')}
+                </Text>
+              </View>
+            ) : null}
+            {blocked.notReady.length > 0 ? (
+              <View style={styles.noticeRow} testID="sign-video-not-ready">
+                <Text style={styles.noticeText}>
+                  {strings.signVideo.notReadyWords}: {blocked.notReady.join(', ')}
+                </Text>
+              </View>
+            ) : null}
+            {bundleMismatch ? (
+              <View style={[styles.noticeRow, styles.noticeWarning]} testID="sign-video-mismatch">
+                <Text style={[styles.noticeText, styles.captionWarning]}>
+                  {strings.signVideo.bundleMismatch}
+                </Text>
+              </View>
+            ) : null}
+          </ScrollView>
         </View>
       ) : null}
     </>
@@ -202,7 +244,9 @@ export function SignVideoScreen({ sentence, onReply }: SignVideoScreenProps) {
   return (
     <View style={styles.root}>
       <View style={styles.card_frame}>{body}</View>
-      <View style={styles.footer}>{footer}</View>
+      <View style={[styles.footer, { paddingVertical: v(spacing.lg), gap: v(spacing.md) }]}>
+        {footer}
+      </View>
 
       {/* 시안 하단 흰 띠 — 수어 트랙(= 답장)으로 넘어가는 손잡이. */}
       <TrackSwitchHandle
@@ -230,14 +274,13 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    gap: spacing.md,
+    // 세로 여백은 세로 배율을 거쳐 인라인으로 들어온다.
   },
   // 확정 디자인 MotionCard — 430x932 프레임 기준 398x491, 반경 16, bg/video.
   // 높이는 flex 로 둔다: 하단 조작 영역이 정해지고 남는 공간이 시안 비율과 거의 같다.
   card: {
     flex: 1,
-    marginTop: spacing.sm,
+    // marginTop 은 세로 배율을 거쳐 인라인으로 들어온다.
     borderRadius: radius.lg,
     overflow: 'hidden',
     backgroundColor: colors.bg.video,
@@ -257,10 +300,10 @@ const styles = StyleSheet.create({
   captionBox: {
     position: 'absolute',
     right: spacing.lg,
-    // 시안은 카드 아래에서 49pt 띄운다(카드 높이의 10%). 카드 밑변에 붙이면 자막이
-    // 아바타의 발치를 가려 구도가 달라진다.
-    bottom: CAPTION_BOTTOM_INSET,
+    // bottom(CAPTION_BOTTOM_INSET)은 세로 배율을 거쳐 인라인으로 들어온다. 시안은 카드
+    // 아래에서 49pt 띄운다(카드 높이의 10%) — 밑변에 붙이면 아바타의 발치를 가린다.
     left: spacing.lg,
+    maxHeight: CAPTION_MAX_HEIGHT_RATIO,
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
     borderRadius: radius.md,
@@ -268,10 +311,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(11, 15, 20, 0.8)',
   },
   captionText: {
-    // 시안은 430pt 폭 기준 Bold 32(행간 140%)다. 좁은 화면에 맞춰 한 단계 줄였다.
+    // 크기·행간은 세로 배율을 거쳐 인라인으로 들어온다(CAPTION_FONT_SIZE 주석).
     fontFamily: fonts.bold,
-    fontSize: 28,
-    lineHeight: 39,
     letterSpacing: -0.4,
     color: colors.text.onVideo,
     textAlign: 'center',
@@ -288,6 +329,10 @@ const styles = StyleSheet.create({
   /** 다크 카드 위에서는 진한 빨강이 어두워 안 읽힌다 — 연빨강을 쓴다. */
   captionWarning: {
     color: colors.status.errorSoft,
+  },
+  /** 재생 불가 목록의 바깥 상자 — 높이 상한이 인라인으로 들어오고 안에서 스크롤한다. */
+  noticeArea: {
+    flexShrink: 0,
   },
   noticeRow: {
     marginTop: spacing.sm,
