@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { SentenceCandidate } from '@ear-dream/core';
 
@@ -16,6 +16,7 @@ import {
   radius,
   spacing,
 } from '../../constants/theme';
+import { useDesignScale } from '../../hooks/useDesignScale';
 import type { ComposerPhase } from '../recognition/api/useSentenceComposer';
 import { useSpeech } from './speech';
 import { SpeakerButton, type SpeakerStatus } from './SpeakerButton';
@@ -68,6 +69,7 @@ export function ResultScreen({ phase, onRetry, onReply, onBack }: ResultScreenPr
    * (git 이력의 `styles.alternatives` 참고).
    */
   const selectedIndex = 0;
+  const { v } = useDesignScale();
   /** 한 번이라도 재생됐는지 — 스피커 라벨/캡션이 "재생" 에서 "다시 듣기" 로 바뀐다. */
   const [played, setPlayed] = useState(false);
 
@@ -86,6 +88,11 @@ export function ResultScreen({ phase, onRetry, onReply, onBack }: ResultScreenPr
   // 훅 상태를 표현용 union 으로 받는다. 화면은 다섯 상태를 모두 그려야 하고,
   // 훅이 그중 일부만 내보내더라도(부분집합) 그대로 대입된다.
   const speechStatus: SpeakerStatus = status;
+  /**
+   * 문장 글자 — 시안 실측 Bold 48(460:2694)에 세로 배율을 태운다. 청인에게 보여주는
+   * 큰 글자라 바닥값 아래로는 내리지 않고, 그래도 넘치면 카드 안에서 스크롤시킨다.
+   */
+  const sentenceSize = Math.max(SENTENCE_MIN_FONT_SIZE, v(SENTENCE_FONT_SIZE));
   const waveformLevels = useSpeakingWaveform(speechStatus === 'speaking');
 
   useEffect(() => {
@@ -134,7 +141,25 @@ export function ResultScreen({ phase, onRetry, onReply, onBack }: ResultScreenPr
             {/* 파형 — 장식이다(useSpeakingWaveform 주석). 재생 중에만 움직인다. */}
             <Waveform amplitudes={waveformLevels} testID="result-waveform" />
 
-            <Text style={[styles.sentence, koreanWordBreak]}>{selected.text}</Text>
+            {/*
+              긴 문장이 스피커·파형을 밀어내지 않도록 스크롤 영역에 담는다 — 카드가
+              `flex` 라 그냥 두면 글자가 자란 만큼 위 요소가 잘린다.
+            */}
+            <ScrollView
+              style={styles.sentenceViewport}
+              contentContainerStyle={styles.sentenceContent}
+              showsVerticalScrollIndicator={false}
+            >
+              <Text
+                style={[
+                  styles.sentence,
+                  { fontSize: sentenceSize, lineHeight: sentenceSize * 1.4 },
+                  koreanWordBreak,
+                ]}
+              >
+                {selected.text}
+              </Text>
+            </ScrollView>
           </View>
 
         </>
@@ -162,7 +187,7 @@ export function ResultScreen({ phase, onRetry, onReply, onBack }: ResultScreenPr
 
       <View style={styles.body}>{body}</View>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingVertical: v(spacing.lg), gap: v(spacing.md) }]}>
         {phase.name === 'failed' ? (
           <Button label={strings.result.retryCompose} onPress={onRetry} testID="result-retry" />
         ) : (
@@ -179,6 +204,10 @@ export function ResultScreen({ phase, onRetry, onReply, onBack }: ResultScreenPr
     </View>
   );
 }
+
+/** 시안 실측 문장 글자(460:2694)와 그 바닥값. */
+const SENTENCE_FONT_SIZE = 48;
+const SENTENCE_MIN_FONT_SIZE = 28;
 
 /** 문장 만드는 중 링 — 빈 카드 한가운데 놓이는 대기 표시. */
 const COMPOSING_SPINNER_SIZE = 56;
@@ -198,8 +227,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.lg,
-    gap: spacing.md,
+    // 세로 여백은 세로 배율을 거쳐 인라인으로 들어온다.
   },
   // 시안에서 이 카드는 본문을 거의 다 채운다(430x932 프레임 기준 398x645).
   card: {
@@ -214,12 +242,20 @@ const styles = StyleSheet.create({
     borderColor: colors.brand.primary,
     backgroundColor: colors.brand.subtle,
   },
+  /** 문장이 길 때만 실제로 스크롤된다 — 짧으면 내용 높이만 차지한다. */
+  sentenceViewport: {
+    alignSelf: 'stretch',
+    flexGrow: 0,
+    flexShrink: 1,
+  },
+  sentenceContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
   sentence: {
     // 청인에게 보여주는 텍스트 — 큰 글자 · 고대비.
-    // 시안 실측 그대로: Bold 48 / 행간 140% / 자간 -0.72 (460:2694).
+    // 크기·행간은 세로 배율을 거쳐 인라인으로 들어온다(SENTENCE_FONT_SIZE 주석).
     fontFamily: fonts.bold,
-    fontSize: 48,
-    lineHeight: 48 * 1.4,
     letterSpacing: -0.72,
     color: colors.text.primary,
     textAlign: 'center',

@@ -17,6 +17,7 @@ import {
   spacing,
   touchTarget,
 } from '../../constants/theme';
+import { useDesignScale } from '../../hooks/useDesignScale';
 import { useHandheldLandscape } from '../../hooks/useHandheldLandscape';
 import type {
   QueueNotice,
@@ -90,18 +91,32 @@ const GAP_ABOVE_CAPTURE = 829 - 808;
 const GAP_BELOW_CAPTURE = 932 - 909;
 
 /**
- * 띠가 아무리 눌려도 단어 칩(63.2)이 잘리지 않게 하는 바닥값.
- * 화면이 아주 낮을 때만 걸리며, 그때는 시안 비율보다 칩이 보이는 쪽을 택한다.
+ * 띠가 아무리 눌려도 단어 칩(63.2)이 잘리지 않게 하는 바닥값 — **시안 기준값**이다.
+ * 실제로는 세로 배율을 곱해 쓴다(칩도 같은 배율로 줄어들므로 관계가 유지된다).
+ *
+ * ⚠️ 예전에는 이 값을 배율 없이 그대로 썼다. 그래서 화면이 짧아지면 띠만 시안 크기로
+ * 남아 뷰파인더의 몫을 빼앗았고, 645:121 비율이 조용히 폐기됐다 — 그 임계가 약 820px
+ * 이라 실기기(주소창 제외 660~800px)는 **항상** 그 아래였다.
  */
 const STRIP_MIN_HEIGHT = 80;
 
 /** 「전달」 버튼의 종이비행기 크기. 시안의 글자(Bold 28)가 차지하던 높이에 맞춘 값이다. */
 const COMPOSE_ICON_SIZE = 30;
+/** 시안 「전달」 버튼 높이(460:2771 실측 59.7). 세로 배율로 환산해 쓴다. */
+const COMPOSE_BUTTON_HEIGHT = 60;
 
-/** 캡처 버튼 지름 — 시안 애셋 `Stop`(467:846) 실측 80. 최소 터치 타겟(48)을 넉넉히 넘는다. */
+/** 캡처 버튼 지름 — 시안 애셋 `Stop`(467:846) 실측 80. 세로 배율로 환산해 쓴다. */
 const CAPTURE_BUTTON_SIZE = 80;
-/** 안쪽 원 지름 — 시안은 반지름 18 이다. */
+/**
+ * 환산 후 지름의 바닥값. 한 손 그립의 엄지로 누르는 버튼이라 비율보다 조작성이 우선이다 —
+ * 최소 터치 타겟(48)에 여유를 더한 값이고, 실기기 실측 전까지는 임시값이다.
+ */
+const CAPTURE_BUTTON_MIN_SIZE = 56;
+/** 안쪽 원 지름 — 시안은 반지름 18. 버튼 지름에 대한 비율로 유지한다. */
 const CAPTURE_INNER_SIZE = 36;
+const CAPTURE_INNER_RATIO = CAPTURE_INNER_SIZE / CAPTURE_BUTTON_SIZE;
+/** 녹화 중 안쪽 도형(정사각형)은 원보다 조금 작다. */
+const CAPTURE_INNER_RECORDING_RATIO = 0.8;
 
 /**
  * 수어 입력 화면 — 확정 디자인의 비주얼(다크 뷰파인더 카드 + 녹화/인식 실패 배지 +
@@ -133,6 +148,15 @@ export function SignInputScreen({
   // 교체(chosenCandidateIndex 변경)가 시트에 즉시 반영되고, 삭제되면 자동으로 닫힌다.
   const [sheetLocalId, setSheetLocalId] = useState<string | null>(null);
   const recorder = useSegmentRecorder();
+  /*
+    시안 세로 치수는 전부 이 배율을 거쳐 나간다. 폭 하나로 배율을 내던 예전 방식은
+    짧은 화면에서 세로 리듬만 시안 크기로 남겨 뷰파인더를 납작하게 만들었다
+    (`useDesignScale` 주석에 실측과 임계값이 있다).
+  */
+  const { v, vScale } = useDesignScale();
+  const captureSize = Math.max(CAPTURE_BUTTON_MIN_SIZE, v(CAPTURE_BUTTON_SIZE));
+  const captureInnerSize =
+    captureSize * CAPTURE_INNER_RATIO * (recorder.recording ? CAPTURE_INNER_RECORDING_RATIO : 1);
   // 모바일 웹에서 폰이 가로로 돌아갔는지. 데스크톱 브라우저는 항상 false 다(훅 주석 참고).
   const landscape = useHandheldLandscape();
   const guide = useDebouncedGuide(detection);
@@ -275,7 +299,10 @@ export function SignInputScreen({
     `{wordStrip}` 과 footer 의 순서만 맞바꾸면 된다.
   */
   const wordStrip = (
-    <View style={styles.strip} testID="sign-input-words">
+    <View
+      style={[styles.strip, { marginTop: v(GAP_ABOVE_STRIP), minHeight: v(STRIP_MIN_HEIGHT) }]}
+      testID="sign-input-words"
+    >
       {entries.length === 0 ? (
         <Text style={styles.stripEmptyHint}>{strings.signInput.wordsEmpty}</Text>
       ) : (
@@ -298,6 +325,7 @@ export function SignInputScreen({
                 entry.state === 'failed' ? () => queue.removeEntry(entry.localId) : undefined
               }
               selected={entry.localId === sheetLocalId}
+              sizeScale={vScale}
               testID={`sign-input-pill-${entry.localId}`}
             />
           ))}
@@ -314,6 +342,7 @@ export function SignInputScreen({
         accessibilityLabel={strings.signInput.compose}
         style={({ pressed }) => [
           styles.composeButton,
+          { minHeight: Math.max(touchTarget.minHeight, v(COMPOSE_BUTTON_HEIGHT)) },
           !allDone && styles.composeButtonDisabled,
           pressed && styles.composeButtonPressed,
         ]}
@@ -323,7 +352,7 @@ export function SignInputScreen({
           글자 없이 종이비행기 하나다(2026-08-24 요청). 라벨은 위 accessibilityLabel 로만
           남는다 — 화면에서 사라져도 스크린 리더는 무엇을 보내는 버튼인지 알아야 한다.
         */}
-        <SendIcon size={COMPOSE_ICON_SIZE} color={colors.text.onBrand} />
+        <SendIcon size={v(COMPOSE_ICON_SIZE)} color={colors.text.onBrand} />
       </Pressable>
     </View>
   );
@@ -370,13 +399,18 @@ export function SignInputScreen({
           onHoldEnd={handleHoldEnd}
           style={[
             styles.captureButton,
+            { width: captureSize, height: captureSize, borderWidth: Math.max(3, v(4)) },
             recorder.recording && styles.captureButtonRecording,
             captureDisabled && styles.captureButtonDisabled,
           ]}
           testID="sign-input-capture"
         >
           <View
-            style={[styles.captureInner, recorder.recording && styles.captureInnerRecording]}
+            style={[
+              styles.captureInner,
+              { width: captureInnerSize, height: captureInnerSize },
+              recorder.recording && styles.captureInnerRecording,
+            ]}
           />
         </HoldToRecordButton>
       </View>
@@ -394,7 +428,7 @@ export function SignInputScreen({
         testID="sign-input-track-switch"
       />
 
-      <View style={[styles.card, cardAlert && styles.cardAlert]}>
+      <View style={[styles.card, { marginTop: v(GAP_BELOW_HANDLE) }, cardAlert && styles.cardAlert]}>
         <SignCameraView onDetectionChange={setDetection} onFrame={recorder.onFrame} />
 
         <View style={styles.cardOverlay} pointerEvents="none">
@@ -475,7 +509,18 @@ export function SignInputScreen({
       </View>
 
       {wordStrip}
-      <View style={styles.footer}>{footer}</View>
+      <View
+        style={[
+          styles.footer,
+          {
+            paddingTop: v(GAP_ABOVE_CAPTURE),
+            paddingBottom: v(GAP_BELOW_CAPTURE),
+            gap: v(spacing.md),
+          },
+        ]}
+      >
+        {footer}
+      </View>
 
       <WordCandidateSheet
         entry={sheetEntry}
@@ -597,9 +642,8 @@ const styles = StyleSheet.create({
    */
   footer: {
     paddingHorizontal: spacing.lg,
-    paddingTop: GAP_ABOVE_CAPTURE,
-    paddingBottom: GAP_BELOW_CAPTURE,
-    gap: spacing.md,
+    // 세로 여백(GAP_ABOVE_CAPTURE / GAP_BELOW_CAPTURE)과 gap 은 세로 배율을 거쳐
+    // 인라인으로 들어온다 — 여기서 시안 픽셀을 그대로 굳히면 짧은 화면이 깨진다.
   },
   /**
    * 뷰파인더 — **좌우 여백 없이 화면을 채우되 모서리는 굴린다**(2026-08-24 요청 두 건).
@@ -610,7 +654,7 @@ const styles = StyleSheet.create({
    */
   card: {
     flex: VIEWFINDER_FLEX,
-    marginTop: GAP_BELOW_HANDLE,
+    // marginTop(GAP_BELOW_HANDLE)은 세로 배율을 거쳐 인라인으로 들어온다.
     overflow: 'hidden',
     position: 'relative',
     borderRadius: VIEWFINDER_RADIUS,
@@ -750,12 +794,12 @@ const styles = StyleSheet.create({
    */
   strip: {
     flex: STRIP_FLEX,
-    marginTop: GAP_ABOVE_STRIP,
+    // marginTop(GAP_ABOVE_STRIP)·minHeight(STRIP_MIN_HEIGHT)는 세로 배율을 거쳐
+    // 인라인으로 들어온다.
     marginHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
     gap: STRIP_CHIP_GAP,
-    minHeight: STRIP_MIN_HEIGHT,
     paddingHorizontal: spacing.sm,
     // 화면 아래에 붙는 띠가 아니라 **떠 있는 밴드**라 네 모서리를 모두 굴린다.
     borderRadius: 20,
@@ -783,7 +827,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: spacing.xs,
     marginLeft: 'auto',
-    minHeight: Math.max(touchTarget.minHeight, 60),
+    // 시안 「전달」 버튼 높이 59.7. 배율을 거치되 최소 터치 타겟(48) 아래로는 안 내려간다.
+    minHeight: touchTarget.minHeight,
     paddingHorizontal: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.brand.primary,
@@ -839,12 +884,10 @@ const styles = StyleSheet.create({
   },
   // 시안 `Stop`(467:846): 흰 원 + 테두리 4 + 안쪽 원 지름 36, 색은 recordReady.
   captureButton: {
-    width: CAPTURE_BUTTON_SIZE,
-    height: CAPTURE_BUTTON_SIZE,
+    // 지름·테두리 두께는 세로 배율을 거쳐 인라인으로 들어온다(바닥값 있음).
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: radius.pill,
-    borderWidth: 4,
     borderColor: colors.status.recordReady,
     backgroundColor: colors.bg.canvas,
   },
@@ -860,15 +903,12 @@ const styles = StyleSheet.create({
     opacity: 0.4,
   },
   captureInner: {
-    width: CAPTURE_INNER_SIZE,
-    height: CAPTURE_INNER_SIZE,
+    // 지름은 버튼 지름에 대한 비율로 인라인 계산된다.
     borderRadius: radius.pill,
     backgroundColor: colors.status.recordReady,
   },
   // 기록 중에는 원 → 정사각형(카메라 녹화 버튼 관례) — 색에만 의존하지 않는 피드백.
   captureInnerRecording: {
-    width: CAPTURE_INNER_SIZE * 0.8,
-    height: CAPTURE_INNER_SIZE * 0.8,
     // 시안의 다른 사각형(칩 12 · 뷰파인더 16)과 같은 결로 굴린다 — 이 크기에서 4 는
     // 사실상 직각으로 읽혀 혼자 뾰족해 보였다.
     borderRadius: radius.sm,
