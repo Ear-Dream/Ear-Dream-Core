@@ -1,0 +1,280 @@
+{
+  "parts": {
+    "head": {
+      "width": 296,
+      "height": 496,
+      "from": [
+        95.8,
+        211.1
+      ],
+      "to": [
+        199.2,
+        211.1
+      ]
+    },
+    "nose": {
+      "width": 114,
+      "height": 196,
+      "from": [
+        19.0,
+        178.0
+      ],
+      "to": [
+        94.0,
+        178.0
+      ]
+    },
+    "brow-right": {
+      "width": 89,
+      "height": 27,
+      "from": [
+        0.0,
+        17.0
+      ],
+      "to": [
+        88.0,
+        17.0
+      ]
+    },
+    "brow-left": {
+      "width": 88,
+      "height": 26,
+      "from": [
+        1.0,
+        14.0
+      ],
+      "to": [
+        87.0,
+        14.0
+      ]
+    },
+    "mouth-closed": {
+      "width": 104,
+      "height": 39,
+      "from": [
+        2.0,
+        14.0
+      ],
+      "to": [
+        101.0,
+        14.0
+      ]
+    },
+    "mouth-parted": {
+      "width": 103,
+      "height": 42,
+      "from": [
+        2.0,
+        16.0
+      ],
+      "to": [
+        100.0,
+        16.0
+      ]
+    },
+    "mouth-open": {
+      "width": 94,
+      "height": 47,
+      "from": [
+        2.0,
+        21.0
+      ],
+      "to": [
+        91.0,
+        21.0
+      ]
+    },
+    "mouth-wide": {
+      "width": 97,
+      "height": 78,
+      "from": [
+        3.0,
+        31.0
+      ],
+      "to": [
+        93.0,
+        31.0
+      ]
+    },
+    "torso": {
+      "width": 553,
+      "height": 741,
+      "from": [
+        20.7,
+        178.0
+      ],
+      "to": [
+        531.3,
+        178.0
+      ]
+    },
+    "upper-right": {
+      "width": 129,
+      "height": 360,
+      "from": [
+        72.0,
+        36.0
+      ],
+      "to": [
+        62.5,
+        326.0
+      ]
+    },
+    "upper-left": {
+      "width": 130,
+      "height": 359,
+      "from": [
+        55.5,
+        36.0
+      ],
+      "to": [
+        64.0,
+        325.0
+      ]
+    },
+    "fore-right": {
+      "width": 128,
+      "height": 318,
+      "from": [
+        56.0,
+        37.0
+      ],
+      "to": [
+        88.0,
+        290.0
+      ]
+    },
+    "fore-left": {
+      "width": 129,
+      "height": 318,
+      "from": [
+        71.5,
+        33.0
+      ],
+      "to": [
+        42.5,
+        291.0
+      ]
+    },
+    "eye-wide-left": {
+      "width": 69,
+      "height": 40,
+      "from": [
+        6.0,
+        21.0
+      ],
+      "to": [
+        66.0,
+        21.0
+      ]
+    },
+    "eye-wide-right": {
+      "width": 69,
+      "height": 40,
+      "from": [
+        2.0,
+        21.0
+      ],
+      "to": [
+        62.0,
+        21.0
+      ]
+    },
+    "eye-open-left": {
+      "width": 68,
+      "height": 38,
+      "from": [
+        6.0,
+        20.0
+      ],
+      "to": [
+        66.0,
+        20.0
+      ]
+    },
+    "eye-open-right": {
+      "width": 68,
+      "height": 38,
+      "from": [
+        1.0,
+        20.0
+      ],
+      "to": [
+        61.0,
+        20.0
+      ]
+    },
+    "eye-normal-left": {
+      "width": 68,
+      "height": 36,
+      "from": [
+        7.0,
+        18.0
+      ],
+      "to": [
+        66.0,
+        18.0
+      ]
+    },
+    "eye-normal-right": {
+      "width": 68,
+      "height": 36,
+      "from": [
+        1.0,
+        18.0
+      ],
+      "to": [
+        60.0,
+        18.0
+      ]
+    },
+    "eye-half-left": {
+      "width": 68,
+      "height": 35,
+      "from": [
+        8.0,
+        19.0
+      ],
+      "to": [
+        64.0,
+        19.0
+      ]
+    },
+    "eye-half-right": {
+      "width": 68,
+      "height": 35,
+      "from": [
+        3.0,
+        19.0
+      ],
+      "to": [
+        59.0,
+        19.0
+      ]
+    },
+    "eye-closed-left": {
+      "width": 68,
+      "height": 42,
+      "from": [
+        3.0,
+        27.0
+      ],
+      "to": [
+        59.0,
+        27.0
+      ]
+    },
+    "eye-closed-right": {
+      "width": 68,
+      "height": 42,
+      "from": [
+        8.0,
+        27.0
+      ],
+      "to": [
+        64.0,
+        27.0
+      ]
+    }
+  }
+}
