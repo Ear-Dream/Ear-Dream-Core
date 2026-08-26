@@ -21,6 +21,8 @@ import { useCallback, useRef, useState } from 'react';
 import { FACE_DETECT_EVERY_N_FRAMES, LANDMARKER_DELEGATE } from './config';
 import { HANDEDNESS_VERIFIED, PREVIEW_MIRRORED } from './handedness';
 import type { OverlayColors } from './overlay.web';
+import type { CameraProbeResult } from './cameraProbe.web';
+import { probePortraitConstraints } from './cameraProbe.web';
 import { drawSnapshot, HANDEDNESS_COLORS, UNKNOWN_HAND_COLOR } from './overlay.web';
 import type { LandmarkerDelegate, LandmarkSnapshot } from './types';
 import { useLandmarker } from './useLandmarker.web';
@@ -49,6 +51,9 @@ export function CameraLandmarkView() {
   // 백엔드는 모델 생성 시점 선택이라 바꾸면 카메라까지 재시작된다.
   // 그래도 토글을 두는 이유는 CPU/GPU 가 그 자체로 FPS 측정 축이기 때문이다(config.ts 참고).
   const [delegate, setDelegate] = useState<LandmarkerDelegate>(LANDMARKER_DELEGATE);
+  // 카메라 constraint 실험 결과. 실기기에서 어떤 요청이 통하는지 재는 용도다(cameraProbe.web.ts).
+  const [probe, setProbe] = useState<CameraProbeResult[] | null>(null);
+  const [probing, setProbing] = useState(false);
 
   // 검출 루프와 같은 tick 안에서 그린다. 이 경로는 React 상태를 건드리지 않는다.
   const handleFrame = useCallback((snapshot: LandmarkSnapshot) => {
@@ -68,6 +73,7 @@ export function CameraLandmarkView() {
     delegate: activeDelegate,
     gpuCanvasFallback,
     sourceWidth,
+    cameraReport,
     sourceHeight,
     videoRef,
   } = useLandmarker({
@@ -82,6 +88,26 @@ export function CameraLandmarkView() {
     setEnabled(false);
     // 다음 tick 에 다시 켠다. 정리(cleanup)가 끝난 뒤 새로 시작하게 하기 위해서다.
     setTimeout(() => setEnabled(true), 0);
+  }, []);
+
+  /**
+   * 후보 constraint 를 순서대로 열어 보고 결과를 표로 남긴다.
+   *
+   * 먼저 검출용 카메라를 끈다 — 같은 기기를 두 번 여는 것을 막는 구현이 있어서, 안 끄면
+   * 전부 실패로 찍혀 실험이 무의미해진다. 실험이 끝나면 다시 켠다.
+   */
+  const runProbe = useCallback(async () => {
+    setProbing(true);
+    setEnabled(false);
+    try {
+      // cleanup 이 트랙을 실제로 놓을 시간을 준다. effect cleanup 은 동기지만 기기 쪽
+      // 해제가 곧바로 끝나지는 않는다.
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      setProbe(await probePortraitConstraints());
+    } finally {
+      setProbing(false);
+      setEnabled(true);
+    }
   }, []);
 
   // 미리보기 반전은 video 와 canvas 를 함께 감싼 래퍼에 건다.
@@ -141,6 +167,16 @@ export function CameraLandmarkView() {
         <button type="button" onClick={restart} style={styles.button} data-testid="landmark-restart">
           카메라 다시 시작
         </button>
+
+        <button
+          type="button"
+          onClick={runProbe}
+          disabled={probing}
+          style={{ ...styles.button, ...(probing ? styles.buttonDisabled : null) }}
+          data-testid="landmark-probe"
+        >
+          {probing ? '세로 요청 실험 중…' : '세로 요청 실험'}
+        </button>
       </div>
 
       <div style={styles.hud}>
@@ -183,6 +219,15 @@ export function CameraLandmarkView() {
         <div style={styles.hudRow}>
           <strong>입력 해상도</strong>
           <span>{sourceWidth > 0 ? `${sourceWidth}x${sourceHeight}` : '—'}</span>
+        </div>
+        {/*
+          카메라가 실제로 뭘 줬는지 — 기기마다 getUserMedia 응답이 갈려서(특히 Android 세로)
+          화면만 봐서는 원인이 스트림인지 표시 규칙인지 구분되지 않는다. 실기기에서 사람이
+          읽어야 하는 값이라 줄바꿈을 허용해 통째로 보여준다.
+        */}
+        <div style={{ ...styles.hudRow, ...styles.hudRowWrap }}>
+          <strong>카메라 트랙</strong>
+          <span style={styles.hudValueWrap}>{cameraReport ?? '—'}</span>
         </div>
         <div style={styles.hudRow}>
           <strong>검출된 손</strong>
@@ -238,6 +283,18 @@ export function CameraLandmarkView() {
           </p>
         ) : null}
 
+        {probe ? (
+          <div style={styles.probeBlock}>
+            <strong>세로 요청 실험</strong>
+            {probe.map((row) => (
+              <div key={row.label} style={styles.hudRow}>
+                <span style={styles.probeLabel}>{row.label}</span>
+                <span style={styles.hudValueWrap}>{row.outcome}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <p style={styles.warning}>
           <strong>프레이밍 실측 필요.</strong> 왼손으로 폰을 쥔 자세에서는 카메라가 얼굴보다 아래를
           향하기 쉽다. 그 자세로 위 &ldquo;검출된 얼굴&rdquo; 이 계속 1 로 유지되는지 확인한다.
@@ -263,6 +320,24 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#000',
     borderRadius: 12,
     overflow: 'hidden',
+  },
+  probeBlock: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 4,
+    paddingTop: 8,
+    borderTop: '1px solid rgba(255, 255, 255, 0.2)',
+  },
+  probeLabel: {
+    flexShrink: 0,
+    paddingRight: 8,
+  },
+  hudRowWrap: {
+    alignItems: 'flex-start',
+  },
+  hudValueWrap: {
+    textAlign: 'right',
+    wordBreak: 'break-word',
   },
   layer: {
     position: 'absolute',

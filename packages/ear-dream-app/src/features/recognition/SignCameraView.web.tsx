@@ -10,6 +10,7 @@
  */
 import { useCallback, useEffect, useRef } from 'react';
 
+import { LANDMARK_DEV_ENABLED } from '../../constants/devFlags';
 import { strings } from '../../constants/strings';
 import { colors } from '../../constants/theme';
 import type { LandmarkSnapshot } from './landmarks';
@@ -48,7 +49,8 @@ export function SignCameraView({ onDetectionChange, onFrame }: SignCameraViewPro
     onFrameRef.current?.(snapshot);
   }, []);
 
-  const { status, error, hands, pose, videoRef } = useLandmarker({ onFrame: handleFrame });
+  const { status, error, hands, pose, videoRef, sourceWidth, sourceHeight, cameraReport } =
+    useLandmarker({ onFrame: handleFrame });
 
   // 콜백 신원이 바뀌어도 effect 가 다시 돌지 않게 ref 로 들고 있는다.
   const callbackRef = useRef(onDetectionChange);
@@ -74,6 +76,20 @@ export function SignCameraView({ onDetectionChange, onFrame }: SignCameraViewPro
         <div style={webStyles.statusOverlay}>{strings.signInput.cameraLoading}</div>
       ) : null}
       {status === 'error' && error ? <div style={webStyles.statusOverlay}>{error}</div> : null}
+      {/*
+        카메라 계측 배지 — `?dev=1` 로 열었을 때만 보인다(devFlags.ts). 제품 화면은 그대로다.
+
+        개발 화면 HUD 와 같은 값을 **이 화면에서도** 봐야 하는 이유: 두 화면은 같은 훅을
+        쓰지만 프리뷰를 다른 크기의 상자에 그린다. 실기기에서 "개발 화면은 세로인데 입력
+        화면은 가로"가 나온 적이 있어(2026-08-26), 어느 쪽 문제인지는 이 화면에서 직접
+        읽어야 갈린다.
+      */}
+      {LANDMARK_DEV_ENABLED ? (
+        <div style={webStyles.devBadge}>
+          {sourceWidth > 0 ? `입력 ${sourceWidth}x${sourceHeight}` : '입력 —'}
+          {cameraReport ? ` · ${cameraReport}` : ''}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -118,6 +134,20 @@ const webStyles: Record<string, React.CSSProperties> = {
     inset: 0,
     width: '100%',
     height: '100%',
+  },
+  devBadge: {
+    position: 'absolute',
+    top: 4,
+    left: 4,
+    right: 4,
+    padding: '4px 6px',
+    borderRadius: 6,
+    background: 'rgba(0, 0, 0, 0.7)',
+    color: '#FFFFFF',
+    fontSize: 10,
+    lineHeight: 1.35,
+    wordBreak: 'break-word',
+    pointerEvents: 'none',
   },
   statusOverlay: {
     position: 'absolute',
