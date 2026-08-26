@@ -21,7 +21,9 @@ import { useEffect, useRef, useState } from 'react';
 import type { HandFrame } from '@ear-dream/core';
 
 import {
-  CAMERA_CONSTRAINTS_HINT,
+  CAMERA_BASE_CONSTRAINTS,
+  CAMERA_PORTRAIT_SIZE,
+  PORTRAIT_SETTLE_TIMEOUT_MS,
   FACE_DETECT_EVERY_N_FRAMES,
   FACE_LANDMARKER_MODEL_PATH,
   FPS_SAMPLE_WINDOW,
@@ -59,6 +61,14 @@ import { keepScreenAwake } from './wakeLock.web';
 /** 웹 구현은 붙일 <video> 엘리먼트가 필요하다. 이 ref 를 <video> 에 그대로 넘긴다. */
 export interface WebLandmarkerResult extends UseLandmarkerResult {
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  /**
+   * 카메라가 **실제로** 무엇을 줬는지 — 개발 화면 HUD 표시용 한 줄.
+   *
+   * 요청한 constraint 와 트랙이 응답한 설정, 그리고 그 카메라가 지원한다고 밝힌 범위를 함께
+   * 싣는다. 기기마다 `getUserMedia` 응답이 갈리고(특히 Android 세로 촬영) 화면만 봐서는
+   * 원인이 스트림인지 표시 규칙인지 구분되지 않아서, 사람이 실기기에서 읽을 수 있게 뽑는다.
+   */
+  cameraReport: string | null;
 }
 
 interface DisplayState {
@@ -236,6 +246,128 @@ function pushSample(samples: number[], value: number): number {
   return samples.reduce((sum, v) => sum + v, 0) / samples.length;
 }
 
+/**
+ * 열린 비디오 트랙의 실제 설정과 지원 범위를 한 줄로 뽑는다(개발 화면 HUD 용).
+ *
+ * `getCapabilities()` 는 표준이지만 구현이 갈린다 — 없는 브라우저(Safari 는 오래 없었다)와
+ * 일부만 채우는 브라우저가 있어 전부 optional 로 다룬다. 진단용이라 실패해도 조용히 비운다.
+ */
+function describeVideoTrack(stream: MediaStream): string {
+  const track = stream.getVideoTracks()[0];
+  if (!track) return '비디오 트랙 없음';
+
+  const settings = track.getSettings();
+  const actual =
+    settings.width && settings.height
+      ? `${settings.width}x${settings.height} (AR ${(settings.width / settings.height).toFixed(2)})`
+      : '알 수 없음';
+  // resizeMode 는 표준이지만 lib.dom 의 MediaTrackSettings 에는 아직 없다(Chrome 전용 취급).
+  // 진단용으로만 읽으므로 좁은 캐스트로 꺼낸다.
+  const resizeMode = (settings as { resizeMode?: string }).resizeMode;
+  const resize = resizeMode ? ` resizeMode=${resizeMode}` : '';
+
+  let supported = '';
+  try {
+    const caps = track.getCapabilities?.();
+    if (caps?.width && caps?.height) {
+      supported =
+        ` | 지원 W ${caps.width.min ?? '?'}~${caps.width.max ?? '?'}` +
+        ` H ${caps.height.min ?? '?'}~${caps.height.max ?? '?'}`;
+    }
+  } catch {
+    // 진단 정보일 뿐이라 실패는 무시한다 — 여기서 던지면 카메라가 안 열린다.
+  }
+
+  return `실제 ${actual}${resize}${supported}`;
+}
+
+/**
+ * `<video>` 의 intrinsic 크기가 바뀔 때까지 기다린다(최대 `timeoutMs`).
+ *
+ * ⚠️ **트랙 설정값을 믿으면 안 된다.** `applyConstraints()` 직후 `getSettings()` 는 요청한
+ * 값을 그대로 답하지만, 프레임이 실제로 흐르기 시작하면 다른 값으로 정착하는 기기가 있다
+ * (Galaxy / Chrome 실측 2026-08-26: 720x1280 이라고 답한 뒤 1280x720 으로 정착).
+ * 화면 배치와 추론 입력이 쓰는 건 정착값이므로, 판단은 반드시 `<video>` 쪽에서 한다.
+ */
+function waitForVideoResize(video: HTMLVideoElement, timeoutMs: number): Promise<void> {
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = (): void => {
+      if (done) return;
+      done = true;
+      video.removeEventListener('resize', finish);
+      clearTimeout(timer);
+      resolve();
+    };
+    const timer = setTimeout(finish, timeoutMs);
+    video.addEventListener('resize', finish);
+  });
+}
+
+/** 재생 중인 `<video>` 가 세로 프레임을 그리고 있는가. 크기를 못 읽으면 판단하지 않는다. */
+function isPortraitVideo(video: HTMLVideoElement): boolean {
+  return video.videoWidth > 0 && video.videoHeight > video.videoWidth;
+}
+
+/**
+ * 세로 프레임을 확보한다 — **이미 세로면 아무것도 하지 않는다.**
+ *
+ * ⚠️ 이 함수의 핵심은 "요청을 더 하는 것"이 아니라 **안 하는 것**이다. 실측
+ * (2026-08-26, Galaxy / Chrome)에서 드러난 규칙:
+ *
+ *   - 크기를 요청하지 않고 열면 기기 기본값이 온다 (그 기기에서는 세로 480x640)
+ *   - **크기를 요청하는 순간 Chrome 이 가로로 뒤집는다.** 시작 constraint 든
+ *     `applyConstraints` 든 같다 — 720x1280 을 걸었더니 1280x720 이 됐다
+ *   - `getSettings()` 는 요청값을 그대로 되읊어 성공처럼 보인다. 판정은 반드시
+ *     **재생 중인 `<video>` 의 intrinsic 크기**로 한다
+ *
+ * 그래서 순서가 이렇다: 기본값으로 열어 재생 → 세로면 **그대로 쓴다** → 가로일 때만
+ * 9:16 을 시도한다. 시도해서 더 나빠지면(세로였다가 가로가 되면) 되돌린다.
+ *
+ * ⚠️ 기본값은 해상도가 낮을 수 있다(위 기기 480x640). **그래도 화각이 넓은 쪽을 택한다** —
+ * 해상도를 올리려고 크기를 요청하면 가로로 뒤집혀 화각을 절반 넘게 잃는다. MediaPipe 입력
+ * 해상도가 정확도에 미치는 영향은 이 레포에서 측정된 적이 없으므로, 측정 없이 화각을
+ * 내주지 않는다.
+ */
+async function ensurePortraitFrames(
+  stream: MediaStream,
+  video: HTMLVideoElement,
+): Promise<string> {
+  const before = `${video.videoWidth}x${video.videoHeight}`;
+  if (isPortraitVideo(video)) return `기기 기본값 ${before} (세로 — 요청 없음)`;
+
+  const track = stream.getVideoTracks()[0];
+  if (!track) return `기기 기본값 ${before} (트랙 없음)`;
+
+  const original = track.getSettings();
+  try {
+    await track.applyConstraints(CAMERA_PORTRAIT_SIZE);
+  } catch (error) {
+    const name = error instanceof DOMException ? error.name : '알 수 없음';
+    return `${before} 가로 · 9:16 요청 실패(${name})`;
+  }
+
+  await waitForVideoResize(video, PORTRAIT_SETTLE_TIMEOUT_MS);
+  if (isPortraitVideo(video)) {
+    return `${before} 가로 → ${video.videoWidth}x${video.videoHeight} 세로 (9:16 요청 성공)`;
+  }
+
+  // 더 나아지지 않았다. 원래 설정으로 돌려놓는다 — 요청이 해상도만 깎아 놓는 경우가 있다.
+  const after = `${video.videoWidth}x${video.videoHeight}`;
+  if (original.width && original.height) {
+    try {
+      await track.applyConstraints({
+        width: { ideal: original.width },
+        height: { ideal: original.height },
+      });
+      await waitForVideoResize(video, PORTRAIT_SETTLE_TIMEOUT_MS);
+    } catch {
+      // 되돌리기 실패는 진단에만 영향이 있다 — 어차피 가로다.
+    }
+  }
+  return `${before} 가로 · 9:16 요청해도 ${after} (되돌림 ${video.videoWidth}x${video.videoHeight})`;
+}
+
 export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarkerResult {
   const {
     enabled = true,
@@ -292,6 +424,7 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
   const [status, setStatus] = useState<LandmarkerStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [display, setDisplay] = useState<DisplayState>(EMPTY_DISPLAY);
+  const [cameraReport, setCameraReport] = useState<string | null>(null);
   // 요청값이 아니라 실제로 적용된 백엔드. 폴백이 일어나면 요청값과 달라진다.
   const [activeDelegate, setActiveDelegate] = useState<LandmarkerDelegate | null>(null);
   // GPU 를 명시 캔버스로 되살렸는지. 개발 화면 HUD 표시용 — start() 안의 3단 폴백 주석 참고.
@@ -378,8 +511,9 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       setStatus('loading');
       setError(null);
 
+      // 크기를 요청하지 않고 연다 — 요청하는 순간 Chrome 이 가로로 뒤집는다(config.ts 표).
       stream = await navigator.mediaDevices.getUserMedia({
-        video: CAMERA_CONSTRAINTS_HINT,
+        video: CAMERA_BASE_CONSTRAINTS,
         audio: false,
       });
       if (cancelled) return;
@@ -392,6 +526,18 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
       video.playsInline = true;
       await video.play();
       if (cancelled) return;
+
+      // 세로 확보는 **프레임이 흐르기 시작한 뒤** 판정한다. 이유는 ensurePortraitFrames 주석.
+      const portraitPath = await ensurePortraitFrames(stream, video);
+      if (cancelled) return;
+
+      // ⚠️ 트랙 설정과 <video> 의 intrinsic 크기는 **다를 수 있다.** 화면 배치(object-fit)와
+      // 추론 입력 캔버스는 후자를 쓰므로 둘을 나란히 찍는다 — "트랙은 세로인데 화면은 가로"가
+      // 실제로 있었다(2026-08-26 실측).
+      setCameraReport(
+        `${portraitPath} · 트랙 ${describeVideoTrack(stream)}` +
+          ` | <video> ${video.videoWidth}x${video.videoHeight}`,
+      );
 
       // 라이브러리 본체는 번들이 아니라 런타임에 읽는다. 이유는 visionRuntime.web.ts 참고.
       const vision = await loadVisionRuntime();
@@ -652,5 +798,6 @@ export function useLandmarker(options: UseLandmarkerOptions = {}): WebLandmarker
     sourceWidth: display.sourceWidth,
     sourceHeight: display.sourceHeight,
     videoRef,
+    cameraReport,
   };
 }
