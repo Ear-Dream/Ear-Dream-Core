@@ -92,8 +92,13 @@ export function AppNavigator() {
         );
       case 'signVideo':
         // 답장하기 = 대화 턴을 되돌려 받는다 — 농인 트랙(수어 입력)을 새 세션으로 연다.
+        // 답장하기 = 대화 턴을 되돌려 받는다(손 손잡이). 뒤로 = 다시 말하러 음성 입력으로.
         return (
-          <SignVideoScreen sentence={screen.text} onReply={goSignFlow} />
+          <SignVideoScreen
+            sentence={screen.text}
+            onReply={goSignFlow}
+            onBack={goVoiceInput}
+          />
         );
         case 'landmarkDev':
           return <LandmarkDevWrapper onBack={goHome} />;
