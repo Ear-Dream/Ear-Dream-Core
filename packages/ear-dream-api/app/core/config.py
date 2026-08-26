@@ -24,13 +24,13 @@ class Settings(BaseSettings):
     # 상대경로는 api 패키지 루트 기준 (model.resolve_bundle_dir). var/ 는 .gitignore —
     # 모델 파일은 레포에 커밋하지 않는다. 번들 생성: scripts/build_single_observed_bundle.py
     # (학습 레포 고정 커밋에서 원격으로 받는다 — 로컬 체크아웃 불필요).
-    # 같은 세대의 다른 번들로 바꾸려면 이 값만 바꾼다 (--run final_deployment 로 빌드):
-    #   var/models/single-observed-300-allpeople   현재 — 3인 v1+v2 전부 학습
-    #   var/models/single-observed-300             3인 v1 만 학습, calibration 있음
+    # 다른 번들로 바꾸려면 이 값만 바꾼다 (--run 으로 빌드):
+    #   var/models/single-observed-300-v2          현재 — 4인 person-adapted (v2, flip TTA 포함)
+    #   var/models/single-observed-300-allpeople   이전 세대 3인. 비교용
     # ⚠️ **다른 세대 모델로 바꿀 때는 preprocess_spoter.AR_TRAIN 도 함께 봐야 한다** —
     # 그 값은 모델의 학습 좌표 관례라 모델마다 다르고, 안 맞추면 에러 없이 정확도만
     # 무너진다 (실측: 맞을 때 39.9% / 어긋날 때 7~29%). preprocess_spoter 주석 참조.
-    model_bundle_dir: str = "var/models/single-observed-300-allpeople"
+    model_bundle_dir: str = "var/models/single-observed-300-v2"
 
     # ⚠️ 아래 수치는 전부 **프로토타입용 임시값**이다. 사용자 검증·실측 후 확정한다.
     recognize_top_k: int = (

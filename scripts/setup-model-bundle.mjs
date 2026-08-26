@@ -19,7 +19,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const apiDir = join(root, 'packages', 'ear-dream-api');
 
 // config.py 의 model_bundle_dir 기본값과 같은 위치여야 한다.
-const BUNDLE = 'single-observed-300-allpeople';
+const BUNDLE = 'single-observed-300-v2';
 const BUNDLE_DIR = join(apiDir, 'var', 'models', BUNDLE);
 const BUILD_SCRIPT = 'scripts/build_single_observed_bundle.py';
 

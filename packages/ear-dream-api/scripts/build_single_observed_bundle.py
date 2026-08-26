@@ -17,10 +17,13 @@
 
 출력: var/models/{bundle}/{model_torchscript.pt, release.json}  (var/ 는 .gitignore)
 
-번들 후보가 둘이다 (--run 으로 고른다):
-    final_all_people_deployment  3인 v1+v2 전부 학습. calibration 없음 (기본 — 라벨된
-                                 라이브 셋 실측에서 임계 전 구간 우세)
-    final_deployment             3인 v1 만 학습, v2 홀드아웃. calibration 있음
+--run 으로 번들을 고른다:
+    kh_partial_deployment        4인(st/hy/hs/kh) person-adapted — **기본**.
+                                 신규 사용자 LOPO 54.19% (3인 모델 47.78% 대비 +6.4%p)
+    final_all_people_deployment  이전 세대(3인). 비교용
+
+⚠️ v2 프로젝트의 runs/final_* 는 **이전 3인 모델을 비교 이력으로 남긴 것**이라 v2 가
+아니다 (가중치가 single_observed_hand_300 과 바이트 동일). v2 산출물은 kh_partial 뿐이다.
 
 ⚠️ live_debias.npy 는 만들지 않는다 — 편향 벡터는 모델별이라 다른 가중치에 쓰면
 보정이 아니라 새 편향 주입이 된다. 로더가 부재를 α=0(항등)으로 폴백한다.
@@ -49,10 +52,8 @@ API_ROOT = Path(__file__).resolve().parents[1]
 # 학습 레포 (public). ref 를 커밋 SHA 로 고정해 재현성을 지킨다 — 브랜치로 두면
 # 같은 명령이 시점에 따라 다른 가중치를 받는다. 새 모델을 받을 때 SHA 를 갱신한다.
 REPO = "Ear-Dream/Ear-Dream-Benchmarks"
-DEFAULT_REF = (
-    "8b05d02ba4249bef1a8a2ffb37c7d7c63b18e1a6"  # "Add single observed hand 300-word model"
-)
-PROJECT = "single_observed_hand_300"
+DEFAULT_REF = "80f10c9413002501a04009a33bbeafc107b18096"  # "Add current v2 deployment model"
+PROJECT = "single_observed_hand_300_v2"
 RAW_BASE = "https://raw.githubusercontent.com"
 
 FEATURE_VERSION = "spoter2_mp_xy_v1"  # 이전 세대와 동일 — 전처리는 바뀌지 않았다
@@ -71,21 +72,19 @@ TEMPERATURE_BASIS = (
 )
 
 RUNS = {
-    "final_all_people_deployment": (
-        "single-observed-300-allpeople",
+    "kh_partial_deployment": (
+        "single-observed-300-v2",
         (
-            "3인(st/hy/hs) v1+v2 전부 학습. 홀드아웃이 없어 calibration 과 학습 레포측 "
-            "일반화 실측이 둘 다 없다 (자체 보고 99.33% 는 학습·평가가 겹친 값이라 인용 금지). "
-            "다만 Core 의 라벨된 라이브 셋(138클립, 미겹침 사용자)에서 top-1 29.0% / "
-            "top-4 54.3% 로 final_deployment(28.3 / 48.6)보다 임계 전 구간 우세"
+            "4인(st/hy/hs/kh) person-adapted. 좌우 반전 증강 + 추론 시 flip TTA "
+            "(TorchScript 안에 포함 — 서빙 코드 변경 불필요). 학습 레포 실측: kh 2차 촬영본 "
+            "261개 top-1 71.26% / top-5 94.25%, 신규 사용자 4-fold LOPO 평균 "
+            "top-1 54.19% / top-5 79.13% (3인 모델 3-fold 47.78 / 73.22 대비 +6.4%p). "
+            "AI Hub 보존 92.33%. 독립 calibration set 없음"
         ),
     ),
-    "final_deployment": (
-        "single-observed-300",
-        (
-            "3인 v1 로 person-adapted, v2 전량 홀드아웃. 홀드아웃 실측: st v2 top-1 87.33%, "
-            "hy/hs v2 무조건부 74.17%. calibration 있음"
-        ),
+    "final_all_people_deployment": (
+        "single-observed-300-allpeople",
+        "이전 세대(3인). Core 라벨 라이브 셋 138클립에서 top-1 29.0% / top-4 54.3%",
     ),
 }
 
@@ -177,7 +176,7 @@ def load_partition(spec: str, source: Source) -> tuple[bytes, str]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--run", choices=sorted(RUNS), default="final_all_people_deployment")
+    parser.add_argument("--run", choices=sorted(RUNS), default="kh_partial_deployment")
     parser.add_argument("--ref", default=DEFAULT_REF, help="커밋 SHA/브랜치/태그 (기본: 고정 SHA)")
     parser.add_argument(
         "--source",
