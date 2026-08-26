@@ -79,26 +79,30 @@ const VIEWFINDER_RADIUS = 16;
   들어가므로 **높이를 그대로 쓸 수는 없다** — 대신 두 요소에 시안 비율을 flex 로 주어
   서로의 세로 비율이 시안과 같아지게 한다. 남는 높이는 둘이 그 비율대로 나눠 갖는다.
 */
-const VIEWFINDER_FLEX = 645;
-const STRIP_FLEX = 121;
+/**
+ * 단어 띠 높이 — 시안 실측 121 (460:2741 프레임의 811~932). 세로 배율로 환산해
+ * **고정 높이**로 준다.
+ *
+ * `minHeight` 가 아니라 `height` 인 것은, 시안이 정한 높이를 내용이 밀어내지 않게
+ * 하기 위해서다 — 칩은 가로 스크롤이라 세로로 넘칠 일이 없고, 「전달」 버튼도 이 안에
+ * 들어온다. 예전 바닥값(STRIP_MIN_HEIGHT = 80)은 flex 로 높이가 정해지던 시절
+ * "눌려도 칩이 안 잘리게" 하던 장치라, 높이가 고정된 지금은 필요 없어져 지웠다.
+ *
+ * ⚠️ **뷰파인더와의 flex 비율(645:121)은 더 이상 쓰지 않는다.** 조작이 카메라 위로
+ * 올라가면서(2026-08-25 요청) 뷰파인더가 손잡이 바 아래 전 구간을 차지하고, 띠는 그
+ * 위에 이 높이로 떠 있다. 되돌리려면 `card` 의 flex 를 다시 645 로 두고 조작을 카드
+ * 밖 흐름으로 꺼낸다.
+ */
+const STRIP_HEIGHT = 121;
 
 /** 손잡이 바 아래 ~ 뷰파인더 위 (123 → 144). */
 const GAP_BELOW_HANDLE = 144 - 123;
-/** 뷰파인더 아래 ~ 단어 띠 위 (789 → 811). */
-const GAP_ABOVE_STRIP = 811 - 789;
-/** 녹화 버튼 위아래 여백 — 촬영 프레임(460:2478)의 21 / 23 을 그대로 쓴다. */
-const GAP_ABOVE_CAPTURE = 829 - 808;
-const GAP_BELOW_CAPTURE = 932 - 909;
-
 /**
- * 띠가 아무리 눌려도 단어 칩(63.2)이 잘리지 않게 하는 바닥값 — **시안 기준값**이다.
- * 실제로는 세로 배율을 곱해 쓴다(칩도 같은 배율로 줄어들므로 관계가 유지된다).
- *
- * ⚠️ 예전에는 이 값을 배율 없이 그대로 썼다. 그래서 화면이 짧아지면 띠만 시안 크기로
- * 남아 뷰파인더의 몫을 빼앗았고, 645:121 비율이 조용히 폐기됐다 — 그 임계가 약 820px
- * 이라 실기기(주소창 제외 660~800px)는 **항상** 그 아래였다.
+ * 조작 묶음 아래 여백 — 촬영 프레임(460:2478)의 23(909 → 932)을 그대로 쓴다.
+ * 위쪽 여백(829 - 808 = 21)은 조작이 카메라 위로 올라가면서 의미를 잃었다 — 이제
+ * 묶음 안의 간격은 `spacing.md` 에 세로 배율을 태워 준다.
  */
-const STRIP_MIN_HEIGHT = 80;
+const GAP_BELOW_CAPTURE = 932 - 909;
 
 /** 「전달」 버튼의 종이비행기 크기. 시안의 글자(Bold 28)가 차지하던 높이에 맞춘 값이다. */
 const COMPOSE_ICON_SIZE = 30;
@@ -147,6 +151,26 @@ export function SignInputScreen({
   // 하단 시트가 가리키는 done 엔트리. 엔트리 배열에서 localId 로 매번 찾는다 —
   // 교체(chosenCandidateIndex 변경)가 시트에 즉시 반영되고, 삭제되면 자동으로 닫힌다.
   const [sheetLocalId, setSheetLocalId] = useState<string | null>(null);
+  /*
+    화면 아래 조작 묶음(단어 띠 + 녹화 버튼 + 안내)이 실제로 차지하는 높이.
+
+    이 값이 필요한 이유는 조작이 **카메라 위에 떠 있기** 때문이다 — 프레이밍 가이드
+    박스와 검출 안내 문구가 그 아래로 숨지 않으려면 얼마나 비켜야 하는지 알아야 한다.
+    상수로 계산하지 않고 `onLayout` 으로 재는 것은, 안내 배너가 상황에 따라 붙었다
+    떨어졌다 하며 높이가 변하기 때문이다.
+  */
+  const [controlsHeight, setControlsHeight] = useState(0);
+  /*
+    녹화 버튼을 **한 번이라도 눌렀는가.**
+
+    프레이밍 가이드(초록 박스 + 검출 안내 문구)를 첫 촬영 전까지만 띄우기 위한
+    값이다(2026-08-25 요청). 자리를 잡으라는 안내는 처음 한 번이면 족하고, 단어를
+    이어 찍는 동안 매번 초록 테두리가 돌아오면 화면이 시끄럽다.
+
+    ⚠️ 한 번 true 가 되면 되돌아가지 않는다 — 이 화면(SignFlow 세션)이 살아 있는
+    동안 유지된다. 트랙을 넘겼다 돌아오면 SignFlow 가 언마운트되므로 다시 뜬다.
+  */
+  const [hasRecorded, setHasRecorded] = useState(false);
   const recorder = useSegmentRecorder();
   /*
     시안 세로 치수는 전부 이 배율을 거쳐 나간다. 폭 하나로 배율을 내던 예전 방식은
@@ -184,12 +208,13 @@ export function SignInputScreen({
     "지금 잘못하고 있다" 는 인상만 남는다. 어깨 안내는 성격이 달라(정확도 조언) 남긴다.
 
     녹화 중에도 띄우지 않는다 — 시안의 촬영 중 화면에는 배지 말고는 아무것도 없다.
+
+    ⚠️ **첫 촬영 전까지만 띄운다**(2026-08-25 요청, `hasRecorded`). 그래서 `recorder.recording`
+    조건이 따로 필요 없다 — 녹화가 시작되는 순간 `hasRecorded` 가 켜지므로 촬영 중은
+    자동으로 포함된다.
   */
   const showGuideText =
-    detection.status === 'running' &&
-    !landscape &&
-    !recorder.recording &&
-    guide.kind !== 'hands';
+    detection.status === 'running' && !landscape && !hasRecorded && guide.kind !== 'hands';
 
   const pendingCount = entries.filter((entry) => entry.state === 'pending').length;
   const failedCount = entries.filter((entry) => entry.state === 'failed').length;
@@ -241,6 +266,8 @@ export function SignInputScreen({
     setLocalError(null);
     if (notice) dismissNotice();
     captureStartFeedback();
+    // 가이드는 여기서 내려간다 — 촬영이 실제로 시작된 시점이다.
+    setHasRecorded(true);
     recorder.start();
   }, [detection.status, landscape, recorder, notice, dismissNotice]);
 
@@ -300,7 +327,7 @@ export function SignInputScreen({
   */
   const wordStrip = (
     <View
-      style={[styles.strip, { marginTop: v(GAP_ABOVE_STRIP), minHeight: v(STRIP_MIN_HEIGHT) }]}
+      style={[styles.strip, { height: v(STRIP_HEIGHT) }]}
       testID="sign-input-words"
     >
       {entries.length === 0 ? (
@@ -360,12 +387,17 @@ export function SignInputScreen({
   const footer = (
     <>
       {composeBlockedReason ? (
-        <Text style={styles.composeBlockedText} testID="sign-input-compose-blocked">
+        <Text
+          style={[styles.onVideoText, styles.composeBlockedText]}
+          testID="sign-input-compose-blocked"
+        >
           {composeBlockedReason}
         </Text>
       ) : null}
 
-      {localError ? <Text style={styles.errorText}>{localError}</Text> : null}
+      {localError ? (
+        <Text style={[styles.onVideoText, styles.errorText]}>{localError}</Text>
+      ) : null}
 
       {notice ? (
         notice.kind === 'result' ? (
@@ -414,7 +446,6 @@ export function SignInputScreen({
           />
         </HoldToRecordButton>
       </View>
-      <Text style={styles.captureHint}>{strings.signInput.captureHint}</Text>
     </>
   );
 
@@ -437,19 +468,26 @@ export function SignInputScreen({
             **사방 여백이 같아야 해서**(2026-08-24 요청) 흐름 배치가 아니라 절대 레이어다.
             흐름에 두면 위로는 배지 줄이, 아래로는 안내 문구가 밀어내 상하만 두꺼워진다.
 
-            **녹화 중에는 그리지 않는다** (시안 `3. 농인 입력 — 촬영 중`, 460:2813).
-            찍는 동안 화면에 남는 것은 「녹화 중」 배지뿐이다 — 자리를 잡으라는 안내는
-            찍기 전에 할 일이고, 찍는 중에 초록 테두리가 남아 있으면 무엇을 보라는
-            신호인지 모호해진다.
+            **첫 촬영 전까지만 그린다**(2026-08-25 요청). 원래는 녹화 중에만 감췄는데
+            (시안 `3. 농인 입력 — 촬영 중`, 460:2813), 단어를 이어 찍는 동안 버튼을 뗄
+            때마다 초록 테두리가 돌아와 화면이 시끄러웠다. 자리를 잡으라는 안내는 처음
+            한 번이면 족하다.
           */}
-          {recorder.recording ? null : (
+          {hasRecorded ? null : (
             <View
-              style={[styles.guideBox, cardAlert && styles.guideBoxAlert]}
+              style={[
+                styles.guideBox,
+                // 조작이 카드 위에 떠 있으므로 그만큼 비켜 준다 — 안 그러면 초록 테두리의
+                // 아래쪽이 단어 띠 뒤로 숨는다. 사방 여백을 같게 보이려는 요청(2026-08-24)은
+                // **비켜 준 자리 안에서** 지켜진다.
+                { bottom: controlsHeight + GUIDE_INSET },
+                cardAlert && styles.guideBoxAlert,
+              ]}
               testID="sign-input-guide-box"
             />
           )}
 
-          <View style={styles.overlayContent}>
+          <View style={[styles.overlayContent, { paddingBottom: controlsHeight + GUIDE_INSET }]}>
           {modelReady === false ? (
             <Text style={styles.modelBanner} testID="sign-input-model-banner">
               {strings.signInput.modelNotReady}
@@ -493,8 +531,29 @@ export function SignInputScreen({
           </View>
         </View>
 
-        {/* 가로 안내 — 프리뷰를 덮는다. 캡처 버튼도 함께 비활성이라 "왜 안 눌리는지"가 여기 보인다.
-            글자에만 의존하지 않게 아이콘을 함께 둔다(접근성 규칙). */}
+        {/*
+          조작 묶음 — **카메라 위에 떠 있다**(2026-08-25 요청).
+
+          예전에는 카드 아래 흐름에 놓여 있어서, 단어 띠(121)와 녹화 버튼(80)이 세로
+          예산을 먼저 가져가고 뷰파인더가 남는 만큼만 차지했다. 그래서 카메라가 시안보다
+          납작했다. 조작을 띄우면 카메라가 손잡이 바 아래 전 구간을 쓴다.
+
+          단어 띠와 녹화 버튼은 자기 면(연보라 · 흰 원)을 갖고 있어 영상 위에서도 읽히지만,
+          맨 글자(안내·오류 문구)는 그렇지 않아 어두운 스크림을 깔았다.
+        */}
+        <View
+          style={[
+            styles.controls,
+            { paddingBottom: v(GAP_BELOW_CAPTURE), gap: v(spacing.md) },
+          ]}
+          onLayout={(event) => setControlsHeight(event.nativeEvent.layout.height)}
+        >
+          {wordStrip}
+          <View style={[styles.footer, { gap: v(spacing.md) }]}>{footer}</View>
+        </View>
+
+        {/* 가로 안내 — 프리뷰와 조작을 함께 덮는다. 캡처 버튼도 같이 비활성이라
+            "왜 안 눌리는지"가 여기 보인다. 글자에만 의존하지 않게 아이콘을 함께 둔다. */}
         {landscape ? (
           <View style={styles.landscapeNotice} pointerEvents="none" accessibilityRole="alert">
             <Text style={styles.landscapeGlyph}>📱</Text>
@@ -506,20 +565,6 @@ export function SignInputScreen({
             </View>
           </View>
         ) : null}
-      </View>
-
-      {wordStrip}
-      <View
-        style={[
-          styles.footer,
-          {
-            paddingTop: v(GAP_ABOVE_CAPTURE),
-            paddingBottom: v(GAP_BELOW_CAPTURE),
-            gap: v(spacing.md),
-          },
-        ]}
-      >
-        {footer}
       </View>
 
       <WordCandidateSheet
@@ -642,8 +687,19 @@ const styles = StyleSheet.create({
    */
   footer: {
     paddingHorizontal: spacing.lg,
-    // 세로 여백(GAP_ABOVE_CAPTURE / GAP_BELOW_CAPTURE)과 gap 은 세로 배율을 거쳐
-    // 인라인으로 들어온다 — 여기서 시안 픽셀을 그대로 굳히면 짧은 화면이 깨진다.
+    // gap 은 세로 배율을 거쳐 인라인으로 들어온다.
+  },
+  /**
+   * 카메라 위에 뜬 조작 묶음 — 카드 아래쪽에 붙는다.
+   *
+   * 높이를 주지 않는다(내용이 정한다). 그 실제 높이를 `onLayout` 으로 재서 가이드 박스와
+   * 안내 문구가 비켜 갈 자리로 쓴다.
+   */
+  controls: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    left: 0,
   },
   /**
    * 뷰파인더 — **좌우 여백 없이 화면을 채우되 모서리는 굴린다**(2026-08-24 요청 두 건).
@@ -653,7 +709,8 @@ const styles = StyleSheet.create({
    * 인식 실패 시 테두리가 빨강으로 바뀌는 표시는 유지한다.
    */
   card: {
-    flex: VIEWFINDER_FLEX,
+    // 손잡이 바 아래 전 구간. 조작은 이 위에 떠 있다(위 STRIP_HEIGHT 주석).
+    flex: 1,
     // marginTop(GAP_BELOW_HANDLE)은 세로 배율을 거쳐 인라인으로 들어온다.
     overflow: 'hidden',
     position: 'relative',
@@ -793,9 +850,7 @@ const styles = StyleSheet.create({
    * (화면에서의 상하 위치는 렌더 순서가 정한다 — wordStrip 주석 참고.)
    */
   strip: {
-    flex: STRIP_FLEX,
-    // marginTop(GAP_ABOVE_STRIP)·minHeight(STRIP_MIN_HEIGHT)는 세로 배율을 거쳐
-    // 인라인으로 들어온다.
+    // 높이는 시안 실측 121 에 세로 배율을 태워 인라인으로 들어온다.
     marginHorizontal: spacing.lg,
     flexDirection: 'row',
     alignItems: 'center',
@@ -803,7 +858,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     // 화면 아래에 붙는 띠가 아니라 **떠 있는 밴드**라 네 모서리를 모두 굴린다.
     borderRadius: 20,
-    backgroundColor: colors.bg.wordStrip,
+    /*
+      투명 (2026-08-25 요청). 시안 실측은 불투명한 연보라(`bg/wordStrip` #d5d5fa)였는데,
+      조작이 카메라 위로 올라가면서 띠가 영상을 가리게 돼 걷어냈다.
+
+      ⚠️ 면이 사라지면서 **단어가 쌓이는 자리를 알려 주던 것이 없어졌다.** 칩이 하나도
+      없을 때는 아래 `stripEmptyHint` 문구만 남으므로, 그 문구가 영상 위에서 읽히는지가
+      전보다 중요해졌다(그래서 스크림을 깔았다). 되돌리려면 `colors.bg.wordStrip` 을
+      그대로 쓰거나, 반투명이 필요하면 같은 색의 알파 버전을 토큰으로 추가한다.
+    */
+    backgroundColor: 'transparent',
   },
   // flexShrink 로 남는 폭만 차지하게 둔다 — "결과 확인" 이 pill 에 밀려 잘리면 안 된다.
   chipsViewport: {
@@ -816,10 +880,15 @@ const styles = StyleSheet.create({
   },
   stripEmptyHint: {
     flexShrink: 1,
-    paddingHorizontal: spacing.sm,
+    // 띠 면이 사라져 영상 위에 바로 뜬다 — 밝은 면용 색은 배경에 따라 안 읽힌다.
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
     fontFamily: fonts.regular,
     fontSize: 13,
-    color: colors.text.secondary,
+    lineHeight: 18,
+    color: colors.text.onVideo,
   },
   // 시안 「전달」 버튼(460:2771): 87x59.7 · 반경 12 · brand/primary · Bold 28 + 화살촉.
   composeButton: {
@@ -843,8 +912,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 14,
     lineHeight: 20,
-    color: colors.status.error,
-    textAlign: 'center',
+    color: colors.status.errorOnDark,
   },
   // rejected/low_quality 인라인 배너 — 안내이지 실패가 아니므로 빨강을 쓰지 않는다.
   resultNotice: {
@@ -872,12 +940,25 @@ const styles = StyleSheet.create({
     color: colors.status.error,
     textAlign: 'center',
   },
+  /*
+    아래 두 문구와 촬영 안내는 **영상 위에 뜬다.** 밝은 면용 색(text.secondary·
+    status.error)을 그대로 쓰면 배경에 따라 읽혔다 안 읽혔다 하므로, modelBanner 와
+    같은 어두운 스크림을 깔고 on-video 색을 쓴다.
+    (다크 면 위 상태색 규칙은 CLAUDE.md 「확정 디자인」 절 참고.)
+  */
+  onVideoText: {
+    alignSelf: 'center',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    textAlign: 'center',
+  },
   composeBlockedText: {
     fontFamily: fonts.regular,
     fontSize: 13,
     lineHeight: 18,
-    color: colors.text.secondary,
-    textAlign: 'center',
+    color: colors.text.onVideo,
   },
   captureRow: {
     alignItems: 'center',
@@ -913,11 +994,5 @@ const styles = StyleSheet.create({
     // 사실상 직각으로 읽혀 혼자 뾰족해 보였다.
     borderRadius: radius.sm,
     backgroundColor: colors.status.error,
-  },
-  captureHint: {
-    fontFamily: fonts.regular,
-    fontSize: 13,
-    color: colors.text.secondary,
-    textAlign: 'center',
   },
 });

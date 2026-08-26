@@ -30,11 +30,19 @@ export interface SignVideoScreenProps {
    * "답장" — 농인 트랙(수어 입력)으로. 대화 턴이 상대에게 넘어가는 지점이다.
    * 시안에서는 화면 아래 **손 손잡이**가 이 동작이다.
    *
-   * ⚠️ 시안에 이 화면의 **뒤로가기·홈이 없다**. 그래서 `onBack`/`onGoHome` 을 지웠다 —
-   * 음성 입력 화면으로 되돌아가는 경로가 사라졌다는 뜻이다(손잡이로 수어 트랙에 간 뒤
-   * 그쪽 손잡이로 첫 화면까지는 갈 수 있다). 되살리려면 두 prop 과 배선만 복구하면 된다.
+   * ⚠️ 시안에 이 화면의 **뒤로가기·홈이 없다**. `onBack` 은 요청(2026-08-25)으로
+   * 되살린 시안 밖 경로이고, `onGoHome` 은 여전히 없다 — 첫 화면으로 가려면 손잡이로
+   * 수어 트랙에 간 뒤 그쪽 손잡이를 쓴다.
    */
   onReply: () => void;
+  /**
+   * 「뒤로」 — 음성 입력 화면으로 되돌아간다. 다시 말하려는 경로다.
+   *
+   * 시안에 이 화면의 뒤로가기가 없어 한동안 지워 뒀는데, 요청(2026-08-25)으로
+   * 「다시보기」와 나란한 두 버튼으로 되살렸다. 「답장하기」는 그대로 화면 아래
+   * **손 손잡이**가 갖는다 — 세 갈래를 버튼 줄에 다 늘어놓지 않는다.
+   */
+  onBack: () => void;
 }
 
 /**
@@ -88,7 +96,7 @@ const NOTICE_AREA_MAX_HEIGHT = 132;
  * 재생 불가 사유를 **두 종류로 나눠 보여준다** — 어휘에 없는 단어(unknown_word)와
  * 어휘엔 있으나 동작 시퀀스가 없는 단어(no_sequence)는 사용자가 할 수 있는 일이 다르다.
  */
-export function SignVideoScreen({ sentence, onReply }: SignVideoScreenProps) {
+export function SignVideoScreen({ sentence, onReply, onBack }: SignVideoScreenProps) {
   const [playing, setPlaying] = useState(true);
   // "다시 보기" 신호. 값 자체엔 의미가 없고 **바뀌었다는 사실**이 재시작을 뜻한다.
   const [restartToken, setRestartToken] = useState(0);
@@ -127,23 +135,37 @@ export function SignVideoScreen({ sentence, onReply }: SignVideoScreenProps) {
         phase.name === 'failed' ? (
           <Button label={strings.signVideo.retry} onPress={retry} testID="sign-video-retry" />
         ) : (
-          <>
-            {/*
-              시안의 하단 버튼은 「다시보기」 하나다(460:2326). 「답장하기」는 화면 아래
-              **손 손잡이**(TrackSwitchHandle)로 옮겼다 — 아이콘이 가리키는 수어 트랙이
-              곧 답장이다.
-            */}
-            <Button
-              label={strings.signVideo.replay}
-              variant="outline"
-              disabled={sequences.length === 0}
-              onPress={() => {
-                setPlaying(true);
-                setRestartToken((token) => token + 1);
-              }}
-              testID="sign-video-replay"
-            />
-          </>
+          /*
+            「뒤로」 + 「다시보기」 두 버튼(2026-08-25 요청). 시안의 하단 버튼은
+            「다시보기」 하나였다(460:2326).
+
+            「답장하기」는 화면 아래 **손 손잡이**(TrackSwitchHandle)가 그대로 갖는다 —
+            아이콘이 가리키는 수어 트랙이 곧 답장이라, 버튼 줄에 세 갈래를 늘어놓지 않는다.
+
+            Primary 는 「다시보기」 하나다(시안 Button 규칙: 화면당 primary 1개).
+            「뒤로」는 이탈 경로라 outline 으로 내린다.
+          */
+          <View style={styles.buttonRow}>
+            <View style={styles.buttonCell}>
+              <Button
+                label={strings.signVideo.back}
+                variant="outline"
+                onPress={onBack}
+                testID="sign-video-back"
+              />
+            </View>
+            <View style={styles.buttonCell}>
+              <Button
+                label={strings.signVideo.replay}
+                disabled={sequences.length === 0}
+                onPress={() => {
+                  setPlaying(true);
+                  setRestartToken((token) => token + 1);
+                }}
+                testID="sign-video-replay"
+              />
+            </View>
+          </View>
         );
 
   const body = (
@@ -275,6 +297,18 @@ const styles = StyleSheet.create({
   footer: {
     paddingHorizontal: spacing.lg,
     // 세로 여백은 세로 배율을 거쳐 인라인으로 들어온다.
+  },
+  /** 「뒤로」·「다시보기」 두 버튼을 같은 폭으로 나눠 갖는 줄. */
+  buttonRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+  },
+  /**
+   * Button 은 `alignSelf: 'stretch'` 라 부모 폭을 채운다 — 폭을 나누려면 이렇게
+   * 감싸는 칸이 필요하다(Button 에 style prop 을 뚫지 않기 위한 선택).
+   */
+  buttonCell: {
+    flex: 1,
   },
   // 확정 디자인 MotionCard — 430x932 프레임 기준 398x491, 반경 16, bg/video.
   // 높이는 flex 로 둔다: 하단 조작 영역이 정해지고 남는 공간이 시안 비율과 거의 같다.
