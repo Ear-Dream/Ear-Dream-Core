@@ -465,11 +465,22 @@ function browShift(raw: number): number {
 
 function buildHand(at: At, base: number): Figure['hands'][number] | null {
   const wrist = at(base);
-  const middleMcp = at(base + 9);
-  if (!ok(wrist) || !ok(middleMcp)) return null;
+  if (!ok(wrist)) return null;
+  // 손을 **손목을 축으로** 줄여서 읽는다 — 손목은 소매 커프가 끝나는 자리라 고정이고,
+  // 크기만 시안 몸에 맞춘다 (`HAND.scale`). 결측(NaN)은 그대로 NaN 이라 걸러진다.
+  const grip = (index: number): Point => {
+    const point = at(base + index);
+    return [
+      wrist[0] + (point[0] - wrist[0]) * HAND.scale,
+      wrist[1] + (point[1] - wrist[1]) * HAND.scale,
+    ];
+  };
+
+  const middleMcp = grip(9);
+  if (!ok(middleMcp)) return null;
   // 손 크기 기준. 손이 비스듬하면 손목~중지 거리가 짧아져 손 전체가 쪼그라들므로
   // 손바닥 가로폭(검지~새끼 MCP)과 견줘 큰 쪽을 쓴다.
-  const across = span(at(base + 5), at(base + 17));
+  const across = span(grip(5), grip(17));
   const unit = Math.max(span(wrist, middleMcp), Number.isFinite(across) ? across * 1.15 : 0);
   if (unit <= 0) return null;
 
@@ -479,7 +490,7 @@ function buildHand(at: At, base: number): Figure['hands'][number] | null {
   // 손바닥 — 손목 · 엄지 뿌리 · 네 MCP 를 두른 면.
   // 볼록 껍질을 쓰는 이유: 손이 돌아가면 엄지 뿌리가 반대쪽으로 넘어가 다각형이
   // **스스로 꼬인다.** 꼬인 면은 윤곽선을 두르는 순간 삐죽한 조각으로 드러난다.
-  const palmPoints = PALM_RING.map((i) => at(base + i));
+  const palmPoints = PALM_RING.map(grip);
   if (!palmPoints.every(ok)) return null;
   const palm = smoothRing(convexHull(palmPoints));
   if (!palm) return null;
@@ -488,7 +499,7 @@ function buildHand(at: At, base: number): Figure['hands'][number] | null {
   // 손가락 — 마디마다 굵기가 줄어드는 사다리꼴. 굵기가 일정하면 손이 아니라 막대다.
   let drawn = 0;
   for (let index = 0; index < FINGER_CHAINS.length; index += 1) {
-    const points = FINGER_CHAINS[index].map((i) => at(base + i));
+    const points = FINGER_CHAINS[index].map(grip);
     if (!points.every(ok)) continue; // 미검출 마디가 있으면 그 손가락만 건너뛴다
     const isThumb = index === 0;
     const from = unit * (isThumb ? HAND.thumbBase : HAND.fingerBase);
