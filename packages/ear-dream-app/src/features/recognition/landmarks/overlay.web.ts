@@ -176,7 +176,7 @@ export function drawSnapshot(
   // 오버레이가 통째로 밀린다 (실기기 실측 2026-08-19: 가로 1280x720 소스를 세로 카드에
   // 넣었을 때 점들이 실제 위치보다 밀려 그려졌다). object-fit 을 replaced element 인
   // <canvas> 에 적용하는 것은 브라우저 구현 차이도 있는 지점이라, 여기서는 아예 기대지 않고
-  // cover 매핑을 직접 계산한다 — 그러면 두 요소가 어긋날 여지가 없다.
+  // contain 매핑을 직접 계산한다 — 그러면 두 요소가 어긋날 여지가 없다.
   const box = canvas.getBoundingClientRect();
   const dpr = window.devicePixelRatio || 1;
   const bufferWidth = Math.max(1, Math.round(box.width * dpr));
@@ -191,16 +191,15 @@ export function drawSnapshot(
 
   if (snapshot.sourceWidth === 0 || snapshot.sourceHeight === 0) return;
 
-  // cover: 표시 박스를 채우도록 짧은 쪽에 맞춘다 (video 의 object-fit: cover 와 같은 규칙).
+  // contain: 프레임 전체가 들어오도록 긴 쪽에 맞춘다 (video 의 object-fit: contain 과 같은 규칙).
   //
   // ⚠️ **video 의 object-fit 과 반드시 같은 규칙이어야 한다.** 한쪽만 바꾸면 랜드마크 점이
   // 영상과 어긋난다. 두 곳은 SignCameraView.web.tsx · CameraLandmarkView.web.tsx 다.
   //
-  // contain 이던 시절의 근거는 여전히 유효하다 — 가로 소스(데스크톱 웹캠 1280x720)를 세로
-  // 화면에 채우면 좌우가 잘리고, **화면에 안 보이는 영역의 손·얼굴까지 검출 대상이 된다**.
-  // 실기기(세로 720x1280)는 비율이 같아 잘림이 거의 없다. 사용자 요청(2026-08-24)으로
-  // 화면을 채우는 쪽을 택했고, 데스크톱에서 이 어긋남이 남아 있다는 사실은 그대로다.
-  const scale = Math.max(
+  // cover 이던 시절의 근거(2026-08-24 「꽉 채우기」)는 접었다 — 카드 비율이 소스(9:16)보다
+  // 넓어서 cover 가 세로 FOV 를 잘라내며 확대해 보였다(2026-08-26 「카메라앱만큼 넓게」).
+  // 잘라내지 않으므로 화면에 보이는 영역과 검출 대상 영역이 일치한다는 이점도 함께 돌아온다.
+  const scale = Math.min(
     bufferWidth / snapshot.sourceWidth,
     bufferHeight / snapshot.sourceHeight,
   );
