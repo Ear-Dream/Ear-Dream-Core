@@ -103,3 +103,35 @@ export function taper(a: Point, b: Point, halfA: number, halfB: number): string 
   ];
   return `M${corners.map(pt).join('L')}Z`;
 }
+
+/**
+ * 스프라이트를 두 관절 사이에 꽂는 SVG transform.
+ *
+ * 그림 안의 뼈(`from`→`to`)를 화면의 뼈(`start`→`end`)에 겹치게 놓는다. 순서대로:
+ * 원점을 그림의 위쪽 관절로 옮기고 → 뼈를 x축에 눕히고 → 길이·굵기를 따로 늘리고 →
+ * 목표 각도로 돌리고 → 화면의 관절로 옮긴다.
+ *
+ * **길이와 굵기를 따로 늘리는 이유**: 팔이 카메라 쪽을 향하면 관절 사이가 짧아지는데
+ * (원근 단축), 같은 배율로 줄이면 팔이 가늘어져 버린다. 굵기는 어깨 너비에 묶어 두면
+ * 그 문제가 없다.
+ */
+export function spriteTransform(
+  start: Point,
+  end: Point,
+  from: readonly [number, number],
+  to: readonly [number, number],
+  widthScale: number,
+): string {
+  const boneAngle = (Math.atan2(to[1] - from[1], to[0] - from[0]) * 180) / Math.PI;
+  const boneLength = Math.hypot(to[0] - from[0], to[1] - from[1]) || 1;
+  const targetAngle = (Math.atan2(end[1] - start[1], end[0] - start[0]) * 180) / Math.PI;
+  const lengthScale = span(start, end) / boneLength;
+
+  return (
+    `translate(${start[0].toFixed(1)} ${start[1].toFixed(1)}) ` +
+    `rotate(${targetAngle.toFixed(2)}) ` +
+    `scale(${lengthScale.toFixed(4)} ${widthScale.toFixed(4)}) ` +
+    `rotate(${(-boneAngle).toFixed(2)}) ` +
+    `translate(${(-from[0]).toFixed(1)} ${(-from[1]).toFixed(1)})`
+  );
+}
