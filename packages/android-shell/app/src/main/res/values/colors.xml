@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- features/home/backgroundTint.ts 의 HOME_FALLBACK_COLOR 와 같은 값. -->
+    <color name="brand_home_fallback">#7768c0</color>
+    <!-- app.json 의 android.adaptiveIcon.backgroundColor. -->
+    <color name="ic_launcher_background">#E6F4FE</color>
+</resources>

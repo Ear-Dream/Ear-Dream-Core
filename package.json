@@ -12,6 +12,8 @@
     "dev:app": "node scripts/setup-fonts.mjs && pnpm --filter @ear-dream/app dev",
     "build:web-mobile": "node scripts/setup-mediapipe-assets.mjs && node scripts/setup-fonts.mjs && cd packages/ear-dream-app && EXPO_PUBLIC_API_URL= npx expo export --platform web && cd ../.. && node scripts/precompress-dist.mjs",
     "serve:mobile": "node scripts/serve-mobile.mjs --port 8080",
+    "sync:apk-assets": "node scripts/build-apk.mjs --sync-only",
+    "build:apk": "node scripts/build-apk.mjs",
     "setup:model-bundle": "node scripts/setup-model-bundle.mjs",
     "generate:api-types": "node scripts/generate-api-types.mjs",
     "typecheck": "pnpm -r --parallel typecheck",

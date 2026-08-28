@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">이어드림</string>
+
+    <string name="server_dialog_title">서버 주소</string>
+    <string name="server_dialog_message">API 서버 주소를 입력하세요.\n\n예) https://xxxx.ngrok-free.app\n예) http://192.168.0.10:8000</string>
+    <string name="server_dialog_save">저장</string>
+    <string name="server_dialog_cancel">취소</string>
+
+    <string name="exit_dialog_title">이어드림</string>
+    <string name="exit_dialog_change_server">서버 주소 변경</string>
+    <string name="exit_dialog_reload">새로고침</string>
+    <string name="exit_dialog_dev_screen">개발 화면 (?dev=1)</string>
+    <string name="exit_dialog_exit">종료</string>
+</resources>

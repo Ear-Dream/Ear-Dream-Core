@@ -67,3 +67,11 @@ _workspace/
 
 # 릴리스 업로드용 모델 번들 아카이브 (README 「모델 번들」의 tar 명령 산출물)
 spoter300-pilot.tar.gz
+
+# Android WebView 셸 (packages/android-shell)
+# assets/web 은 dist 복사본이라 재생성물이고, 나머지는 Gradle 생성물이다.
+packages/android-shell/app/src/main/assets/
+packages/android-shell/app/build/
+packages/android-shell/build/
+packages/android-shell/.gradle/
+packages/android-shell/local.properties

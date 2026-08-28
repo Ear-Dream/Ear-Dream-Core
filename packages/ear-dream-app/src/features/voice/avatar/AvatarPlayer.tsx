@@ -42,6 +42,7 @@ import { buildFigure, headBaselineOf, sequenceCrop } from './figure';
 import type { SignSequence } from './sequenceFiles';
 import type { Point } from './geometry';
 import { span, spriteTransform } from './geometry';
+import { useBlink } from './useBlink';
 import { useSequencePlayback } from './usePlayback';
 
 export interface AvatarPlayerProps {
@@ -110,6 +111,10 @@ export function AvatarPlayer({
   // 몸은 디자인 시트에서 잘라낸 그림으로 그린다. 못 받은 부위만 벡터로 돌아간다.
   const sprites = useAvatarSprites();
 
+  // 얼굴이 고정이라 인물이 눈을 한 번도 감지 않는다. 깜빡임만 시간 시계로 따로 돌린다
+  // — 좌표에서 온 신호가 아니라는 점과 근거는 `avatarTuning.BLINK`.
+  const blinking = useBlink();
+
   return (
     <View style={styles.root} testID={testID} onLayout={onLayout}>
       {stage ? (
@@ -153,7 +158,9 @@ export function AvatarPlayer({
                   sprite={sprites.head}
                   scale={BODY_SPRITE.headScale}
                 >
-                  {figure.face ? <FaceParts face={sprites.face} figure={figure.face} /> : null}
+                  {figure.face ? (
+                    <FaceParts face={sprites.face} figure={figure.face} blinking={blinking} />
+                  ) : null}
                 </BonePart>
               ) : null}
 
@@ -336,7 +343,7 @@ export function AvatarPlayer({
               {!(sprites.head && sprites.face) && figure.face ? (
                 <G>
                   {figure.face.eyes.map((eye, index) =>
-                    eye.closed ? (
+                    eye.closed || blinking ? (
                       <Path
                         key={index}
                         d={`M${(eye.center[0] - eye.half).toFixed(1)} ${eye.center[1].toFixed(1)}L${(eye.center[0] + eye.half).toFixed(1)} ${eye.center[1].toFixed(1)}`}
@@ -484,7 +491,16 @@ function alignNeck(head: NonNullable<Figure['head']>, headScale: number) {
  * 눈썹만 단계가 아니라 **높이가 연속**이다. 눈과 분리된 조각이라 옮길 수 있고,
  * 좌표가 재는 것도 눈썹–눈 간격이라 그쪽이 데이터에 더 가깝다.
  */
-function FaceParts({ face, figure }: { face: FaceSprites; figure: NonNullable<Figure['face']> }) {
+function FaceParts({
+  face,
+  figure,
+  blinking,
+}: {
+  face: FaceSprites;
+  figure: NonNullable<Figure['face']>;
+  /** 깜빡임은 데이터가 고른 눈 조각을 **잠깐 덮어쓴다** — 상태를 섞지 않고 여기서만 갈아끼운다. */
+  blinking: boolean;
+}) {
   // 자리와 크기는 전부 **머리 그림 픽셀**이다(`FACE_PART`). 좌표가 정하는 것은 상태뿐이라
   // 여기서 데이터를 보고 바꾸는 값은 눈썹 높이 하나다.
   const bone = (center: readonly number[], width: number, dy = 0) => ({
@@ -502,7 +518,7 @@ function FaceParts({ face, figure }: { face: FaceSprites; figure: NonNullable<Fi
         return (
           <G key={eye.side}>
             <FacePart
-              sprite={face.eyes[eye.state][eye.side]}
+              sprite={face.eyes[blinking ? 'closed' : eye.state][eye.side]}
               target={bone(right ? FACE_PART.eyeRight : FACE_PART.eyeLeft, FACE_PART.eyeWidth)}
             />
             <FacePart

@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- 카메라가 없는 기기에도 설치는 되게 둔다. 없으면 화면이 안내로 떨어진다. -->
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.front" android:required="false" />
+
+    <application
+        android:allowBackup="false"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:supportsRtl="false"
+        android:theme="@style/Theme.EarDreamShell"
+        android:hardwareAccelerated="true"
+        android:usesCleartextTraffic="true">
+
+        <!--
+            ⚠️ usesCleartextTraffic="true" 는 **데모 빌드 결정**이다.
+
+            웹 번들은 가상 https 오리진에서 열리므로, API 가 https 여야 mixed content 로
+            막히지 않는다. 그런데 이 셸의 가장 좋은 데모 구성은 터널 없이 노트북을 LAN 으로
+            직접 부르는 것(`http://192.168.x.x:8000`)이다 — 웹 애셋이 이미 APK 안에 있어
+            터널로 오갈 것이 API 호출뿐이기 때문이다. 그 구성을 쓰려면 평문 http 가 필요하다.
+
+            같은 이유로 MainActivity 가 mixedContentMode 도 열어 둔다. 스토어 배포를
+            하게 되면 둘 다 되돌리고 https API 만 쓴다.
+        -->
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:screenOrientation="portrait"
+            android:launchMode="singleTask"
+            android:windowSoftInputMode="adjustResize"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|keyboard|keyboardHidden|uiMode|fontScale|navigation">
+
+            <!--
+                configChanges 를 넓게 잡은 이유 — 설정이 바뀔 때 Activity 가 재생성되면
+                WebView 가 새로 만들어지고 **SPA 상태(누적된 pill 큐)가 통째로 날아간다**.
+                회전은 portrait 고정으로 막혀 있지만 키보드·폰트 크기·다크모드 전환은 남는다.
+            -->
+
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
