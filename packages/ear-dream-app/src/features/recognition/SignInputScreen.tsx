@@ -17,6 +17,7 @@ import {
   spacing,
   touchTarget,
 } from '../../constants/theme';
+import { LANDMARK_DEV_ENABLED } from '../../constants/devFlags';
 import { useDesignScale } from '../../hooks/useDesignScale';
 import { useHandheldLandscape } from '../../hooks/useHandheldLandscape';
 import type {
@@ -24,7 +25,7 @@ import type {
   RecognitionEntry,
   RecognizerFailureKind,
 } from './api/useRecognitionQueue';
-import { captureStartFeedback, captureStopFeedback } from './capture/haptics';
+import { captureStartFeedback, readHapticDiagnostics } from './capture/haptics';
 import { HoldToRecordButton } from './capture/HoldToRecordButton';
 import { useSegmentRecorder } from './capture/useSegmentRecorder';
 import { QueuePill } from './QueuePill';
@@ -259,6 +260,14 @@ export function SignInputScreen({
   // 새 hold 의 시작만 막지 진행 중인 hold 를 끊지 않는다.)
   const captureDisabled = recorder.recording ? false : !canCapture;
 
+  /**
+   * 햅틱 진단 표시(개발 모드 전용). 제품 동작에는 영향이 없다 — 캡처 화면에서 진동이
+   * 불규칙할 때 "코드가 안 불린 건지, 불렸는데 안 울린 건지"를 그 자리에서 가른다.
+   */
+  const [hapticDebug, setHapticDebug] = useState<ReturnType<typeof readHapticDiagnostics> | null>(
+    null,
+  );
+
   // 인라인 배너는 몇 초 뒤 자동 소멸한다. 다음 캡처 시작 시에도 즉시 사라진다(pressIn).
   useEffect(() => {
     if (!notice) return;
@@ -271,6 +280,9 @@ export function SignInputScreen({
     setLocalError(null);
     if (notice) dismissNotice();
     captureStartFeedback();
+    // 개발 모드에서만: 이 press 가 실제로 진동 호출까지 갔는지 화면에 남긴다.
+    // 「누른 횟수 vs 울림 횟수」가 갈리면 원인이 진동이 아니라 이 위의 가드다.
+    if (LANDMARK_DEV_ENABLED) setHapticDebug(readHapticDiagnostics());
     // 가이드는 여기서 내려간다 — 촬영이 실제로 시작된 시점이다.
     setHasRecorded(true);
     recorder.start();
@@ -280,7 +292,7 @@ export function SignInputScreen({
   // 취소라도 그때까지 모인 프레임은 사용자의 실제 동작이므로 버리지 않고 정상 제출한다.
   const handleHoldEnd = useCallback(() => {
     if (!recorder.recording) return;
-    captureStopFeedback();
+    // 종료 진동은 없다 — 시작 신호 하나만 남겼다(capture/haptics.ts 「계약」).
     void recorder.stop().then((result) => {
       switch (result.kind) {
         case 'segment':
@@ -463,6 +475,16 @@ export function SignInputScreen({
         accessibilityLabel={strings.common.switchToVoiceTrack}
         testID="sign-input-track-switch"
       />
+
+      {LANDMARK_DEV_ENABLED && hapticDebug ? (
+        <View style={styles.hapticDebug} pointerEvents="none">
+          <Text style={styles.hapticDebugText}>
+            {`울림 ${hapticDebug.counters.emitted} · 잘림 ${hapticDebug.counters.replaced} · vibrate ${
+              hapticDebug.lastVibrateResult === null ? '—' : String(hapticDebug.lastVibrateResult)
+            } · ${hapticDebug.pulseMs}ms`}
+          </Text>
+        </View>
+      ) : null}
 
       <View style={[styles.card, { marginTop: v(GAP_BELOW_HANDLE) }, cardAlert && styles.cardAlert]}>
         <SignCameraView onDetectionChange={setDetection} onFrame={recorder.onFrame} />
@@ -671,6 +693,21 @@ function failureMessage(kind: RecognizerFailureKind): string {
 }
 
 const styles = StyleSheet.create({
+  /** 개발 모드 전용 햅틱 계측 배지 — 제품 화면에는 나타나지 않는다. */
+  hapticDebug: {
+    position: 'absolute',
+    top: 2,
+    right: 6,
+    zIndex: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  hapticDebugText: {
+    fontSize: 10,
+    color: '#fff',
+  },
   /**
    * 시안에 AppBar 가 없다 — 상단 인디고 띠(트랙 전환 손잡이) 아래로 곧장 뷰파인더다.
    * 좌우 여백 16 은 시안의 뷰파인더 마진(398/430)과 같다.

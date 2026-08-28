@@ -23,7 +23,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RecognitionResult, SignSegment } from '@ear-dream/core';
 
 import { api } from '../../../api';
-import { recognizeConfirmFeedback } from '../capture/haptics';
 import { RECOGNIZE_TIMEOUT_MS } from './config';
 import { createRequestId } from './createRequestId';
 import { isAbortError } from './isAbortError';
@@ -147,7 +146,6 @@ export function useRecognitionQueue(sessionId: string): UseRecognitionQueueResul
                   : entry,
               ),
             );
-            recognizeConfirmFeedback();
           } else {
             // rejected/low_quality — 인식 실패. pill 을 제거하고 배너로 "다시 동작" 안내.
             attemptsRef.current.delete(localId);

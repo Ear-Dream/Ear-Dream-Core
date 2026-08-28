@@ -10,6 +10,7 @@
  */
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { HapticProbePanel } from './capture/HapticProbePanel';
 import { CameraLandmarkView } from './landmarks';
 
 export function LandmarkDevScreen() {
@@ -22,6 +23,10 @@ export function LandmarkDevScreen() {
           얼굴 검출을 껐다 켜며 FPS 변화를 기록해 두세요 — 설계 문서의 TARGET_FPS 를 정하는 근거가 됩니다.
         </Text>
       </View>
+
+      {/* 카메라보다 위에 둔다 — 진동 확인은 카메라 권한·검출과 무관하고, 실기기에서
+          스크롤을 내리지 않고 바로 눌러 볼 수 있어야 한다. */}
+      <HapticProbePanel />
 
       <CameraLandmarkView />
     </ScrollView>
