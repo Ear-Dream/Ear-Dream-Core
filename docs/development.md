@@ -148,10 +148,6 @@ API 타입을 건너뛴 채로 `pnpm typecheck`를 돌리면
 `Cannot find module './generated/schema'`로 실패한다. 타입은 번들 시점에 지워지므로
 `pnpm dev:web` 자체는 그래도 돈다.
 
-내려받기. 전부 커밋하지 않는 산출물이라 클론 직후 한 번 필요하다.
-
-API 타입(`packages/core/src/generated/`)을 건너뛰면 `pnpm typecheck`가
-
 앱에서는 `@ear-dream/core`의 클라이언트를 사용한다. 경로, 요청, 응답이 모두 타입 검사된다.
 
 ```typescript
@@ -169,7 +165,7 @@ const { data, error } = await api.GET('/api/v1/vocabulary');
 pnpm setup:model-bundle
 ```
 
-`packages/ear-dream-api/var/models/single-observed-300-allpeople/`에 생긴다. 이미 있으면
+`packages/ear-dream-api/var/models/single-observed-300-v2/`에 생긴다. 이미 있으면
 건너뛰고, 다시 만들려면 `--force`를 붙인다.
 
 **학습 레포를 클론해 둘 필요가 없다.** 이 명령은 공개 학습 저장소
@@ -200,14 +196,15 @@ pnpm setup:model-bundle
 빌드 스크립트를 직접 부른다. **레포 루트에서** 서브셸로 감싸면 현재 위치가 바뀌지 않는다.
 
 ```bash
-(cd packages/ear-dream-api && uv run python scripts/build_single_observed_bundle.py --run final_deployment)
+(cd packages/ear-dream-api && uv run python scripts/build_single_observed_bundle.py --run final_all_people_deployment)
 ```
 
 ```bash
 (cd packages/ear-dream-api && uv run python scripts/build_single_observed_bundle.py --ref main)
 ```
 
-- `--run` — 같은 세대의 다른 번들 (`final_all_people_deployment` 기본 / `final_deployment`)
+- `--run` — 어느 학습 산출물로 번들을 만들지 (기본 `kh_partial_deployment` = 현재 서빙하는
+  4인 person-adapted / `final_all_people_deployment` = 이전 세대 3인 모델, 비교용)
 - `--ref` — 학습 레포의 커밋 SHA·브랜치·태그. **새 모델을 채택하면 스크립트의
   `DEFAULT_REF`를 새 SHA로 갱신한다** (브랜치로 두면 같은 명령이 시점에 따라 다른
   가중치를 받는다)
