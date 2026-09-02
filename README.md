@@ -10,6 +10,23 @@ FastAPI + React Native 기반의 한손 수어 인식 실시간 통역 서비스
 - 청인 → 농인: 음성 인식(STT) → 문장을 어휘 단어로 분해 → 단어별 수어 동작을
   아바타로 재생
 
+실제 화면입니다. 왼쪽 둘이 농인 → 청인, 오른쪽 둘이 청인 → 농인 방향입니다.
+
+<table>
+<tr>
+<td width="25%" align="center"><img src="docs/images/screen-home.png" width="190" alt="진입 선택 화면 — 위쪽은 음성으로 말하기, 아래쪽은 수어로 말하기"></td>
+<td width="25%" align="center"><img src="docs/images/screen-sign-input.png" width="190" alt="수어 입력 화면 — 검은 뷰파인더와 초록 프레이밍 가이드, 아래에 단어가 쌓이는 띠와 기록 버튼"></td>
+<td width="25%" align="center"><img src="docs/images/screen-voice-input.png" width="190" alt="청인 음성 입력 화면 — 가운데 마이크 버튼과 키보드 입력 버튼"></td>
+<td width="25%" align="center"><img src="docs/images/screen-avatar.png" width="190" alt="아바타가 「수어 통역사 부탁해요」를 수어 동작으로 재생하는 화면"></td>
+</tr>
+<tr>
+<td valign="top"><b>진입 선택</b><br>어느 쪽이 말할 차례인지 고릅니다. 위는 음성, 아래는 수어입니다.</td>
+<td valign="top"><b>수어 입력</b><br>가이드 박스에 얼굴과 양어깨를 맞추고, 버튼을 <b>누르고 있는 동안</b> 한 단어를 기록합니다. 인식된 단어는 아래 띠에 쌓이고, 잘못 나온 단어는 탭해서 바꿉니다. <i>(카메라를 연결하지 않고 찍어 뷰파인더가 검게 나왔습니다)</i></td>
+<td valign="top"><b>음성 입력</b><br>청인이 말하면 받아쓰고, 주변이 시끄러우면 키보드로 넣습니다.</td>
+<td valign="top"><b>아바타 재생</b><br>받은 문장을 어휘 단어로 쪼개 동작을 차례로 보여 줍니다. 자막은 원래 문장입니다.</td>
+</tr>
+</table>
+
 > 설계와 파이프라인은 [아키텍처 문서](docs/architecture.md)에 있습니다.
 
 ## 빠른 시작
